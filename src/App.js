@@ -1,24 +1,34 @@
-import logo from './logo.svg';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AppProvider } from './context/AppContext';
+import Navbar from './components/Navbar';
+import Dashboard from './pages/Dashboard';
+import Trades from './pages/Trades';
+import Signals from './pages/Signals';
+import Portfolio from './pages/Portfolio';
+import Market from './pages/Market';
+import Settings from './pages/Settings';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <AppProvider>
+      <Router>
+        <div className="app">
+          <Navbar />
+          <div className="main-content">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/trades" element={<Trades />} />
+              <Route path="/signals" element={<Signals />} />
+              <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/market" element={<Market />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </div>
+        </div>
+      </Router>
+    </AppProvider>
   );
 }
 
