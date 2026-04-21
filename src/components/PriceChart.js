@@ -11,17 +11,16 @@ function PriceChart({ symbol, entryPrice, market }) {
 
   // Fetch 24h historical chart — every 5 minutes is enough
   useEffect(() => {
-    fetchChart();
+    fetchChart(); // eslint-disable-line react-hooks/exhaustive-deps
     const interval = setInterval(fetchChart, 300000);
     return () => clearInterval(interval);
-  }, [symbol]);
+  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch live price — every 10 seconds
   useEffect(() => {
-    fetchLivePrice();
+    fetchLivePrice(); // eslint-disable-line react-hooks/exhaustive-deps
     const interval = setInterval(fetchLivePrice, 10000);
     return () => clearInterval(interval);
-  }, [symbol]);
+  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchChart() {
     try {

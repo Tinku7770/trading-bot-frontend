@@ -7,7 +7,7 @@ export function AppProvider({ children }) {
   const [tradeMode, setTradeMode] = useState('paper');
   const [liveSignals, setLiveSignals] = useState([]);
   const [liveTrades, setLiveTrades] = useState([]);
-  const [ws, setWs] = useState(null);
+  const [ws, setWs] = useState(null); // eslint-disable-line no-unused-vars
 
   useEffect(() => {
     const socket = new WebSocket('wss://trading-bot-backend-production-9a53.up.railway.app');

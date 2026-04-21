@@ -14,10 +14,10 @@ function Dashboard() {
   const [trumpAlert, setTrumpAlert] = useState(null);
 
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(); // eslint-disable-line react-hooks/exhaustive-deps
     const interval = setInterval(fetchDashboard, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for Trump alerts via WebSocket
   useEffect(() => {
