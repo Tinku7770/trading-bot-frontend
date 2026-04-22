@@ -16,6 +16,7 @@ function Settings() {
     trailingStopPercent: 2,
     winRatePauseEnabled: false,
     minWinRate: 40,
+    minConfidence: 65,
     cryptoSymbols: ['BTC/USDT', 'ETH/USDT'],
     stockSymbols: ['AAPL', 'TSLA', 'NVDA', 'XOM', 'CVX']
   });
@@ -198,6 +199,21 @@ function Settings() {
           {(settings.leverageMultiplier || 1) === 1 && (
             <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>1x = no leverage (spot trading). Try 2x or 3x to test.</p>
           )}
+        </div>
+
+        <div className="form-group">
+          <label>Minimum AI Confidence (%) to Trade</label>
+          <input
+            type="number"
+            min="55"
+            max="90"
+            step="5"
+            value={settings.minConfidence || 65}
+            onChange={e => setSettings({ ...settings, minConfidence: parseFloat(e.target.value) })}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Bot only trades when AI confidence is at or above this %. Higher = fewer but better trades. Recommended: 65%.
+          </p>
         </div>
 
         <div className="form-group">
