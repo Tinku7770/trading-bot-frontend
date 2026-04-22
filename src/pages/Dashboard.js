@@ -135,7 +135,7 @@ function Dashboard() {
       <div className="bot-toggle">
         <div>
           <h2>AI Trading Bot</h2>
-          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Analyzes market every 15 minutes | Trump monitor: every 2 min</p>
+          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Analyzes market every 30 minutes | Trump monitor: every 2 min</p>
         </div>
         <button className={`toggle-btn ${botStatus ? 'stop' : 'start'}`} onClick={toggleBot}>
           {botStatus ? 'Stop Bot' : 'Start Bot'}
