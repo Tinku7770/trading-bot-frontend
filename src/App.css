@@ -203,8 +203,30 @@ tr:hover td {
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .main-content { padding: 12px; }
+  .bot-toggle {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .bot-toggle > div { width: 100%; }
+  table { font-size: 12px; }
+  th, td { padding: 8px 6px; }
+  .card .value { font-size: 22px; }
+  .page-title { font-size: 20px; }
 }
 
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .main-content { padding: 10px; }
+  .bot-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .toggle-btn, .save-btn {
+    width: 100%;
+    text-align: center;
+  }
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+  .section { padding: 14px; }
+  .card { padding: 14px; }
+  .card .value { font-size: 20px; }
 }
