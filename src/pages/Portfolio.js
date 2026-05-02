@@ -3,7 +3,7 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import PriceChart from '../components/PriceChart';
 
-const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+const API = process.env.REACT_APP_API_URL;
 const COLORS = ['#5865f2', '#00c853', '#ff3d3d', '#ffd600', '#40a9ff'];
 
 function Portfolio() {
@@ -35,10 +35,12 @@ function Portfolio() {
   // Pie chart: crypto vs stocks
   const cryptoTrades = trades.filter(t => t.market === 'crypto').length;
   const stockTrades = trades.filter(t => t.market === 'stock').length;
-  const pieData = [
-    { name: 'Crypto', value: cryptoTrades || 1 },
-    { name: 'Stocks', value: stockTrades || 1 }
-  ];
+  const pieData = cryptoTrades === 0 && stockTrades === 0
+    ? [{ name: 'No trades', value: 1 }]
+    : [
+        ...(cryptoTrades > 0 ? [{ name: 'Crypto', value: cryptoTrades }] : []),
+        ...(stockTrades > 0 ? [{ name: 'Stocks', value: stockTrades }] : [])
+      ];
 
   if (loading) return <div className="page-title">Loading...</div>;
 

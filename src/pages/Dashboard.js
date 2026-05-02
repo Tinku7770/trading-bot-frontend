@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 
-const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+const API = process.env.REACT_APP_API_URL;
 
 function Dashboard() {
   const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades } = useApp();
@@ -11,28 +11,12 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [closingId, setClosingId] = useState(null);
-  const [trumpAlert, setTrumpAlert] = useState(null);
 
   useEffect(() => {
-    fetchDashboard(); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchDashboard();
     const interval = setInterval(fetchDashboard, 30000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Listen for Trump alerts via WebSocket
-  useEffect(() => {
-    const handler = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'TRUMP_ALERT') {
-          setTrumpAlert(msg);
-          setTimeout(() => setTrumpAlert(null), 60000); // hide after 60s
-        }
-      } catch {}
-    };
-    window.addEventListener('ws-message', handler);
-    return () => window.removeEventListener('ws-message', handler);
-  }, []);
 
   async function fetchDashboard() {
     try {
@@ -64,10 +48,8 @@ function Dashboard() {
     try {
       setClosingId(tradeId);
       await axios.post(`${API}/bot/close-position/${tradeId}`);
-      setTimeout(async () => {
-        await fetchDashboard();
-        setClosingId(null);
-      }, 2000);
+      await fetchDashboard();
+      setClosingId(null);
     } catch (err) {
       alert('Failed to close position');
       setClosingId(null);
@@ -78,7 +60,7 @@ function Dashboard() {
     try {
       setRunning(true);
       await axios.post(`${API}/bot/run-now`);
-      setTimeout(() => { fetchDashboard(); setRunning(false); }, 30000);
+      setTimeout(() => { fetchDashboard(); setRunning(false); }, 5000);
     } catch (err) {
       alert('Failed to trigger bot');
       setRunning(false);
@@ -88,8 +70,16 @@ function Dashboard() {
   if (loading) return <div className="page-title">Loading...</div>;
 
   const stats = data?.stats || {};
-  const recentTrades = [...(liveTrades.length ? liveTrades : []), ...(data?.recentTrades || [])].slice(0, 8);
-  const recentSignals = [...(liveSignals.length ? liveSignals : []), ...(data?.recentSignals || [])].slice(0, 8);
+
+  const seenTradeIds = new Set();
+  const recentTrades = [...liveTrades, ...(data?.recentTrades || [])]
+    .filter(t => { if (seenTradeIds.has(t._id)) return false; seenTradeIds.add(t._id); return true; })
+    .slice(0, 8);
+
+  const seenSignalIds = new Set();
+  const recentSignals = [...liveSignals, ...(data?.recentSignals || [])]
+    .filter(s => { if (seenSignalIds.has(s._id)) return false; seenSignalIds.add(s._id); return true; })
+    .slice(0, 8);
 
   const capitalPct = stats.totalCapital > 0
     ? ((stats.capitalInTrades / stats.totalCapital) * 100).toFixed(0)
@@ -99,43 +89,11 @@ function Dashboard() {
     <div>
       <h1 className="page-title">Dashboard</h1>
 
-      {/* Trump Alert Banner */}
-      {trumpAlert && (
-        <div style={{
-          background: 'linear-gradient(135deg, #1a0a00, #2d1200)',
-          border: '2px solid #ff6b35',
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 12
-        }}>
-          <span style={{ fontSize: 28 }}>🚨</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, color: '#ff6b35', fontSize: 15, marginBottom: 4 }}>
-              Trump Post Detected — {trumpAlert.analysis?.impact} Market Impact
-            </div>
-            <div style={{ color: '#ccc', fontSize: 13, marginBottom: 6 }}>
-              "{trumpAlert.post?.substring(0, 150)}..."
-            </div>
-            <div style={{ fontSize: 12, color: '#888' }}>
-              Direction: <span style={{ color: trumpAlert.analysis?.direction === 'BULLISH' ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
-                {trumpAlert.analysis?.direction}
-              </span>
-              &nbsp;|&nbsp;
-              Affected: <strong style={{ color: '#fff' }}>{trumpAlert.analysis?.affectedSymbols?.join(', ')}</strong>
-            </div>
-          </div>
-          <button onClick={() => setTrumpAlert(null)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 18 }}>✕</button>
-        </div>
-      )}
-
       {/* Bot Control */}
       <div className="bot-toggle">
         <div>
           <h2>AI Trading Bot</h2>
-          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Analyzes market every 30 minutes | Trump monitor: every 2 min</p>
+          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Analyzes market every 30 minutes</p>
         </div>
         <button className={`toggle-btn ${botStatus ? 'stop' : 'start'}`} onClick={toggleBot}>
           {botStatus ? 'Stop Bot' : 'Start Bot'}
@@ -153,7 +111,7 @@ function Dashboard() {
             color: '#fff', fontWeight: 600, cursor: running ? 'not-allowed' : 'pointer', fontSize: 14
           }}
         >
-          {running ? 'Analyzing... (30s)' : 'Run Now'}
+          {running ? 'Analyzing...' : 'Run Now'}
         </button>
       </div>
 
@@ -196,7 +154,6 @@ function Dashboard() {
             <div className="value" style={{ color: '#00c853' }}>${(stats.availableCapital || 0).toFixed(2)}</div>
           </div>
         </div>
-        {/* Progress bar */}
         <div style={{ background: '#1a1d27', borderRadius: 8, overflow: 'hidden', height: 12 }}>
           <div style={{
             width: `${capitalPct}%`,
@@ -212,7 +169,7 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Open Positions with individual close buttons */}
+      {/* Open Positions */}
       {data?.openTrades?.length > 0 && (
         <div className="section">
           <h3>Open Positions</h3>
@@ -257,7 +214,6 @@ function Dashboard() {
             </tbody>
           </table>
 
-          {/* Live charts below the table */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, marginTop: 20 }}>
             {data.openTrades.map((trade, i) => (
               <PriceChart
@@ -322,7 +278,7 @@ function Dashboard() {
           </thead>
           <tbody>
             {recentTrades.length === 0 ? (
-              <tr><td colSpan={7} style={{ color: '#666', textAlign: 'center' }}>No trades yet</td></tr>
+              <tr><td colSpan={8} style={{ color: '#666', textAlign: 'center' }}>No trades yet</td></tr>
             ) : recentTrades.map((t, i) => (
               <tr key={i}>
                 <td><strong>{t.symbol}</strong></td>

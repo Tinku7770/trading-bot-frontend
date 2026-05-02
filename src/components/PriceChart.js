@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
 
-const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+const API = process.env.REACT_APP_API_URL;
 
 function PriceChart({ symbol, entryPrice, market }) {
   const [data, setData] = useState([]);

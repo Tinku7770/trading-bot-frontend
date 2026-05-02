@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
 
-const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+const API = process.env.REACT_APP_API_URL;
 
 function Signals() {
   const { liveSignals } = useApp();
@@ -16,7 +16,10 @@ function Signals() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const allSignals = [...liveSignals, ...signals].slice(0, 50);
+  const seenIds = new Set();
+  const allSignals = [...liveSignals, ...signals]
+    .filter(s => { if (seenIds.has(s._id)) return false; seenIds.add(s._id); return true; })
+    .slice(0, 50);
 
   if (loading) return <div className="page-title">Loading...</div>;
 

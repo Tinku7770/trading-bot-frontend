@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useApp } from '../context/AppContext';
 
-const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+const API = process.env.REACT_APP_API_URL;
 
 function Settings() {
+  const { setTradeMode } = useApp();
   const [settings, setSettings] = useState({
     maxTradeAmount: 1000,
     stopLossPercent: 1,
@@ -31,6 +33,7 @@ function Settings() {
   async function saveSettings() {
     try {
       await axios.put(`${API}/bot/settings`, settings);
+      setTradeMode(settings.tradeMode);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -243,13 +246,13 @@ function Settings() {
       <div className="section" style={{ maxWidth: 600 }}>
         <h3>How The Bot Works</h3>
         <div style={{ color: '#888', fontSize: 14, lineHeight: 1.8 }}>
-          <p>1. Every 15 minutes the bot runs an analysis cycle</p>
+          <p>1. Every 30 minutes the bot runs an analysis cycle</p>
           <p>2. It fetches latest news for each symbol</p>
           <p>3. It checks current price and 24h change</p>
           <p>4. For crypto, it checks whale wallet activity</p>
           <p>5. All data is sent to Claude AI for decision</p>
-          <p>6. If confidence is 60%+ and decision is BUY → opens LONG position</p>
-          <p>6b. If confidence is 60%+ and decision is SELL + shorting enabled → opens SHORT position</p>
+          <p>6. If confidence is 65%+ and decision is BUY → opens LONG position</p>
+          <p>6b. If confidence is 65%+ and decision is SELL + shorting enabled → opens SHORT position</p>
           <p>7. All signals and trades are logged to dashboard</p>
         </div>
       </div>
