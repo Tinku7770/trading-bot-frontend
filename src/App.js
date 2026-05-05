@@ -8,6 +8,7 @@ import Signals from './pages/Signals';
 import Portfolio from './pages/Portfolio';
 import Market from './pages/Market';
 import Settings from './pages/Settings';
+import Performance from './pages/Performance';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/market" element={<Market />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/performance" element={<Performance />} />
             </Routes>
           </div>
         </div>

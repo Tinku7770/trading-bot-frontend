@@ -13,6 +13,7 @@ function Navbar() {
     { path: '/trades', label: 'Trades' },
     { path: '/signals', label: 'Signals' },
     { path: '/market', label: 'Market' },
+    { path: '/performance', label: 'Performance' },
     { path: '/settings', label: 'Settings' }
   ];
 
