@@ -3,6 +3,12 @@ import axios from 'axios';
 
 const API = process.env.REACT_APP_API_URL;
 
+// Format a dollar amount with correct sign position: +$150.25 or -$50.00
+function fmt(value) {
+  const abs = Math.abs(value).toFixed(2);
+  return value >= 0 ? `+$${abs}` : `-$${abs}`;
+}
+
 function Performance() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +40,7 @@ function Performance() {
         <div className="card">
           <h2>Total P/L</h2>
           <div className="value" style={{ color: plColor(data.totalPL) }}>
-            ${data.totalPL >= 0 ? '+' : ''}{data.totalPL}
+            {fmt(data.totalPL)}
           </div>
         </div>
         <div className="card">
@@ -45,11 +51,11 @@ function Performance() {
         </div>
         <div className="card">
           <h2>Avg Win</h2>
-          <div className="value" style={{ color: '#00c853' }}>+${data.avgWin}</div>
+          <div className="value" style={{ color: '#00c853' }}>{fmt(data.avgWin)}</div>
         </div>
         <div className="card">
           <h2>Avg Loss</h2>
-          <div className="value" style={{ color: '#ff3d3d' }}>${data.avgLoss}</div>
+          <div className="value" style={{ color: '#ff3d3d' }}>{fmt(data.avgLoss)}</div>
         </div>
         <div className="card">
           <h2>Risk : Reward</h2>
@@ -93,7 +99,7 @@ function Performance() {
                   <div><strong>{data.bestTrade.symbol}</strong> — {data.bestTrade.type}</div>
                   <div style={{ color: '#888', fontSize: 12 }}>Entry: ${data.bestTrade.price?.toFixed(2)} → Exit: ${data.bestTrade.closePrice?.toFixed(2)}</div>
                   <div style={{ color: '#00c853', fontSize: 22, fontWeight: 700, marginTop: 8 }}>
-                    +${data.bestTrade.profitLoss?.toFixed(2)}
+                    {fmt(data.bestTrade.profitLoss)}
                   </div>
                 </div>
               </div>
@@ -105,7 +111,7 @@ function Performance() {
                   <div><strong>{data.worstTrade.symbol}</strong> — {data.worstTrade.type}</div>
                   <div style={{ color: '#888', fontSize: 12 }}>Entry: ${data.worstTrade.price?.toFixed(2)} → Exit: ${data.worstTrade.closePrice?.toFixed(2)}</div>
                   <div style={{ color: '#ff3d3d', fontSize: 22, fontWeight: 700, marginTop: 8 }}>
-                    ${data.worstTrade.profitLoss?.toFixed(2)}
+                    {fmt(data.worstTrade.profitLoss)}
                   </div>
                 </div>
               </div>
@@ -136,10 +142,10 @@ function Performance() {
                 <td style={{ color: '#888' }}>{s.market}</td>
                 <td>{s.trades} ({s.wins}W / {s.losses}L)</td>
                 <td style={{ color: s.winRate >= 50 ? '#00c853' : '#ff3d3d' }}>{s.winRate}%</td>
-                <td style={{ color: '#00c853' }}>{s.avgWin > 0 ? `+$${s.avgWin}` : '-'}</td>
-                <td style={{ color: '#ff3d3d' }}>{s.avgLoss < 0 ? `$${s.avgLoss}` : '-'}</td>
+                <td style={{ color: '#00c853' }}>{s.avgWin > 0 ? fmt(s.avgWin) : '-'}</td>
+                <td style={{ color: '#ff3d3d' }}>{s.avgLoss < 0 ? fmt(s.avgLoss) : '-'}</td>
                 <td style={{ color: plColor(s.totalPL), fontWeight: 700 }}>
-                  {s.totalPL >= 0 ? '+' : ''}${s.totalPL}
+                  {fmt(s.totalPL)}
                 </td>
               </tr>
             ))}
