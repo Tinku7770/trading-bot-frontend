@@ -1,5 +1,11 @@
 import React from 'react';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+// Attach API key to every axios request automatically
+if (process.env.REACT_APP_DASHBOARD_API_KEY) {
+  axios.defaults.headers.common['x-api-key'] = process.env.REACT_APP_DASHBOARD_API_KEY;
+}
 import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
