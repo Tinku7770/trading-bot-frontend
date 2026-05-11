@@ -23,12 +23,22 @@ function Settings() {
     stockSymbols: ['AAPL', 'TSLA', 'NVDA', 'XOM', 'CVX']
   });
   const [saved, setSaved] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    axios.get(`${API}/bot/status`).then(res => {
-      if (res.data) setSettings(res.data);
-    });
+    axios.get(`${API}/bot/status`)
+      .then(res => { if (res.data) { setSettings(res.data); setLoadError(false); } })
+      .catch(() => setLoadError(true));
   }, []);
+
+  function numInput(field, value) {
+    const parsed = parseFloat(value);
+    setSettings({ ...settings, [field]: isNaN(parsed) ? '' : parsed });
+  }
+
+  function cleanSymbols(str) {
+    return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  }
 
   async function saveSettings() {
     try {
@@ -37,13 +47,22 @@ function Settings() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert('Failed to save settings');
+      alert('Failed to save settings — check your connection');
     }
   }
 
   return (
     <div>
       <h1 className="page-title">Settings</h1>
+
+      {loadError && (
+        <div style={{
+          background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8,
+          padding: '12px 16px', marginBottom: 20, color: '#ff3d3d', fontSize: 13
+        }}>
+          Could not load saved settings — showing defaults. Check your connection or restart the dev server.
+        </div>
+      )}
 
       <div className="section" style={{ maxWidth: 600 }}>
         <h3>Trading Settings</h3>
@@ -65,8 +84,9 @@ function Settings() {
           <label>Max Trade Amount ($)</label>
           <input
             type="number"
+            min="1"
             value={settings.maxTradeAmount}
-            onChange={e => setSettings({ ...settings, maxTradeAmount: parseFloat(e.target.value) })}
+            onChange={e => numInput('maxTradeAmount', e.target.value)}
           />
         </div>
 
@@ -74,8 +94,10 @@ function Settings() {
           <label>Stop Loss (%)</label>
           <input
             type="number"
+            min="0.1"
+            step="0.1"
             value={settings.stopLossPercent}
-            onChange={e => setSettings({ ...settings, stopLossPercent: parseFloat(e.target.value) })}
+            onChange={e => numInput('stopLossPercent', e.target.value)}
           />
         </div>
 
@@ -83,8 +105,10 @@ function Settings() {
           <label>Take Profit (%)</label>
           <input
             type="number"
+            min="0.1"
+            step="0.1"
             value={settings.takeProfitPercent}
-            onChange={e => setSettings({ ...settings, takeProfitPercent: parseFloat(e.target.value) })}
+            onChange={e => numInput('takeProfitPercent', e.target.value)}
           />
         </div>
 
@@ -92,8 +116,10 @@ function Settings() {
           <label>Max Daily Loss (% of total capital)</label>
           <input
             type="number"
+            min="0.1"
+            step="0.5"
             value={settings.maxDailyLossPercent}
-            onChange={e => setSettings({ ...settings, maxDailyLossPercent: parseFloat(e.target.value) })}
+            onChange={e => numInput('maxDailyLossPercent', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
             Bot auto-stops if daily loss exceeds this % of your capital. e.g. 5% of $1,000 = bot stops after -$50 loss in one day.
@@ -125,7 +151,7 @@ function Settings() {
               max="10"
               step="0.5"
               value={settings.trailingStopPercent || 2}
-              onChange={e => setSettings({ ...settings, trailingStopPercent: parseFloat(e.target.value) })}
+              onChange={e => numInput('trailingStopPercent', e.target.value)}
             />
             <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
               e.g. 2% — if TSLA peaks at $420, stop sits at $411.60. If price drops to $411.60 → closes trade.
@@ -158,7 +184,7 @@ function Settings() {
               max="80"
               step="5"
               value={settings.minWinRate || 40}
-              onChange={e => setSettings({ ...settings, minWinRate: parseFloat(e.target.value) })}
+              onChange={e => numInput('minWinRate', e.target.value)}
             />
             <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
               Recommended: 40%. Bot pauses if win rate falls below this after at least 5 trades today.
@@ -178,7 +204,7 @@ function Settings() {
             <span style={{ background: '#3d1a00', color: '#ff6b35', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>SHORT</span>
           </label>
           <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
-            When enabled: bot opens a SHORT position when AI says SELL with 60%+ confidence.
+            When enabled: bot opens a SHORT position when AI says SELL with {settings.minConfidence || 65}%+ confidence.
             Profits when price goes <strong style={{ color: '#ff6b35' }}>down</strong>, loses when price goes up.
           </p>
         </div>
@@ -191,7 +217,7 @@ function Settings() {
             max="10"
             step="0.5"
             value={settings.leverageMultiplier || 1}
-            onChange={e => setSettings({ ...settings, leverageMultiplier: parseFloat(e.target.value) })}
+            onChange={e => numInput('leverageMultiplier', e.target.value)}
           />
           {(settings.leverageMultiplier || 1) > 1 && (
             <p style={{ color: '#ff3d3d', fontSize: 12, marginTop: 4 }}>
@@ -212,7 +238,7 @@ function Settings() {
             max="90"
             step="5"
             value={settings.minConfidence || 65}
-            onChange={e => setSettings({ ...settings, minConfidence: parseFloat(e.target.value) })}
+            onChange={e => numInput('minConfidence', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
             Bot only trades when AI confidence is at or above this %. Higher = fewer but better trades. Recommended: 65%.
@@ -224,8 +250,11 @@ function Settings() {
           <input
             type="text"
             value={settings.cryptoSymbols?.join(', ')}
-            onChange={e => setSettings({ ...settings, cryptoSymbols: e.target.value.split(',').map(s => s.trim()) })}
+            onChange={e => setSettings({ ...settings, cryptoSymbols: cleanSymbols(e.target.value) })}
           />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            e.g. BTC/USDT, ETH/USDT, SOL/USDT
+          </p>
         </div>
 
         <div className="form-group">
@@ -233,8 +262,11 @@ function Settings() {
           <input
             type="text"
             value={settings.stockSymbols?.join(', ')}
-            onChange={e => setSettings({ ...settings, stockSymbols: e.target.value.split(',').map(s => s.trim()) })}
+            onChange={e => setSettings({ ...settings, stockSymbols: cleanSymbols(e.target.value) })}
           />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            e.g. AAPL, TSLA, NVDA, XOM, CVX
+          </p>
         </div>
 
         <button className="save-btn" onClick={saveSettings}>
@@ -247,13 +279,14 @@ function Settings() {
         <h3>How The Bot Works</h3>
         <div style={{ color: '#888', fontSize: 14, lineHeight: 1.8 }}>
           <p>1. Every 30 minutes the bot runs an analysis cycle</p>
-          <p>2. It fetches latest news for each symbol</p>
-          <p>3. It checks current price and 24h change</p>
-          <p>4. For crypto, it checks whale wallet activity</p>
-          <p>5. All data is sent to Claude AI for decision</p>
-          <p>6. If confidence is 65%+ and decision is BUY → opens LONG position</p>
-          <p>6b. If confidence is 65%+ and decision is SELL + shorting enabled → opens SHORT position</p>
-          <p>7. All signals and trades are logged to dashboard</p>
+          <p>2. It fetches latest news, price, whale activity for each symbol</p>
+          <p>3. Technical indicators: RSI, MACD, MA50, MA200</p>
+          <p>4. Social sentiment from StockTwits + Polymarket predictions</p>
+          <p>5. All data is sent to Claude AI for a trading decision</p>
+          <p>6. If confidence ≥ {settings.minConfidence || 65}% and decision is BUY → opens LONG position</p>
+          <p>7. If confidence ≥ {settings.minConfidence || 65}% and decision is SELL + shorting enabled → opens SHORT</p>
+          <p>8. Stop loss at {settings.stopLossPercent || 1}% | Take profit at {settings.takeProfitPercent || 1.5}%</p>
+          <p>9. Daily report sent at 6 PM California time</p>
         </div>
       </div>
     </div>
