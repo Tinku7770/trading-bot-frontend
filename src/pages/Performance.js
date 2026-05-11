@@ -5,6 +5,7 @@ const API = process.env.REACT_APP_API_URL;
 
 // Format a dollar amount with correct sign position: +$150.25 or -$50.00
 function fmt(value) {
+  if (value == null || !isFinite(value) || isNaN(value)) return 'N/A';
   const abs = Math.abs(value).toFixed(2);
   return value >= 0 ? `+$${abs}` : `-$${abs}`;
 }
@@ -59,8 +60,8 @@ function Performance() {
         </div>
         <div className="card">
           <h2>Risk : Reward</h2>
-          <div className="value" style={{ color: data.riskReward >= 1 ? '#00c853' : '#f5a623' }}>
-            1 : {data.riskReward}
+          <div className="value" style={{ color: (data.riskReward || 0) >= 1 ? '#00c853' : '#f5a623' }}>
+            {data.riskReward ? `1 : ${data.riskReward}` : 'N/A'}
           </div>
         </div>
         <div className="card">
