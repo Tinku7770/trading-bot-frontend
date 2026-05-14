@@ -1,36 +1,94 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell
+} from 'recharts';
 
 const API = process.env.REACT_APP_API_URL;
 
-// Format a dollar amount with correct sign position: +$150.25 or -$50.00
 function fmt(value) {
   if (value == null || !isFinite(value) || isNaN(value)) return 'N/A';
   const abs = Math.abs(value).toFixed(2);
   return value >= 0 ? `+$${abs}` : `-$${abs}`;
 }
 
+const plColor = v => v >= 0 ? '#00c853' : '#ff3d3d';
+
+function SortTh({ label, field, sortBy, sortDir, onSort }) {
+  const active = sortBy === field;
+  return (
+    <th
+      onClick={() => onSort(field)}
+      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+    >
+      {label}{' '}
+      <span style={{ color: active ? '#5865f2' : '#444', fontSize: 11 }}>
+        {active ? (sortDir === 'desc' ? '▼' : '▲') : '▼'}
+      </span>
+    </th>
+  );
+}
+
 function Performance() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [sortBy, setSortBy] = useState('totalPL');
+  const [sortDir, setSortDir] = useState('desc');
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     axios.get(`${API}/trades/performance`)
-      .then(res => { setData(res.data); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(res => { setData(res.data); setLoading(false); setError(false); })
+      .catch(() => { setLoading(false); setError(true); });
   }, []);
 
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  function handleSort(field) {
+    if (sortBy === field) {
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
+  }
+
   if (loading) return <div className="page-title">Loading...</div>;
+
+  if (error) return (
+    <div>
+      <h1 className="page-title">Performance Analytics</h1>
+      <div style={{
+        background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8,
+        padding: '16px 20px', color: '#ff3d3d', fontSize: 14
+      }}>
+        Could not load performance data — check your connection or try refreshing.
+      </div>
+    </div>
+  );
+
   if (!data || data.totalTrades === 0) return (
     <div>
-      <h1 className="page-title">Performance</h1>
+      <h1 className="page-title">Performance Analytics</h1>
       <div className="card" style={{ textAlign: 'center', color: '#666', padding: 40 }}>
         No closed trades yet — start the bot and let it run.
       </div>
     </div>
   );
 
-  const plColor = v => v >= 0 ? '#00c853' : '#ff3d3d';
+  const totalWins = data.symbols.reduce((sum, s) => sum + s.wins, 0);
+  const totalLosses = data.symbols.reduce((sum, s) => sum + s.losses, 0);
+
+  const sortedSymbols = [...data.symbols].sort((a, b) => {
+    const av = a[sortBy] ?? 0;
+    const bv = b[sortBy] ?? 0;
+    return sortDir === 'desc' ? bv - av : av - bv;
+  });
 
   return (
     <div>
@@ -51,6 +109,14 @@ function Performance() {
           </div>
         </div>
         <div className="card">
+          <h2>Wins / Losses</h2>
+          <div className="value">
+            <span style={{ color: '#00c853' }}>{totalWins}</span>
+            <span style={{ color: '#555', fontSize: 18 }}> / </span>
+            <span style={{ color: '#ff3d3d' }}>{totalLosses}</span>
+          </div>
+        </div>
+        <div className="card">
           <h2>Avg Win</h2>
           <div className="value" style={{ color: '#00c853' }}>{fmt(data.avgWin)}</div>
         </div>
@@ -64,13 +130,9 @@ function Performance() {
             {data.riskReward ? `1 : ${data.riskReward}` : 'N/A'}
           </div>
         </div>
-        <div className="card">
-          <h2>Total Trades</h2>
-          <div className="value">{data.totalTrades}</div>
-        </div>
       </div>
 
-      {/* Streak Badges */}
+      {/* Streaks */}
       <div className="section">
         <h3>Streaks</h3>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -98,7 +160,9 @@ function Performance() {
                 <div style={{ color: '#00c853', fontWeight: 700, marginBottom: 8 }}>Best Trade</div>
                 <div style={{ fontSize: 14 }}>
                   <div><strong>{data.bestTrade.symbol}</strong> — {data.bestTrade.type}</div>
-                  <div style={{ color: '#888', fontSize: 12 }}>Entry: ${data.bestTrade.price?.toFixed(2)} → Exit: ${data.bestTrade.closePrice?.toFixed(2)}</div>
+                  <div style={{ color: '#888', fontSize: 12 }}>
+                    Entry: ${data.bestTrade.price?.toFixed(2)} → Exit: ${data.bestTrade.closePrice?.toFixed(2)}
+                  </div>
                   <div style={{ color: '#00c853', fontSize: 22, fontWeight: 700, marginTop: 8 }}>
                     {fmt(data.bestTrade.profitLoss)}
                   </div>
@@ -110,7 +174,9 @@ function Performance() {
                 <div style={{ color: '#ff3d3d', fontWeight: 700, marginBottom: 8 }}>Worst Trade</div>
                 <div style={{ fontSize: 14 }}>
                   <div><strong>{data.worstTrade.symbol}</strong> — {data.worstTrade.type}</div>
-                  <div style={{ color: '#888', fontSize: 12 }}>Entry: ${data.worstTrade.price?.toFixed(2)} → Exit: ${data.worstTrade.closePrice?.toFixed(2)}</div>
+                  <div style={{ color: '#888', fontSize: 12 }}>
+                    Entry: ${data.worstTrade.price?.toFixed(2)} → Exit: ${data.worstTrade.closePrice?.toFixed(2)}
+                  </div>
                   <div style={{ color: '#ff3d3d', fontSize: 22, fontWeight: 700, marginTop: 8 }}>
                     {fmt(data.worstTrade.profitLoss)}
                   </div>
@@ -121,7 +187,28 @@ function Performance() {
         </div>
       )}
 
-      {/* Per-Symbol Breakdown */}
+      {/* Per-Symbol P/L Bar Chart */}
+      <div className="section">
+        <h3>P/L by Symbol</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={data.symbols} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+            <XAxis dataKey="symbol" stroke="#666" tick={{ fontSize: 12 }} />
+            <YAxis stroke="#666" tickFormatter={v => `$${v}`} />
+            <Tooltip
+              contentStyle={{ background: '#1a1d27', border: '1px solid #2a2d3e' }}
+              formatter={(value) => [fmt(value), 'Total P/L']}
+            />
+            <Bar dataKey="totalPL" radius={[4, 4, 0, 0]}>
+              {data.symbols.map((s) => (
+                <Cell key={s.symbol} fill={s.totalPL >= 0 ? '#00c853' : '#ff3d3d'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Per-Symbol Breakdown Table */}
       <div className="section">
         <h3>Per-Symbol Breakdown</h3>
         <table>
@@ -129,15 +216,15 @@ function Performance() {
             <tr>
               <th>Symbol</th>
               <th>Market</th>
-              <th>Trades</th>
-              <th>Win Rate</th>
-              <th>Avg Win</th>
-              <th>Avg Loss</th>
-              <th>Total P/L</th>
+              <SortTh label="Trades" field="trades" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Win Rate" field="winRate" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Avg Win" field="avgWin" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Avg Loss" field="avgLoss" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Total P/L" field="totalPL" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
             </tr>
           </thead>
           <tbody>
-            {data.symbols.map((s) => (
+            {sortedSymbols.map((s) => (
               <tr key={s.symbol}>
                 <td><strong>{s.symbol}</strong></td>
                 <td style={{ color: '#888' }}>{s.market}</td>
@@ -145,9 +232,7 @@ function Performance() {
                 <td style={{ color: s.winRate >= 50 ? '#00c853' : '#ff3d3d' }}>{s.winRate}%</td>
                 <td style={{ color: '#00c853' }}>{s.avgWin > 0 ? fmt(s.avgWin) : '-'}</td>
                 <td style={{ color: '#ff3d3d' }}>{s.avgLoss < 0 ? fmt(s.avgLoss) : '-'}</td>
-                <td style={{ color: plColor(s.totalPL), fontWeight: 700 }}>
-                  {fmt(s.totalPL)}
-                </td>
+                <td style={{ color: plColor(s.totalPL), fontWeight: 700 }}>{fmt(s.totalPL)}</td>
               </tr>
             ))}
           </tbody>
