@@ -1,41 +1,125 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
 
 const API = process.env.REACT_APP_API_URL;
 
+function sentimentColor(val) {
+  if (!val) return '#888';
+  const v = val.toLowerCase();
+  if (['positive', 'bullish', 'buying', 'greed', 'extreme_greed'].includes(v)) return '#00c853';
+  if (['negative', 'bearish', 'selling', 'fear', 'extreme_fear'].includes(v)) return '#ff3d3d';
+  return '#888';
+}
+
+function formatDateTime(dateStr) {
+  return new Date(dateStr).toLocaleString([], {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function SentimentBadge({ label, value }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 80 }}>
+      <span style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
+      <span style={{ color: sentimentColor(value), fontWeight: 600, fontSize: 13 }}>{value || 'N/A'}</span>
+    </div>
+  );
+}
+
 function Signals() {
   const { liveSignals } = useApp();
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+  const [filterSymbol, setFilterSymbol] = useState('all');
+  const [filterDecision, setFilterDecision] = useState('all');
+
+  const load = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/signals`);
+      setSignals(res.data);
+      setError(false);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await axios.get(`${API}/signals`);
-        setSignals(res.data);
-      } catch {}
-      setLoading(false);
-    };
     load();
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [load]);
 
   const seenIds = new Set();
   const allSignals = [...liveSignals, ...signals]
-    .filter(s => { if (seenIds.has(s._id)) return false; seenIds.add(s._id); return true; })
-    .slice(0, 50);
+    .filter(s => { if (seenIds.has(s._id)) return false; seenIds.add(s._id); return true; });
+
+  const symbols = ['all', ...new Set(allSignals.map(s => s.symbol))];
+
+  const filtered = allSignals.filter(s => {
+    if (filterSymbol !== 'all' && s.symbol !== filterSymbol) return false;
+    if (filterDecision !== 'all' && s.decision !== filterDecision) return false;
+    return true;
+  });
 
   if (loading) return <div className="page-title">Loading...</div>;
+
+  if (error) return (
+    <div>
+      <h1 className="page-title">AI Signals</h1>
+      <div style={{
+        background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8,
+        padding: '16px 20px', color: '#ff3d3d', fontSize: 14
+      }}>
+        Could not load signals — check your connection or try refreshing.
+      </div>
+    </div>
+  );
 
   return (
     <div>
       <h1 className="page-title">AI Signals</h1>
-      <p style={{ color: '#888', marginBottom: 20 }}>All AI trading decisions with reasoning</p>
+      <p style={{ color: '#888', marginBottom: 20 }}>All AI trading decisions with reasoning — click a row to expand</p>
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20, alignItems: 'center' }}>
+        <select
+          value={filterSymbol}
+          onChange={e => setFilterSymbol(e.target.value)}
+          style={{ background: '#1a1d27', border: '1px solid #2a2d3e', color: '#fff', padding: '8px 12px', borderRadius: 6, fontSize: 13 }}
+        >
+          {symbols.map(s => (
+            <option key={s} value={s}>{s === 'all' ? 'All Symbols' : s}</option>
+          ))}
+        </select>
+
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['all', 'BUY', 'SELL', 'HOLD'].map(d => (
+            <button
+              key={d}
+              onClick={() => setFilterDecision(d)}
+              style={{
+                padding: '8px 16px', borderRadius: 6, border: 'none', fontSize: 13,
+                fontWeight: 600, cursor: 'pointer',
+                background: filterDecision === d ? (d === 'BUY' ? '#00c853' : d === 'SELL' ? '#ff3d3d' : d === 'HOLD' ? '#ffd600' : '#5865f2') : '#1a1d27',
+                color: filterDecision === d ? '#000' : '#888',
+                border: filterDecision === d ? 'none' : '1px solid #2a2d3e'
+              }}
+            >
+              {d === 'all' ? 'All' : d}
+            </button>
+          ))}
+        </div>
+
+        <span style={{ color: '#555', fontSize: 13, marginLeft: 'auto' }}>
+          Showing {filtered.length} of {allSignals.length} signals (last 7 days)
+        </span>
+      </div>
 
       <div className="section">
-        <h3>{allSignals.length} Signals</h3>
         <table>
           <thead>
             <tr>
@@ -47,44 +131,63 @@ function Signals() {
               <th>News</th>
               <th>Whale</th>
               <th>Trend</th>
-              <th>Reasoning</th>
               <th>Time</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {allSignals.length === 0 ? (
-              <tr><td colSpan={10} style={{ color: '#666', textAlign: 'center' }}>No signals yet — start the bot</td></tr>
-            ) : allSignals.map((s) => (
-              <tr key={s._id}>
-                <td><strong>{s.symbol}</strong></td>
-                <td style={{ color: '#888' }}>{s.market}</td>
-                <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{
-                      width: 50, height: 6, background: '#2a2d3e', borderRadius: 3, overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        width: `${s.confidence}%`, height: '100%',
-                        background: s.confidence >= 70 ? '#00c853' : s.confidence >= 50 ? '#ffd600' : '#ff3d3d'
-                      }} />
-                    </div>
-                    <span>{s.confidence}%</span>
-                  </div>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={10} style={{ color: '#666', textAlign: 'center' }}>
+                  {allSignals.length === 0 ? 'No signals yet — start the bot' : 'No signals match your filters'}
                 </td>
-                <td>${s.price?.toFixed(2)}</td>
-                <td style={{ color: s.newsSentiment === 'positive' ? '#00c853' : s.newsSentiment === 'negative' ? '#ff3d3d' : '#888' }}>
-                  {s.newsSentiment}
-                </td>
-                <td style={{ color: s.whaleActivity === 'buying' ? '#00c853' : s.whaleActivity === 'selling' ? '#ff3d3d' : '#888' }}>
-                  {s.whaleActivity}
-                </td>
-                <td style={{ color: s.marketTrend === 'bullish' ? '#00c853' : s.marketTrend === 'bearish' ? '#ff3d3d' : '#888' }}>
-                  {s.marketTrend}
-                </td>
-                <td style={{ color: '#888', fontSize: 12 }}>{s.reasoning?.substring(0, 60)}...</td>
-                <td style={{ color: '#666', fontSize: 12 }}>{new Date(s.createdAt).toLocaleTimeString()}</td>
               </tr>
+            ) : filtered.map((s) => (
+              <React.Fragment key={s._id}>
+                <tr
+                  onClick={() => setExpandedId(expandedId === s._id ? null : s._id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td><strong>{s.symbol}</strong></td>
+                  <td style={{ color: '#888' }}>{s.market}</td>
+                  <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 50, height: 6, background: '#2a2d3e', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${s.confidence}%`, height: '100%',
+                          background: s.confidence >= 70 ? '#00c853' : s.confidence >= 50 ? '#ffd600' : '#ff3d3d'
+                        }} />
+                      </div>
+                      <span>{s.confidence}%</span>
+                    </div>
+                  </td>
+                  <td>${s.price?.toFixed(2)}</td>
+                  <td style={{ color: sentimentColor(s.newsSentiment) }}>{s.newsSentiment}</td>
+                  <td style={{ color: sentimentColor(s.whaleActivity) }}>{s.whaleActivity}</td>
+                  <td style={{ color: sentimentColor(s.marketTrend) }}>{s.marketTrend}</td>
+                  <td style={{ color: '#666', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDateTime(s.createdAt)}</td>
+                  <td style={{ color: '#555', fontSize: 12 }}>{expandedId === s._id ? '▲' : '▼'}</td>
+                </tr>
+
+                {expandedId === s._id && (
+                  <tr>
+                    <td colSpan={10} style={{ background: '#13151f', padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', marginBottom: 16 }}>
+                        <SentimentBadge label="News" value={s.newsSentiment} />
+                        <SentimentBadge label="Whale" value={s.whaleActivity} />
+                        <SentimentBadge label="Trend" value={s.marketTrend} />
+                        <SentimentBadge label="Fear & Greed" value={s.fearGreedSignal} />
+                        <SentimentBadge label="Social" value={s.socialSignal} />
+                      </div>
+                      <div style={{ color: '#aaa', fontSize: 13, lineHeight: 1.7, borderTop: '1px solid #2a2d3e', paddingTop: 12 }}>
+                        <span style={{ color: '#555', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginRight: 8 }}>AI Reasoning</span>
+                        {s.reasoning || 'No reasoning available'}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
