@@ -186,8 +186,8 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {data.openTrades.map((trade, i) => (
-                <tr key={i}>
+              {data.openTrades.map((trade) => (
+                <tr key={trade._id}>
                   <td><strong>{trade.symbol}</strong></td>
                   <td><span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span></td>
                   <td style={{ color: '#888' }}>{trade.market}</td>
@@ -215,12 +215,13 @@ function Dashboard() {
           </table>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, marginTop: 20 }}>
-            {data.openTrades.map((trade, i) => (
+            {data.openTrades.map((trade) => (
               <PriceChart
-                key={i}
+                key={trade._id}
                 symbol={trade.symbol}
                 entryPrice={trade.price}
                 market={trade.market}
+                type={trade.type}
               />
             ))}
           </div>
@@ -244,8 +245,8 @@ function Dashboard() {
           <tbody>
             {recentSignals.length === 0 ? (
               <tr><td colSpan={6} style={{ color: '#666', textAlign: 'center' }}>No signals yet — start the bot</td></tr>
-            ) : recentSignals.map((s, i) => (
-              <tr key={i}>
+            ) : recentSignals.map((s) => (
+              <tr key={s._id}>
                 <td><strong>{s.symbol}</strong></td>
                 <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>
                 <td>{s.confidence}%</td>
@@ -279,8 +280,8 @@ function Dashboard() {
           <tbody>
             {recentTrades.length === 0 ? (
               <tr><td colSpan={8} style={{ color: '#666', textAlign: 'center' }}>No trades yet</td></tr>
-            ) : recentTrades.map((t, i) => (
-              <tr key={i}>
+            ) : recentTrades.map((t) => (
+              <tr key={t._id}>
                 <td><strong>{t.symbol}</strong></td>
                 <td><span className={`badge ${t.type?.toLowerCase()}`}>{t.type}</span></td>
                 <td style={{ color: '#888' }}>{t.market}</td>

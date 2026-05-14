@@ -24,11 +24,11 @@ function Portfolio() {
 
   // Build P/L chart data over time
   const plChartData = trades
-    .filter(t => t.status === 'closed')
-    .sort((a, b) => new Date(a.executedAt) - new Date(b.executedAt))
+    .filter(t => t.status === 'closed' && t.closedAt)
+    .sort((a, b) => new Date(a.closedAt) - new Date(b.closedAt))
     .reduce((acc, t, i) => {
       const prev = acc[i - 1]?.cumulative || 0;
-      acc.push({ date: new Date(t.executedAt).toLocaleDateString(), cumulative: prev + (t.profitLoss || 0) });
+      acc.push({ date: new Date(t.closedAt).toLocaleDateString(), cumulative: parseFloat((prev + (t.profitLoss || 0)).toFixed(2)) });
       return acc;
     }, []);
 
@@ -75,12 +75,13 @@ function Portfolio() {
         <div className="section">
           <h3>Open Positions — Live Charts</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16 }}>
-            {trades.filter(t => t.status === 'open').map((trade, i) => (
+            {trades.filter(t => t.status === 'open').map((trade) => (
               <PriceChart
-                key={i}
+                key={trade._id}
                 symbol={trade.symbol}
                 entryPrice={trade.price}
                 market={trade.market}
+                type={trade.type}
               />
             ))}
           </div>
@@ -112,7 +113,7 @@ function Portfolio() {
           <PieChart>
             <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} dataKey="value" label>
               {pieData.map((entry, index) => (
-                <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
             <Legend />

@@ -9,10 +9,16 @@ function Trades() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API}/trades`).then(res => {
-      setTrades(res.data);
+    const load = async () => {
+      try {
+        const res = await axios.get(`${API}/trades`);
+        setTrades(res.data);
+      } catch {}
       setLoading(false);
-    }).catch(() => setLoading(false));
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const filtered = trades.filter(t => {
@@ -76,8 +82,8 @@ function Trades() {
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={13} style={{ color: '#666', textAlign: 'center' }}>No trades found</td></tr>
-            ) : filtered.map((t, i) => (
-              <tr key={i}>
+            ) : filtered.map((t) => (
+              <tr key={t._id}>
                 <td><strong>{t.symbol}</strong></td>
                 <td><span className={`badge ${t.type?.toLowerCase()}`}>{t.type}</span></td>
                 <td style={{ color: '#888' }}>{t.market}</td>

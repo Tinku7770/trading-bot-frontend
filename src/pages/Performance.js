@@ -79,8 +79,8 @@ function Performance() {
             { label: 'Current Loss Streak', value: data.curLossStreak, color: '#ff3d3d' },
             { label: 'Best Win Streak', value: data.maxWinStreak, color: '#00c853' },
             { label: 'Worst Loss Streak', value: data.maxLossStreak, color: '#ff3d3d' }
-          ].map((s, i) => (
-            <div key={i} className="card" style={{ minWidth: 160, textAlign: 'center' }}>
+          ].map((s) => (
+            <div key={s.label} className="card" style={{ minWidth: 160, textAlign: 'center' }}>
               <div style={{ color: '#888', fontSize: 12, marginBottom: 8 }}>{s.label}</div>
               <div style={{ color: s.color, fontSize: 32, fontWeight: 700 }}>{s.value}</div>
             </div>
@@ -137,8 +137,8 @@ function Performance() {
             </tr>
           </thead>
           <tbody>
-            {data.symbols.map((s, i) => (
-              <tr key={i}>
+            {data.symbols.map((s) => (
+              <tr key={s.symbol}>
                 <td><strong>{s.symbol}</strong></td>
                 <td style={{ color: '#888' }}>{s.market}</td>
                 <td>{s.trades} ({s.wins}W / {s.losses}L)</td>

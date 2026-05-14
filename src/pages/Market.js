@@ -4,20 +4,28 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const API = process.env.REACT_APP_API_URL;
 
-const CRYPTO_SYMBOLS = [
+const CRYPTO_NAME_MAP = {
+  BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana',
+  BNB: 'BNB', XRP: 'Ripple', ADA: 'Cardano', DOGE: 'Dogecoin'
+};
+const STOCK_NAME_MAP = {
+  AAPL: 'Apple', TSLA: 'Tesla', NVDA: 'NVIDIA',
+  MSFT: 'Microsoft', GOOGL: 'Google', XOM: 'Exxon', CVX: 'Chevron'
+};
+
+const DEFAULT_CRYPTO = [
   { symbol: 'BTC/USDT', name: 'Bitcoin',  ticker: 'BTCUSDT' },
   { symbol: 'ETH/USDT', name: 'Ethereum', ticker: 'ETHUSDT' },
   { symbol: 'SOL/USDT', name: 'Solana',   ticker: 'SOLUSDT' },
   { symbol: 'BNB/USDT', name: 'BNB',      ticker: 'BNBUSDT' },
   { symbol: 'XRP/USDT', name: 'Ripple',   ticker: 'XRPUSDT' },
 ];
-
-const STOCK_SYMBOLS = [
+const DEFAULT_STOCK = [
   { symbol: 'AAPL', name: 'Apple' },
   { symbol: 'TSLA', name: 'Tesla' },
   { symbol: 'NVDA', name: 'NVIDIA' },
-  { symbol: 'MSFT', name: 'Microsoft' },
-  { symbol: 'GOOGL', name: 'Google' },
+  { symbol: 'XOM',  name: 'Exxon' },
+  { symbol: 'CVX',  name: 'Chevron' },
 ];
 
 function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick }) {
@@ -30,42 +38,40 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick }) {
     try {
       const encoded = encodeURIComponent(symbol);
       const res = await axios.get(`${API}/dashboard/chart/${encoded}`);
-      setChartData(res.data || []);
+      const points = res.data || [];
+      setChartData(points);
+      // Stocks: derive price and 24h change from chart data to avoid direct Yahoo Finance calls
+      if (!isCrypto && points.length > 0) {
+        const latest = points[points.length - 1].price;
+        const earliest = points[0].price;
+        setPrice(latest);
+        setChange(earliest > 0 ? (((latest - earliest) / earliest) * 100).toFixed(2) : '0.00');
+      }
       setLoadingChart(false);
     } catch {
       setLoadingChart(false);
     }
-  }, [symbol]);
+  }, [symbol, isCrypto]);
 
   const fetchPrice = useCallback(async () => {
+    if (!isCrypto) return; // stocks derive price from chart data
     try {
-      if (isCrypto) {
-        const [priceRes, statsRes] = await Promise.all([
-          axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`),
-          axios.get(`https://api.binance.us/api/v3/ticker/24hr?symbol=${ticker}`)
-        ]);
-        setPrice(parseFloat(priceRes.data.price));
-        setChange(parseFloat(statsRes.data.priceChangePercent).toFixed(2));
-      } else {
-        const res = await axios.get(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
-          { headers: { 'User-Agent': 'Mozilla/5.0' } }
-        );
-        const meta = res.data.chart.result[0].meta;
-        setPrice(meta.regularMarketPrice);
-        const chg = (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2);
-        setChange(chg);
-      }
+      const [priceRes, statsRes] = await Promise.all([
+        axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`),
+        axios.get(`https://api.binance.us/api/v3/ticker/24hr?symbol=${ticker}`)
+      ]);
+      setPrice(parseFloat(priceRes.data.price));
+      setChange(parseFloat(statsRes.data.priceChangePercent).toFixed(2));
     } catch {
       // keep last known price
     }
-  }, [symbol, isCrypto, ticker]);
+  }, [isCrypto, ticker]);
 
   useEffect(() => {
     fetchChart();
     fetchPrice();
-    const chartInterval = setInterval(fetchChart, 5 * 60 * 1000);  // every 5 min
-    const priceInterval = setInterval(fetchPrice, 30 * 1000);       // every 30 sec
+    const chartInterval = setInterval(fetchChart, 5 * 60 * 1000);
+    const priceInterval = setInterval(fetchPrice, 30 * 1000);
     return () => { clearInterval(chartInterval); clearInterval(priceInterval); };
   }, [fetchChart, fetchPrice]);
 
@@ -155,7 +161,7 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick }) {
 
       {selected && (
         <div style={{ fontSize: 11, color: '#555', marginTop: 6, textAlign: 'right' }}>
-          24h history · price updates every 30s
+          {isCrypto ? '24h history · price updates every 30s' : '24h history · chart updates every 5m'}
         </div>
       )}
     </div>
@@ -164,6 +170,24 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick }) {
 
 function Market() {
   const [selected, setSelected] = useState('BTC/USDT');
+  const [cryptoSymbols, setCryptoSymbols] = useState(DEFAULT_CRYPTO);
+  const [stockSymbols, setStockSymbols] = useState(DEFAULT_STOCK);
+
+  useEffect(() => {
+    axios.get(`${API}/bot/status`).then(res => {
+      if (res.data?.cryptoSymbols?.length) {
+        setCryptoSymbols(res.data.cryptoSymbols.map(s => {
+          const base = s.replace('/USDT', '').replace('/', '');
+          return { symbol: s, name: CRYPTO_NAME_MAP[base] || base, ticker: s.replace('/', '') };
+        }));
+      }
+      if (res.data?.stockSymbols?.length) {
+        setStockSymbols(res.data.stockSymbols.map(s => ({
+          symbol: s, name: STOCK_NAME_MAP[s] || s
+        })));
+      }
+    }).catch(() => {}); // fall back to defaults on error
+  }, []);
 
   function toggle(symbol) {
     setSelected(prev => prev === symbol ? null : symbol);
@@ -173,14 +197,14 @@ function Market() {
     <div>
       <h1 className="page-title">Live Market</h1>
       <p style={{ color: '#666', fontSize: 13, marginBottom: 24 }}>
-        Click any symbol to expand its chart · Price updates every 30 seconds
+        Click any symbol to expand its chart · Crypto price updates every 30s · Stock price updates every 5m
       </p>
 
       {/* Crypto */}
       <div className="section">
         <h3>Crypto</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-          {CRYPTO_SYMBOLS.map(c => (
+          {cryptoSymbols.map(c => (
             <SymbolCard
               key={c.symbol}
               symbol={c.symbol}
@@ -198,7 +222,7 @@ function Market() {
       <div className="section">
         <h3>Stocks</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-          {STOCK_SYMBOLS.map(s => (
+          {stockSymbols.map(s => (
             <SymbolCard
               key={s.symbol}
               symbol={s.symbol}

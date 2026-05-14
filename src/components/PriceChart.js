@@ -1,61 +1,60 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_API_URL;
 
-function PriceChart({ symbol, entryPrice, market }) {
+function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPrice, setCurrentPrice] = useState(null);
 
-  // Fetch 24h historical chart — every 5 minutes is enough
-  useEffect(() => {
-    fetchChart(); // eslint-disable-line react-hooks/exhaustive-deps
-    const interval = setInterval(fetchChart, 300000);
-    return () => clearInterval(interval);
-  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    fetchLivePrice(); // eslint-disable-line react-hooks/exhaustive-deps
-    const interval = setInterval(fetchLivePrice, 10000);
-    return () => clearInterval(interval);
-  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function fetchChart() {
+  const fetchChart = useCallback(async () => {
     try {
       const encoded = encodeURIComponent(symbol);
       const res = await axios.get(`${API}/dashboard/chart/${encoded}`);
-      setData(res.data);
+      const points = res.data || [];
+      setData(points);
+      // Stocks: derive current price from last chart point — avoids direct Yahoo Finance call
+      if (market !== 'crypto' && points.length > 0) {
+        setCurrentPrice(points[points.length - 1].price);
+      }
       setLoading(false);
-    } catch (err) {
+    } catch {
       setLoading(false);
     }
-  }
+  }, [symbol, market]);
 
-  async function fetchLivePrice() {
+  const fetchLivePrice = useCallback(async () => {
+    if (market !== 'crypto') return;
     try {
-      const isCrypto = symbol.includes('/');
-      if (isCrypto) {
-        const ticker = symbol.replace('/', '');
-        const res = await axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`);
-        setCurrentPrice(parseFloat(res.data.price));
-      } else {
-        const res = await axios.get(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`,
-          { headers: { 'User-Agent': 'Mozilla/5.0' } }
-        );
-        const price = res.data.chart.result[0].meta.regularMarketPrice;
-        setCurrentPrice(price);
-      }
-    } catch (err) {
+      const ticker = symbol.replace('/', '');
+      const res = await axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`);
+      setCurrentPrice(parseFloat(res.data.price));
+    } catch {
       // silently fail — keep last known price
     }
-  }
+  }, [symbol, market]);
 
-  const pnl = currentPrice && entryPrice
-    ? ((currentPrice - entryPrice) / entryPrice * 100).toFixed(2)
+  useEffect(() => {
+    fetchChart();
+    const interval = setInterval(fetchChart, 300000);
+    return () => clearInterval(interval);
+  }, [fetchChart]);
+
+  useEffect(() => {
+    if (market !== 'crypto') return;
+    fetchLivePrice();
+    const interval = setInterval(fetchLivePrice, 10000);
+    return () => clearInterval(interval);
+  }, [fetchLivePrice, market]);
+
+  const isShort = type === 'SHORT';
+  const rawPnlPct = currentPrice && entryPrice
+    ? (currentPrice - entryPrice) / entryPrice * 100
     : null;
+  // SHORT profits when price falls — invert direction
+  const pnl = rawPnlPct !== null ? (isShort ? -rawPnlPct : rawPnlPct).toFixed(2) : null;
 
   const isProfit = pnl >= 0;
   const lineColor = isProfit ? '#00c853' : '#ff3d3d';
@@ -81,6 +80,14 @@ function PriceChart({ symbol, entryPrice, market }) {
           }}>
             {market}
           </span>
+          {isShort && (
+            <span style={{
+              marginLeft: 6, fontSize: 11, padding: '2px 8px',
+              borderRadius: 4, background: '#3d1a00', color: '#ff6b35', fontWeight: 600
+            }}>
+              SHORT
+            </span>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontWeight: 700, fontSize: 18, color: '#fff' }}>
@@ -100,7 +107,7 @@ function PriceChart({ symbol, entryPrice, market }) {
           Entry: ${entryPrice?.toLocaleString()} &nbsp;|&nbsp;
           Current: ${currentPrice?.toLocaleString()} &nbsp;|&nbsp;
           P/L: <span style={{ color: isProfit ? '#00c853' : '#ff3d3d' }}>
-            {isProfit ? '+' : ''}{pnl}%
+            {pnl !== null ? `${isProfit ? '+' : ''}${pnl}%` : '—'}
           </span>
         </div>
       )}

@@ -10,10 +10,16 @@ function Signals() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API}/signals`).then(res => {
-      setSignals(res.data);
+    const load = async () => {
+      try {
+        const res = await axios.get(`${API}/signals`);
+        setSignals(res.data);
+      } catch {}
       setLoading(false);
-    }).catch(() => setLoading(false));
+    };
+    load();
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const seenIds = new Set();
@@ -48,8 +54,8 @@ function Signals() {
           <tbody>
             {allSignals.length === 0 ? (
               <tr><td colSpan={10} style={{ color: '#666', textAlign: 'center' }}>No signals yet — start the bot</td></tr>
-            ) : allSignals.map((s, i) => (
-              <tr key={i}>
+            ) : allSignals.map((s) => (
+              <tr key={s._id}>
                 <td><strong>{s.symbol}</strong></td>
                 <td style={{ color: '#888' }}>{s.market}</td>
                 <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>

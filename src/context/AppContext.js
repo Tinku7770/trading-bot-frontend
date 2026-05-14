@@ -27,6 +27,9 @@ export function AppProvider({ children }) {
           if (data.type === 'BOT_STATUS') setBotStatus(data.isRunning);
           if (data.type === 'NEW_SIGNAL') setLiveSignals(prev => [data.signal, ...prev].slice(0, 20));
           if (data.type === 'NEW_TRADE') setLiveTrades(prev => [data.trade, ...prev].slice(0, 20));
+          if (data.type === 'TRADE_CLOSED') setLiveTrades(prev =>
+            prev.map(t => t._id === data.trade._id ? { ...t, ...data.trade } : t)
+          );
         } catch {}
       };
 

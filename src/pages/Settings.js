@@ -18,7 +18,7 @@ function Settings() {
     trailingStopPercent: 2,
     winRatePauseEnabled: false,
     minWinRate: 40,
-    minConfidence: 65,
+    minConfidence: 60,
     cryptoSymbols: ['BTC/USDT', 'ETH/USDT'],
     stockSymbols: ['AAPL', 'TSLA', 'NVDA', 'XOM', 'CVX']
   });
@@ -286,7 +286,7 @@ function Settings() {
           <p>6. If confidence ≥ {settings.minConfidence || 65}% and decision is BUY → opens LONG position</p>
           <p>7. If confidence ≥ {settings.minConfidence || 65}% and decision is SELL + shorting enabled → opens SHORT</p>
           <p>8. Stop loss at {settings.stopLossPercent || 1}% | Take profit at {settings.takeProfitPercent || 1.5}%</p>
-          <p>9. Daily report sent at 6 PM California time</p>
+          <p>9. Daily report sent at 1 AM UTC</p>
         </div>
       </div>
     </div>
