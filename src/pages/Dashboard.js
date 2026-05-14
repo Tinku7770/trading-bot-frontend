@@ -5,18 +5,47 @@ import PriceChart from '../components/PriceChart';
 
 const API = process.env.REACT_APP_API_URL;
 
+function getNextRunTime() {
+  const now = new Date();
+  const next = new Date(now);
+  if (now.getMinutes() < 30) {
+    next.setMinutes(30, 0, 0);
+  } else {
+    next.setHours(now.getHours() + 1, 0, 0, 0);
+  }
+  return next;
+}
+
+function formatCountdown(ms) {
+  if (ms <= 0) return '00:00';
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const s = (totalSec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
 function Dashboard() {
   const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades } = useApp();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [closingId, setClosingId] = useState(null);
+  const [countdown, setCountdown] = useState('');
 
   useEffect(() => {
     fetchDashboard();
     const interval = setInterval(fetchDashboard, 30000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    function tick() {
+      setCountdown(formatCountdown(getNextRunTime() - new Date()));
+    }
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   async function fetchDashboard() {
     try {
@@ -93,7 +122,16 @@ function Dashboard() {
       <div className="bot-toggle">
         <div>
           <h2>AI Trading Bot</h2>
-          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Analyzes market every 30 minutes</p>
+          <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
+            {recentSignals.length > 0 && (
+              <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+                Last run: <span style={{ color: '#aaa' }}>{new Date(recentSignals[0].createdAt).toLocaleTimeString()}</span>
+              </p>
+            )}
+            <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+              Next run in: <span style={{ color: botStatus ? '#00c853' : '#555', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{botStatus ? countdown : '--:--'}</span>
+            </p>
+          </div>
         </div>
         <button className={`toggle-btn ${botStatus ? 'stop' : 'start'}`} onClick={toggleBot}>
           {botStatus ? 'Stop Bot' : 'Start Bot'}
