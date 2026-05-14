@@ -24,12 +24,21 @@ function formatCountdown(ms) {
   return `${m}:${s}`;
 }
 
+function formatDateTime(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleString([], {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+}
+
 function Dashboard() {
   const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades } = useApp();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [data, setData]           = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(false);
+  const [running, setRunning]     = useState(false);
   const [closingId, setClosingId] = useState(null);
+  const [closingAll, setClosingAll] = useState(false);
   const [countdown, setCountdown] = useState('');
 
   useEffect(() => {
@@ -52,8 +61,10 @@ function Dashboard() {
       const res = await axios.get(`${API}/dashboard`);
       setData(res.data);
       setBotStatus(res.data.botStatus);
+      setError(false);
       setLoading(false);
-    } catch (err) {
+    } catch {
+      setError(true);
       setLoading(false);
     }
   }
@@ -67,7 +78,7 @@ function Dashboard() {
         await axios.post(`${API}/bot/start`);
         setBotStatus(true);
       }
-    } catch (err) {
+    } catch {
       alert('Failed to toggle bot');
     }
   }
@@ -79,9 +90,22 @@ function Dashboard() {
       await axios.post(`${API}/bot/close-position/${tradeId}`);
       await fetchDashboard();
       setClosingId(null);
-    } catch (err) {
+    } catch {
       alert('Failed to close position');
       setClosingId(null);
+    }
+  }
+
+  async function closeAllPositions() {
+    if (!window.confirm('Close ALL open positions at current market prices?')) return;
+    try {
+      setClosingAll(true);
+      await axios.post(`${API}/bot/close-all`);
+      await fetchDashboard();
+      setClosingAll(false);
+    } catch {
+      alert('Failed to close all positions');
+      setClosingAll(false);
     }
   }
 
@@ -89,14 +113,26 @@ function Dashboard() {
     try {
       setRunning(true);
       await axios.post(`${API}/bot/run-now`);
-      setTimeout(() => { fetchDashboard(); setRunning(false); }, 5000);
-    } catch (err) {
+      setTimeout(() => { fetchDashboard(); setRunning(false); }, 8000);
+    } catch {
       alert('Failed to trigger bot');
       setRunning(false);
     }
   }
 
   if (loading) return <div className="page-title">Loading...</div>;
+
+  if (error) return (
+    <div>
+      <h1 className="page-title">Dashboard</h1>
+      <div style={{
+        background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8,
+        padding: '16px 20px', color: '#ff3d3d', fontSize: 14
+      }}>
+        Could not load dashboard data — check your connection or try refreshing.
+      </div>
+    </div>
+  );
 
   const stats = data?.stats || {};
 
@@ -110,9 +146,10 @@ function Dashboard() {
     .filter(s => { if (seenSignalIds.has(s._id)) return false; seenSignalIds.add(s._id); return true; })
     .slice(0, 8);
 
-  const capitalPct = stats.totalCapital > 0
-    ? ((stats.capitalInTrades / stats.totalCapital) * 100).toFixed(0)
+  const capitalPctRaw = stats.totalCapital > 0
+    ? (stats.capitalInTrades / stats.totalCapital) * 100
     : 0;
+  const capitalPct = Math.min(100, Math.round(capitalPctRaw));
 
   return (
     <div>
@@ -129,7 +166,9 @@ function Dashboard() {
               </p>
             )}
             <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
-              Next run in: <span style={{ color: botStatus ? '#00c853' : '#555', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{botStatus ? countdown : '--:--'}</span>
+              Next run in: <span style={{ color: botStatus ? '#00c853' : '#555', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                {botStatus ? countdown : '--:--'}
+              </span>
             </p>
           </div>
         </div>
@@ -161,12 +200,14 @@ function Dashboard() {
         </div>
         <div className="card">
           <h2>Win Rate</h2>
-          <div className="value" style={{ color: '#00c853' }}>{stats.winRate || 0}%</div>
+          <div className="value" style={{ color: (parseFloat(stats.winRate) || 0) >= 50 ? '#00c853' : '#ff3d3d' }}>
+            {stats.winRate || 0}%
+          </div>
         </div>
         <div className="card">
           <h2>Profit / Loss</h2>
-          <div className="value" style={{ color: stats.totalProfitLoss >= 0 ? '#00c853' : '#ff3d3d' }}>
-            ${(stats.totalProfitLoss || 0).toFixed(2)}
+          <div className="value" style={{ color: (stats.totalProfitLoss || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+            {(stats.totalProfitLoss || 0) >= 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
           </div>
         </div>
         <div className="card">
@@ -210,7 +251,21 @@ function Dashboard() {
       {/* Open Positions */}
       {data?.openTrades?.length > 0 && (
         <div className="section">
-          <h3>Open Positions</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Open Positions</h3>
+            <button
+              onClick={closeAllPositions}
+              disabled={closingAll}
+              style={{
+                padding: '6px 14px', borderRadius: 6, border: '1px solid #ff3d3d',
+                background: closingAll ? '#2a1a1a' : 'transparent',
+                color: '#ff3d3d', fontWeight: 600,
+                cursor: closingAll ? 'not-allowed' : 'pointer', fontSize: 12
+              }}
+            >
+              {closingAll ? 'Closing All...' : 'Close All Positions'}
+            </button>
+          </div>
           <table>
             <thead>
               <tr>
@@ -268,7 +323,10 @@ function Dashboard() {
 
       {/* Recent Signals */}
       <div className="section">
-        <h3>Latest AI Signals</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>Latest AI Signals</h3>
+          <a href="/signals" style={{ color: '#5865f2', fontSize: 13, textDecoration: 'none' }}>View All →</a>
+        </div>
         <table>
           <thead>
             <tr>
@@ -276,13 +334,12 @@ function Dashboard() {
               <th>Decision</th>
               <th>Confidence</th>
               <th>Sentiment</th>
-              <th>Reason</th>
               <th>Time</th>
             </tr>
           </thead>
           <tbody>
             {recentSignals.length === 0 ? (
-              <tr><td colSpan={6} style={{ color: '#666', textAlign: 'center' }}>No signals yet — start the bot</td></tr>
+              <tr><td colSpan={5} style={{ color: '#666', textAlign: 'center' }}>No signals yet — start the bot</td></tr>
             ) : recentSignals.map((s) => (
               <tr key={s._id}>
                 <td><strong>{s.symbol}</strong></td>
@@ -291,8 +348,7 @@ function Dashboard() {
                 <td style={{ color: s.newsSentiment === 'positive' ? '#00c853' : s.newsSentiment === 'negative' ? '#ff3d3d' : '#888' }}>
                   {s.newsSentiment}
                 </td>
-                <td style={{ color: '#888', fontSize: 12 }}>{s.reasoning?.substring(0, 60)}...</td>
-                <td style={{ color: '#666', fontSize: 12 }}>{new Date(s.createdAt).toLocaleTimeString()}</td>
+                <td style={{ color: '#666', fontSize: 12 }}>{formatDateTime(s.createdAt)}</td>
               </tr>
             ))}
           </tbody>
@@ -301,7 +357,10 @@ function Dashboard() {
 
       {/* Recent Trades */}
       <div className="section">
-        <h3>Recent Trades</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>Recent Trades</h3>
+          <a href="/trades" style={{ color: '#5865f2', fontSize: 13, textDecoration: 'none' }}>View All →</a>
+        </div>
         <table>
           <thead>
             <tr>
@@ -329,8 +388,8 @@ function Dashboard() {
                   {t.leverage || 1}x
                 </td>
                 <td><span className={`badge ${t.status}`}>{t.status}</span></td>
-                <td style={{ color: t.profitLoss >= 0 ? '#00c853' : '#ff3d3d' }}>
-                  ${(t.profitLoss || 0).toFixed(2)}
+                <td style={{ color: t.status === 'open' ? '#888' : (t.profitLoss || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                  {t.status === 'open' ? '—' : `${(t.profitLoss || 0) >= 0 ? '+' : ''}$${(t.profitLoss || 0).toFixed(2)}`}
                 </td>
               </tr>
             ))}
