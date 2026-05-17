@@ -11,6 +11,15 @@ function formatDateTime(dateStr) {
   });
 }
 
+function formatDuration(start, end) {
+  if (!start || !end) return '—';
+  const mins = Math.floor((new Date(end) - new Date(start)) / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+  return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
+}
+
 function Trades() {
   const { liveTrades } = useApp();
   const [trades, setTrades] = useState([]);
@@ -193,8 +202,17 @@ function Trades() {
                     {t.leverage || 1}x
                   </td>
                   <td><span className={`badge ${t.status}`}>{t.status}</span></td>
-                  <td style={{ color: t.status === 'open' ? '#888' : t.profitLoss >= 0 ? '#00c853' : '#ff3d3d' }}>
-                    {t.status === 'open' ? '—' : `${t.profitLoss >= 0 ? '+' : ''}$${(t.profitLoss || 0).toFixed(2)}`}
+                  <td style={{ color: t.status === 'open' ? '#888' : (t.profitLoss || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                    {t.status === 'open' ? '—' : (
+                      <>
+                        {(t.profitLoss || 0) >= 0 ? '+' : ''}${(t.profitLoss || 0).toFixed(2)}
+                        {t.amount > 0 && (
+                          <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.7 }}>
+                            ({((t.profitLoss || 0) / t.amount * 100).toFixed(1)}%)
+                          </span>
+                        )}
+                      </>
+                    )}
                   </td>
                   <td style={{ color: '#666', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDateTime(t.executedAt)}</td>
                   <td style={{ color: '#666', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDateTime(t.closedAt)}</td>
@@ -205,6 +223,14 @@ function Trades() {
                   <tr>
                     <td colSpan={12} style={{ background: '#13151f', padding: '16px 20px' }}>
                       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 14 }}>
+                        {t.executedAt && t.closedAt && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Duration</div>
+                            <div style={{ color: '#aaa', fontWeight: 600, fontSize: 13, marginTop: 4 }}>
+                              {formatDuration(t.executedAt, t.closedAt)}
+                            </div>
+                          </div>
+                        )}
                         {t.confidence > 0 && (
                           <div style={{ textAlign: 'center' }}>
                             <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Confidence</div>
