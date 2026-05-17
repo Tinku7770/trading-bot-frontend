@@ -54,6 +54,9 @@ function Trades() {
 
   const closedFiltered = filtered.filter(t => t.status === 'closed');
   const totalPL = closedFiltered.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
+  const wins = closedFiltered.filter(t => (t.profitLoss || 0) > 0).length;
+  const losses = closedFiltered.filter(t => (t.profitLoss || 0) <= 0).length;
+  const winRate = closedFiltered.length > 0 ? Math.round(wins / closedFiltered.length * 100) : null;
 
   if (loading) return <div className="page-title">Loading...</div>;
 
@@ -119,14 +122,29 @@ function Trades() {
           ))}
         </select>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 20, alignItems: 'center' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
           {closedFiltered.length > 0 && (
-            <span style={{ fontSize: 13 }}>
-              P/L:{' '}
-              <strong style={{ color: totalPL >= 0 ? '#00c853' : '#ff3d3d' }}>
-                {totalPL >= 0 ? '+' : ''}${totalPL.toFixed(2)}
-              </strong>
-            </span>
+            <>
+              <span style={{ fontSize: 13 }}>
+                P/L:{' '}
+                <strong style={{ color: totalPL >= 0 ? '#00c853' : '#ff3d3d' }}>
+                  {totalPL >= 0 ? '+' : ''}${totalPL.toFixed(2)}
+                </strong>
+              </span>
+              <span style={{ fontSize: 13 }}>
+                <strong style={{ color: '#00c853' }}>{wins}W</strong>
+                <span style={{ color: '#555', margin: '0 4px' }}>/</span>
+                <strong style={{ color: '#ff3d3d' }}>{losses}L</strong>
+              </span>
+              {winRate !== null && (
+                <span style={{ fontSize: 13 }}>
+                  Win Rate:{' '}
+                  <strong style={{ color: winRate >= 50 ? '#00c853' : '#ff3d3d' }}>
+                    {winRate}%
+                  </strong>
+                </span>
+              )}
+            </>
           )}
           <span style={{ color: '#555', fontSize: 13 }}>
             {filtered.length} of {allTrades.length} trades{allTrades.length >= 100 ? ' (last 100)' : ''}
@@ -223,6 +241,18 @@ function Trades() {
                         <div style={{ borderTop: '1px solid #2a2d3e', paddingTop: 12 }}>
                           <span style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginRight: 8 }}>News Snapshot</span>
                           <span style={{ color: '#666', fontSize: 12, lineHeight: 1.7 }}>{t.newsSnapshot}</span>
+                        </div>
+                      )}
+                      {t.closeReason && (
+                        <div style={{ borderTop: '1px solid #2a2d3e', paddingTop: 12, marginTop: 10 }}>
+                          <span style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginRight: 8 }}>Close Reason</span>
+                          <span style={{
+                            fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 20,
+                            background: t.closeReason?.toLowerCase().includes('stop') ? '#2a1a1a' : t.closeReason?.toLowerCase().includes('profit') ? '#0d2a1a' : '#1a1d27',
+                            color: t.closeReason?.toLowerCase().includes('stop') ? '#ff3d3d' : t.closeReason?.toLowerCase().includes('profit') ? '#00c853' : '#888'
+                          }}>
+                            {t.closeReason}
+                          </span>
                         </div>
                       )}
                     </td>
