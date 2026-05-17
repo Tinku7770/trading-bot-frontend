@@ -13,6 +13,7 @@ function sentimentColor(val) {
 }
 
 function formatDateTime(dateStr) {
+  if (!dateStr) return '—';
   return new Date(dateStr).toLocaleString([], {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   });
@@ -65,6 +66,10 @@ function Signals() {
     return true;
   });
 
+  const buys  = allSignals.filter(s => s.decision === 'BUY').length;
+  const sells = allSignals.filter(s => s.decision === 'SELL').length;
+  const holds = allSignals.filter(s => s.decision === 'HOLD').length;
+
   if (loading) return <div className="page-title">Loading...</div>;
 
   if (error) return (
@@ -114,9 +119,18 @@ function Signals() {
           ))}
         </div>
 
-        <span style={{ color: '#555', fontSize: 13, marginLeft: 'auto' }}>
-          Showing {filtered.length} of {allSignals.length} signals (last 7 days)
-        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13 }}>
+            <strong style={{ color: '#00c853' }}>{buys} BUY</strong>
+            <span style={{ color: '#555', margin: '0 6px' }}>·</span>
+            <strong style={{ color: '#ff3d3d' }}>{sells} SELL</strong>
+            <span style={{ color: '#555', margin: '0 6px' }}>·</span>
+            <strong style={{ color: '#ffd600' }}>{holds} HOLD</strong>
+          </span>
+          <span style={{ color: '#555', fontSize: 13 }}>
+            {filtered.length} of {allSignals.length} signals (last 7 days)
+          </span>
+        </div>
       </div>
 
       <div className="section">
@@ -124,7 +138,6 @@ function Signals() {
           <thead>
             <tr>
               <th>Symbol</th>
-              <th>Market</th>
               <th>Decision</th>
               <th>Confidence</th>
               <th>Price</th>
@@ -138,7 +151,7 @@ function Signals() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} style={{ color: '#666', textAlign: 'center' }}>
+                <td colSpan={9} style={{ color: '#666', textAlign: 'center' }}>
                   {allSignals.length === 0 ? 'No signals yet — start the bot' : 'No signals match your filters'}
                 </td>
               </tr>
@@ -149,7 +162,6 @@ function Signals() {
                   style={{ cursor: 'pointer' }}
                 >
                   <td><strong>{s.symbol}</strong></td>
-                  <td style={{ color: '#888' }}>{s.market}</td>
                   <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -172,7 +184,7 @@ function Signals() {
 
                 {expandedId === s._id && (
                   <tr>
-                    <td colSpan={10} style={{ background: '#13151f', padding: '16px 20px' }}>
+                    <td colSpan={9} style={{ background: '#13151f', padding: '16px 20px' }}>
                       <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', marginBottom: 16 }}>
                         <SentimentBadge label="News" value={s.newsSentiment} />
                         <SentimentBadge label="Whale" value={s.whaleActivity} />
