@@ -84,10 +84,11 @@ function Settings() {
     winRatePauseEnabled: false,
     minWinRate: 40,
     minConfidence: 60,
-    cryptoSymbols: ['BTC/USDT', 'ETH/USDT'],
-    stockSymbols: ['AAPL', 'TSLA', 'NVDA', 'XOM', 'CVX']
+    cryptoSymbols: [],
+    stockSymbols: []
   });
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -96,18 +97,35 @@ function Settings() {
       .catch(() => setLoadError(true));
   }, []);
 
+  function updateSettings(patch) {
+    setSettings(prev => ({ ...prev, ...patch }));
+    setDirty(true);
+  }
+
   function numInput(field, value) {
     const parsed = parseFloat(value);
-    setSettings({ ...settings, [field]: isNaN(parsed) ? '' : parsed });
+    updateSettings({ [field]: isNaN(parsed) ? 0 : parsed });
+  }
+
+  function validate() {
+    if ((settings.stopLossPercent || 0) <= 0) return 'Stop Loss must be greater than 0%';
+    if ((settings.takeProfitPercent || 0) <= 0) return 'Take Profit must be greater than 0%';
+    if ((settings.minConfidence || 0) < 55 || (settings.minConfidence || 0) > 90) return 'Min Confidence must be between 55% and 90%';
+    if ((settings.maxTradeAmount || 0) <= 0) return 'Max Trade Amount must be greater than $0';
+    if ((settings.cryptoSymbols?.length || 0) + (settings.stockSymbols?.length || 0) === 0) return 'Add at least one symbol to trade';
+    return null;
   }
 
   async function saveSettings() {
+    const err = validate();
+    if (err) { alert(err); return; }
     try {
       await axios.put(`${API}/bot/settings`, settings);
       setTradeMode(settings.tradeMode);
       setSaved(true);
+      setDirty(false);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
+    } catch {
       alert('Failed to save settings — check your connection');
     }
   }
@@ -130,7 +148,7 @@ function Settings() {
 
         <div className="form-group">
           <label>Trade Mode</label>
-          <select value={settings.tradeMode} onChange={e => setSettings({ ...settings, tradeMode: e.target.value })}>
+          <select value={settings.tradeMode} onChange={e => updateSettings({ tradeMode: e.target.value })}>
             <option value="paper">Paper Trading (Simulated)</option>
             <option value="live">Live Trading (Real Money)</option>
           </select>
@@ -192,7 +210,7 @@ function Settings() {
             <input
               type="checkbox"
               checked={settings.trailingStopEnabled || false}
-              onChange={e => setSettings({ ...settings, trailingStopEnabled: e.target.checked })}
+              onChange={e => updateSettings({ trailingStopEnabled: e.target.checked })}
               style={{ width: 18, height: 18, cursor: 'pointer' }}
             />
             <span>Enable Trailing Stop Loss</span>
@@ -225,7 +243,7 @@ function Settings() {
             <input
               type="checkbox"
               checked={settings.winRatePauseEnabled || false}
-              onChange={e => setSettings({ ...settings, winRatePauseEnabled: e.target.checked })}
+              onChange={e => updateSettings({ winRatePauseEnabled: e.target.checked })}
               style={{ width: 18, height: 18, cursor: 'pointer' }}
             />
             <span>Win Rate Auto-Pause</span>
@@ -258,7 +276,7 @@ function Settings() {
             <input
               type="checkbox"
               checked={settings.shortingEnabled || false}
-              onChange={e => setSettings({ ...settings, shortingEnabled: e.target.checked })}
+              onChange={e => updateSettings({ shortingEnabled: e.target.checked })}
               style={{ width: 18, height: 18, cursor: 'pointer' }}
             />
             <span>Enable Short Selling</span>
@@ -297,7 +315,7 @@ function Settings() {
             type="number"
             min="55"
             max="90"
-            step="5"
+            step="1"
             value={settings.minConfidence || 65}
             onChange={e => numInput('minConfidence', e.target.value)}
           />
@@ -310,7 +328,7 @@ function Settings() {
           <label>Crypto Symbols</label>
           <SymbolTags
             symbols={settings.cryptoSymbols || []}
-            onChange={val => setSettings({ ...settings, cryptoSymbols: val })}
+            onChange={val => updateSettings({ cryptoSymbols: val })}
             placeholder="Type symbol + Enter (e.g. BTC/USDT)"
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
@@ -322,7 +340,7 @@ function Settings() {
           <label>Stock Symbols</label>
           <SymbolTags
             symbols={settings.stockSymbols || []}
-            onChange={val => setSettings({ ...settings, stockSymbols: val })}
+            onChange={val => updateSettings({ stockSymbols: val })}
             placeholder="Type symbol + Enter (e.g. AAPL)"
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
@@ -330,9 +348,14 @@ function Settings() {
           </p>
         </div>
 
-        <button className="save-btn" onClick={saveSettings}>
-          {saved ? 'Saved!' : 'Save Settings'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="save-btn" onClick={saveSettings}>
+            {saved ? 'Saved!' : 'Save Settings'}
+          </button>
+          {dirty && !saved && (
+            <span style={{ color: '#f5a623', fontSize: 13 }}>Unsaved changes</span>
+          )}
+        </div>
       </div>
 
       {/* Info */}
