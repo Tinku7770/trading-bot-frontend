@@ -102,7 +102,7 @@ function Signals() {
               key={d}
               onClick={() => setFilterDecision(d)}
               style={{
-                padding: '8px 16px', borderRadius: 6, border: 'none', fontSize: 13,
+                padding: '8px 16px', borderRadius: 6, fontSize: 13,
                 fontWeight: 600, cursor: 'pointer',
                 background: filterDecision === d ? (d === 'BUY' ? '#00c853' : d === 'SELL' ? '#ff3d3d' : d === 'HOLD' ? '#ffd600' : '#5865f2') : '#1a1d27',
                 color: filterDecision === d ? '#000' : '#888',
