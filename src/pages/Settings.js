@@ -1,8 +1,73 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
 
 const API = process.env.REACT_APP_API_URL;
+
+function SymbolTags({ symbols, onChange, placeholder }) {
+  const [input, setInput] = useState('');
+  const inputRef = useRef(null);
+
+  function addSymbol() {
+    const val = input.trim().toUpperCase();
+    if (val && !symbols.includes(val)) onChange([...symbols, val]);
+    setInput('');
+  }
+
+  function removeSymbol(sym) {
+    onChange(symbols.filter(s => s !== sym));
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addSymbol(); }
+    if (e.key === 'Backspace' && input === '' && symbols.length > 0)
+      onChange(symbols.slice(0, -1));
+  }
+
+  return (
+    <div
+      onClick={() => inputRef.current?.focus()}
+      style={{
+        display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
+        background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8,
+        padding: '8px 10px', cursor: 'text', minHeight: 42
+      }}
+    >
+      {symbols.map(sym => (
+        <span key={sym} style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          background: '#1a1d2e', border: '1px solid #2a2d3e',
+          borderRadius: 20, padding: '3px 10px 3px 12px',
+          fontSize: 13, fontWeight: 600, color: '#c9d1d9'
+        }}>
+          {sym}
+          <button
+            onClick={e => { e.stopPropagation(); removeSymbol(sym); }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#555', fontSize: 14, lineHeight: 1, padding: 0,
+              display: 'flex', alignItems: 'center'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = '#ff3d3d'}
+            onMouseLeave={e => e.currentTarget.style.color = '#555'}
+          >×</button>
+        </span>
+      ))}
+      <input
+        ref={inputRef}
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={onKeyDown}
+        onBlur={addSymbol}
+        placeholder={symbols.length === 0 ? placeholder : ''}
+        style={{
+          background: 'none', border: 'none', outline: 'none',
+          color: '#c9d1d9', fontSize: 13, minWidth: 120, flex: 1
+        }}
+      />
+    </div>
+  );
+}
 
 function Settings() {
   const { setTradeMode } = useApp();
@@ -34,10 +99,6 @@ function Settings() {
   function numInput(field, value) {
     const parsed = parseFloat(value);
     setSettings({ ...settings, [field]: isNaN(parsed) ? '' : parsed });
-  }
-
-  function cleanSymbols(str) {
-    return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
   }
 
   async function saveSettings() {
@@ -246,26 +307,26 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Crypto Symbols (comma separated)</label>
-          <input
-            type="text"
-            value={settings.cryptoSymbols?.join(', ')}
-            onChange={e => setSettings({ ...settings, cryptoSymbols: cleanSymbols(e.target.value) })}
+          <label>Crypto Symbols</label>
+          <SymbolTags
+            symbols={settings.cryptoSymbols || []}
+            onChange={val => setSettings({ ...settings, cryptoSymbols: val })}
+            placeholder="Type symbol + Enter (e.g. BTC/USDT)"
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            e.g. BTC/USDT, ETH/USDT, SOL/USDT
+            Type a symbol and press Enter to add. Click × to remove.
           </p>
         </div>
 
         <div className="form-group">
-          <label>Stock Symbols (comma separated)</label>
-          <input
-            type="text"
-            value={settings.stockSymbols?.join(', ')}
-            onChange={e => setSettings({ ...settings, stockSymbols: cleanSymbols(e.target.value) })}
+          <label>Stock Symbols</label>
+          <SymbolTags
+            symbols={settings.stockSymbols || []}
+            onChange={val => setSettings({ ...settings, stockSymbols: val })}
+            placeholder="Type symbol + Enter (e.g. AAPL)"
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            e.g. AAPL, TSLA, NVDA, XOM, CVX
+            Type a symbol and press Enter to add. Click × to remove.
           </p>
         </div>
 
