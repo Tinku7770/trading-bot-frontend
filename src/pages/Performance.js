@@ -130,6 +130,12 @@ function Performance() {
             {data.riskReward ? `1 : ${data.riskReward}` : 'N/A'}
           </div>
         </div>
+        <div className="card">
+          <h2>Profit Factor</h2>
+          <div className="value" style={{ color: (() => { const pf = data.avgWin && data.avgLoss ? Math.abs(data.avgWin / data.avgLoss) : 0; return pf >= 1.5 ? '#00c853' : pf >= 1 ? '#f5a623' : '#ff3d3d'; })() }}>
+            {data.avgWin && data.avgLoss ? Math.abs(data.avgWin / data.avgLoss).toFixed(2) : 'N/A'}
+          </div>
+        </div>
       </div>
 
       {/* Streaks */}
@@ -163,6 +169,11 @@ function Performance() {
                   <div style={{ color: '#888', fontSize: 12 }}>
                     Entry: ${data.bestTrade.price?.toFixed(2)} → Exit: ${data.bestTrade.closePrice?.toFixed(2)}
                   </div>
+                  {data.bestTrade.closedAt && (
+                    <div style={{ color: '#555', fontSize: 11, marginTop: 4 }}>
+                      {new Date(data.bestTrade.closedAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  )}
                   <div style={{ color: '#00c853', fontSize: 22, fontWeight: 700, marginTop: 8 }}>
                     {fmt(data.bestTrade.profitLoss)}
                   </div>
@@ -177,6 +188,11 @@ function Performance() {
                   <div style={{ color: '#888', fontSize: 12 }}>
                     Entry: ${data.worstTrade.price?.toFixed(2)} → Exit: ${data.worstTrade.closePrice?.toFixed(2)}
                   </div>
+                  {data.worstTrade.closedAt && (
+                    <div style={{ color: '#555', fontSize: 11, marginTop: 4 }}>
+                      {new Date(data.worstTrade.closedAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  )}
                   <div style={{ color: '#ff3d3d', fontSize: 22, fontWeight: 700, marginTop: 8 }}>
                     {fmt(data.worstTrade.profitLoss)}
                   </div>
@@ -215,7 +231,6 @@ function Performance() {
           <thead>
             <tr>
               <th>Symbol</th>
-              <th>Market</th>
               <SortTh label="Trades" field="trades" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
               <SortTh label="Win Rate" field="winRate" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
               <SortTh label="Avg Win" field="avgWin" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
@@ -227,7 +242,6 @@ function Performance() {
             {sortedSymbols.map((s) => (
               <tr key={s.symbol}>
                 <td><strong>{s.symbol}</strong></td>
-                <td style={{ color: '#888' }}>{s.market}</td>
                 <td>{s.trades} ({s.wins}W / {s.losses}L)</td>
                 <td style={{ color: s.winRate >= 50 ? '#00c853' : '#ff3d3d' }}>{s.winRate}%</td>
                 <td style={{ color: '#00c853' }}>{s.avgWin > 0 ? fmt(s.avgWin) : '-'}</td>
