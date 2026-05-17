@@ -40,6 +40,7 @@ function Dashboard() {
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
   const [countdown, setCountdown] = useState('');
+  const [currentPrices, setCurrentPrices] = useState({});
 
   useEffect(() => {
     fetchDashboard();
@@ -56,6 +57,12 @@ function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!data?.openTrades?.length) return;
+    const interval = setInterval(() => fetchCurrentPrices(data.openTrades), 30000);
+    return () => clearInterval(interval);
+  }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function fetchDashboard() {
     try {
       const res = await axios.get(`${API}/dashboard`);
@@ -63,10 +70,31 @@ function Dashboard() {
       setBotStatus(res.data.botStatus);
       setError(false);
       setLoading(false);
+      fetchCurrentPrices(res.data.openTrades || []);
     } catch {
       setError(true);
       setLoading(false);
     }
+  }
+
+  async function fetchCurrentPrices(openTrades) {
+    if (!openTrades || openTrades.length === 0) return;
+    const results = {};
+    await Promise.all(openTrades.map(async (trade) => {
+      try {
+        if (trade.market === 'crypto') {
+          const ticker = trade.symbol.replace('/', '');
+          const res = await axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`);
+          results[trade.symbol] = parseFloat(res.data.price);
+        } else {
+          const encoded = encodeURIComponent(trade.symbol);
+          const res = await axios.get(`${API}/dashboard/chart/${encoded}`);
+          const points = res.data || [];
+          if (points.length > 0) results[trade.symbol] = points[points.length - 1].price;
+        }
+      } catch {}
+    }));
+    setCurrentPrices(prev => ({ ...prev, ...results }));
   }
 
   async function toggleBot() {
@@ -275,6 +303,8 @@ function Dashboard() {
                 <th>Entry Price</th>
                 <th>Amount</th>
                 <th>Leverage</th>
+                <th>Opened</th>
+                <th>Unrealized P/L</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -289,6 +319,23 @@ function Dashboard() {
                   <td style={{ color: (trade.leverage || 1) > 1 ? '#f5a623' : '#555', fontWeight: (trade.leverage || 1) > 1 ? 700 : 400 }}>
                     {trade.leverage || 1}x
                   </td>
+                  <td style={{ color: '#888', fontSize: 12 }}>{formatDateTime(trade.executedAt)}</td>
+                  <td>{(() => {
+                    const cur = currentPrices[trade.symbol];
+                    if (!cur || !trade.price) return <span style={{ color: '#555' }}>—</span>;
+                    const isShort = trade.type === 'SHORT';
+                    const pnlPct = (cur - trade.price) / trade.price * 100 * (isShort ? -1 : 1);
+                    const pnlDollar = pnlPct / 100 * (trade.amount || 0) * (trade.leverage || 1);
+                    const color = pnlDollar >= 0 ? '#00c853' : '#ff3d3d';
+                    return (
+                      <span style={{ color, fontWeight: 600 }}>
+                        {pnlDollar >= 0 ? '+' : ''}${pnlDollar.toFixed(2)}
+                        <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.8 }}>
+                          ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+                        </span>
+                      </span>
+                    );
+                  })()}</td>
                   <td>
                     <button
                       onClick={() => closePosition(trade._id, trade.symbol)}
