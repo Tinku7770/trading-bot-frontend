@@ -59,6 +59,15 @@ const SESSION_STYLE = {
   closed:       { color: '#ff3d3d', label: 'Market Closed' },
 };
 
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const mins = Math.floor((Date.now() - new Date(dateStr)) / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 function SignalBadge({ signal }) {
   if (!signal) return null;
   const colors = { BUY: '#00c853', SELL: '#ff3d3d', HOLD: '#888' };
@@ -70,6 +79,7 @@ function SignalBadge({ signal }) {
       borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 600, color
     }}>
       {signal.decision} {signal.confidence}%
+      <span style={{ opacity: 0.6, fontWeight: 400 }}>· {timeAgo(signal.createdAt)}</span>
     </div>
   );
 }
@@ -216,7 +226,7 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSig
 }
 
 function Market() {
-  const [selected, setSelected]       = useState('BTC/USDT');
+  const [selected, setSelected]       = useState(null);
   const [cryptoSymbols, setCryptoSymbols] = useState([
     { symbol: 'BTC/USDT', name: 'Bitcoin',  ticker: 'BTCUSDT' },
     { symbol: 'ETH/USDT', name: 'Ethereum', ticker: 'ETHUSDT' },
@@ -233,6 +243,7 @@ function Market() {
   ]);
   const [latestSignals, setLatestSignals] = useState({});
   const [session, setSession] = useState(getStockMarketSession());
+  const [fearGreed, setFearGreed] = useState(null);
 
   // Load bot symbols from settings
   useEffect(() => {
@@ -268,6 +279,16 @@ function Market() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fear & Greed index
+  useEffect(() => {
+    axios.get('https://api.alternative.me/fng/')
+      .then(res => {
+        const d = res.data?.data?.[0];
+        if (d) setFearGreed({ value: parseInt(d.value), label: d.value_classification });
+      })
+      .catch(() => {});
+  }, []);
+
   function toggle(symbol) {
     setSelected(prev => prev === symbol ? null : symbol);
   }
@@ -277,9 +298,31 @@ function Market() {
   return (
     <div>
       <h1 className="page-title">Live Market</h1>
-      <p style={{ color: '#666', fontSize: 13, marginBottom: 24 }}>
-        Click any symbol to expand its chart · Crypto updates every 30s · Stocks update every 5m
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+        <p style={{ color: '#666', fontSize: 13, margin: 0 }}>
+          Click any symbol to expand its chart · Crypto updates every 30s · Stocks update every 5m
+        </p>
+        {fearGreed && (() => {
+          const v = fearGreed.value;
+          const color = v >= 75 ? '#ff3d3d' : v >= 55 ? '#f5a623' : v >= 45 ? '#ffd600' : v >= 25 ? '#00c853' : '#00e676';
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: '#1a1d27', border: '1px solid #2a2d3e',
+              borderRadius: 10, padding: '8px 16px'
+            }}>
+              <div style={{ fontSize: 12, color: '#888' }}>Fear & Greed</div>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: `${color}20`, border: `2px solid ${color}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: 14, color
+              }}>{v}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color }}>{fearGreed.label}</div>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Crypto */}
       <div className="section">
