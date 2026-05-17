@@ -13,14 +13,19 @@ function Portfolio() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      axios.get(`${API}/trades`),
-      axios.get(`${API}/trades/stats`)
-    ]).then(([tradesRes, statsRes]) => {
-      setTrades(tradesRes.data);
-      setStats(statsRes.data);
-      setLoading(false);
-    }).catch(() => { setLoading(false); setError(true); });
+    function load() {
+      Promise.all([
+        axios.get(`${API}/trades`),
+        axios.get(`${API}/trades/stats`)
+      ]).then(([tradesRes, statsRes]) => {
+        setTrades(tradesRes.data);
+        setStats(statsRes.data);
+        setLoading(false);
+      }).catch(() => { setLoading(false); setError(true); });
+    }
+    load();
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const closedTrades = trades
@@ -61,7 +66,30 @@ function Portfolio() {
   const capitalAtRisk = openTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
   const losingTrades = (stats.totalTrades || 0) - (stats.winningTrades || 0);
 
+  const closedTrades2 = trades.filter(t => t.status === 'closed');
+  const winningList = closedTrades2.filter(t => (t.profitLoss || 0) > 0);
+  const losingList = closedTrades2.filter(t => (t.profitLoss || 0) <= 0);
+  const avgWin = winningList.length ? winningList.reduce((s, t) => s + t.profitLoss, 0) / winningList.length : 0;
+  const avgLoss = losingList.length ? losingList.reduce((s, t) => s + t.profitLoss, 0) / losingList.length : 0;
+
+  const cryptoClosed = trades.filter(t => t.market === 'crypto' && t.status === 'closed');
+  const stockClosed = trades.filter(t => t.market === 'stock' && t.status === 'closed');
+  const cryptoWinRate = cryptoClosed.length ? Math.round(cryptoClosed.filter(t => (t.profitLoss || 0) > 0).length / cryptoClosed.length * 100) : 0;
+  const stockWinRate = stockClosed.length ? Math.round(stockClosed.filter(t => (t.profitLoss || 0) > 0).length / stockClosed.length * 100) : 0;
+
+  const bySymbol = {};
+  closedTrades2.forEach(t => {
+    if (!bySymbol[t.symbol]) bySymbol[t.symbol] = { pl: 0, wins: 0, losses: 0 };
+    bySymbol[t.symbol].pl += t.profitLoss || 0;
+    if ((t.profitLoss || 0) > 0) bySymbol[t.symbol].wins++;
+    else bySymbol[t.symbol].losses++;
+  });
+  const symbolRows = Object.entries(bySymbol)
+    .map(([symbol, d]) => ({ symbol, ...d, total: d.wins + d.losses, winRate: Math.round(d.wins / (d.wins + d.losses) * 100) }))
+    .sort((a, b) => b.pl - a.pl);
+
   const plColor = v => v >= 0 ? '#00c853' : '#ff3d3d';
+  const plStr = v => `${v >= 0 ? '+' : ''}$${v.toFixed(2)}`;
 
   if (loading) return <div className="page-title">Loading...</div>;
 
@@ -96,7 +124,7 @@ function Portfolio() {
         <div className="card">
           <h2>Total P/L</h2>
           <div className="value" style={{ color: plColor(stats.totalProfitLoss || 0) }}>
-            ${(stats.totalProfitLoss || 0).toFixed(2)}
+            {plStr(stats.totalProfitLoss || 0)}
           </div>
         </div>
         <div className="card">
@@ -106,6 +134,14 @@ function Portfolio() {
             <span style={{ color: '#555', fontSize: 18 }}> / </span>
             <span style={{ color: '#ff3d3d' }}>{losingTrades}</span>
           </div>
+        </div>
+        <div className="card">
+          <h2>Avg Win</h2>
+          <div className="value" style={{ color: '#00c853' }}>{winningList.length ? plStr(avgWin) : '—'}</div>
+        </div>
+        <div className="card">
+          <h2>Avg Loss</h2>
+          <div className="value" style={{ color: '#ff3d3d' }}>{losingList.length ? plStr(avgLoss) : '—'}</div>
         </div>
       </div>
 
@@ -169,6 +205,41 @@ function Portfolio() {
         )}
       </div>
 
+      {/* P/L by Symbol */}
+      {symbolRows.length > 0 && (
+        <div className="section">
+          <h3>Performance by Symbol</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Trades</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Win Rate</th>
+                <th>Total P/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {symbolRows.map(row => (
+                <tr key={row.symbol}>
+                  <td><strong>{row.symbol}</strong></td>
+                  <td style={{ color: '#888' }}>{row.total}</td>
+                  <td style={{ color: '#00c853' }}>{row.wins}</td>
+                  <td style={{ color: '#ff3d3d' }}>{row.losses}</td>
+                  <td>
+                    <span style={{ color: row.winRate >= 50 ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+                      {row.winRate}%
+                    </span>
+                  </td>
+                  <td style={{ color: plColor(row.pl), fontWeight: 600 }}>{plStr(row.pl)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Market Breakdown */}
       <div className="section">
         <h3>Market Breakdown</h3>
@@ -199,13 +270,19 @@ function Portfolio() {
             <div className="card" style={{ borderLeft: '3px solid #5865f2' }}>
               <div style={{ color: '#888', fontSize: 12 }}>Crypto P/L</div>
               <div style={{ color: plColor(cryptoPL), fontWeight: 700, fontSize: 22, marginTop: 4 }}>
-                ${cryptoPL.toFixed(2)}
+                {plStr(cryptoPL)}
+              </div>
+              <div style={{ color: cryptoWinRate >= 50 ? '#00c853' : '#ff3d3d', fontSize: 12, marginTop: 4 }}>
+                Win Rate: {cryptoWinRate}% ({cryptoClosed.length} trades)
               </div>
             </div>
             <div className="card" style={{ borderLeft: '3px solid #00c853' }}>
               <div style={{ color: '#888', fontSize: 12 }}>Stocks P/L</div>
               <div style={{ color: plColor(stockPL), fontWeight: 700, fontSize: 22, marginTop: 4 }}>
-                ${stockPL.toFixed(2)}
+                {plStr(stockPL)}
+              </div>
+              <div style={{ color: stockWinRate >= 50 ? '#00c853' : '#ff3d3d', fontSize: 12, marginTop: 4 }}>
+                Win Rate: {stockWinRate}% ({stockClosed.length} trades)
               </div>
             </div>
           </div>
