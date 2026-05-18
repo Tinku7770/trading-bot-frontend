@@ -363,14 +363,16 @@ function Settings() {
         <h3>How The Bot Works</h3>
         <div style={{ color: '#888', fontSize: 14, lineHeight: 1.8 }}>
           <p>1. Every 30 minutes the bot runs an analysis cycle</p>
-          <p>2. It fetches latest news, price, whale activity for each symbol</p>
+          <p>2. It fetches latest news, price, whale activity, Fear &amp; Greed index, macro news, and Alpaca financial news (stocks) for each symbol</p>
           <p>3. Technical indicators: RSI, MACD, MA50, MA200</p>
-          <p>4. Social sentiment from StockTwits + Polymarket predictions</p>
+          <p>4. Social sentiment from StockTwits + Polymarket prediction markets</p>
           <p>5. All data is sent to Claude AI for a trading decision</p>
-          <p>6. If confidence ≥ {settings.minConfidence || 65}% and decision is BUY → opens LONG position</p>
-          <p>7. If confidence ≥ {settings.minConfidence || 65}% and decision is SELL + shorting enabled → opens SHORT</p>
-          <p>8. Stop loss at {settings.stopLossPercent || 1}% | Take profit at {settings.takeProfitPercent || 1.5}%</p>
-          <p>9. Daily report sent at 1 AM UTC</p>
+          <p>6. If confidence ≥ {settings.minConfidence || 60}% and decision is BUY → opens LONG position</p>
+          <p>7. If confidence ≥ {settings.minConfidence || 60}% and decision is SELL + shorting enabled → opens SHORT</p>
+          <p>8. Stop loss at {settings.stopLossPercent || 1}% | Take profit at {settings.takeProfitPercent || 1.5}% — checked every 5 minutes</p>
+          <p>9. 2-hour re-entry cooldown after a stop loss hit | 1-hour cooldown after an AI-signal close</p>
+          <p>10. BTC correlation guard: skips new ETH/SOL entries when BTC is strongly bearish (SELL ≥ 75%)</p>
+          <p>11. Daily report sent at 1 AM UTC (6 PM California time)</p>
         </div>
       </div>
     </div>
