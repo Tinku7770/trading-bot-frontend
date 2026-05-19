@@ -244,6 +244,46 @@ function Dashboard() {
 
       <MarketStatus />
 
+      {/* High Leverage Warning */}
+      {data.leverageMultiplier > 3 && data.tradeMode === 'live' && (
+        <div style={{
+          background: '#2a1500', border: '1px solid #f5a623', borderRadius: 10,
+          padding: '14px 20px', marginBottom: 24,
+          display: 'flex', alignItems: 'flex-start', gap: 14
+        }}>
+          <span style={{ fontSize: 22, lineHeight: 1 }}>⚠️</span>
+          <div>
+            <div style={{ color: '#f5a623', fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+              High Leverage Active — {data.leverageMultiplier}x in Live Trading
+            </div>
+            <div style={{ color: '#c8852a', fontSize: 13, lineHeight: 1.6 }}>
+              A <strong style={{ color: '#f5a623' }}>1% move against you</strong> = <strong style={{ color: '#f5a623' }}>{data.leverageMultiplier}% real loss</strong> per trade.
+              A <strong style={{ color: '#ff3d3d' }}>{(100 / data.leverageMultiplier).toFixed(0)}% move</strong> = full position liquidation.
+              Make sure your stop loss is set tight and your trade amount is small.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {data.leverageMultiplier > 3 && data.tradeMode === 'paper' && (
+        <div style={{
+          background: '#1a1500', border: '1px solid #555', borderRadius: 10,
+          padding: '14px 20px', marginBottom: 24,
+          display: 'flex', alignItems: 'flex-start', gap: 14
+        }}>
+          <span style={{ fontSize: 22, lineHeight: 1 }}>⚠️</span>
+          <div>
+            <div style={{ color: '#888', fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+              High Leverage ({data.leverageMultiplier}x) — Paper Trading Mode
+            </div>
+            <div style={{ color: '#666', fontSize: 13, lineHeight: 1.6 }}>
+              You're testing {data.leverageMultiplier}x leverage safely in paper mode. Before switching to live,
+              remember: a {(100 / data.leverageMultiplier).toFixed(0)}% adverse move will liquidate your position.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Today's Performance */}
       {data?.todayStats && (
         <div className="section">

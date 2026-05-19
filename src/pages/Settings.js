@@ -298,10 +298,24 @@ function Settings() {
             value={settings.leverageMultiplier || 1}
             onChange={e => numInput('leverageMultiplier', e.target.value)}
           />
-          {(settings.leverageMultiplier || 1) > 1 && (
-            <p style={{ color: '#ff3d3d', fontSize: 12, marginTop: 4 }}>
+          {(settings.leverageMultiplier || 1) > 3 && (
+            <div style={{
+              background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8,
+              padding: '10px 14px', marginTop: 8
+            }}>
+              <div style={{ color: '#f5a623', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                ⚠️ High Leverage Warning — {settings.leverageMultiplier}x
+              </div>
+              <p style={{ color: '#c8852a', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+                A 1% move against you = <strong style={{ color: '#f5a623' }}>{settings.leverageMultiplier}% real loss</strong>.
+                A {(100 / settings.leverageMultiplier).toFixed(0)}% move = full liquidation.
+                Only use this in paper trading until you fully understand the risk.
+              </p>
+            </div>
+          )}
+          {(settings.leverageMultiplier || 1) > 1 && (settings.leverageMultiplier || 1) <= 3 && (
+            <p style={{ color: '#f5a623', fontSize: 12, marginTop: 4 }}>
               ⚠️ {settings.leverageMultiplier}x leverage amplifies both gains AND losses by {settings.leverageMultiplier}x.
-              Only use in paper trading mode to test.
             </p>
           )}
           {(settings.leverageMultiplier || 1) === 1 && (
