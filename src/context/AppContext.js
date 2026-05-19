@@ -5,7 +5,7 @@ const AppContext = createContext();
 const API = process.env.REACT_APP_API_URL;
 
 function notify(title, body) {
-  if (Notification.permission === 'granted') {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     new Notification(title, { body, icon: '/favicon.ico' });
   }
 }
@@ -23,9 +23,9 @@ export function AppProvider({ children }) {
       .catch(err => console.error('Failed to fetch bot status:', err));
   }, []);
 
-  // Request notification permission once on mount
+  // Request notification permission once on mount (not supported on iOS Safari)
   useEffect(() => {
-    if (Notification.permission === 'default') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, []);
