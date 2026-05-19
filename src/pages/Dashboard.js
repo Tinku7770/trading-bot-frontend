@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
+import MarketStatus from '../components/MarketStatus';
 
 const API = process.env.REACT_APP_API_URL;
 
@@ -241,8 +242,39 @@ function Dashboard() {
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid">
+      <MarketStatus />
+
+      {/* Today's Performance */}
+      {data?.todayStats && (
+        <div className="section">
+          <h3>Today's Performance</h3>
+          <div className="stats-grid">
+            <div className="card">
+              <h2>Today's P/L</h2>
+              <div className="value" style={{ color: (data.todayStats.pl || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                {(data.todayStats.pl || 0) >= 0 ? '+' : ''}${(data.todayStats.pl || 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="card">
+              <h2>Trades Today</h2>
+              <div className="value">{data.todayStats.trades || 0}</div>
+            </div>
+            <div className="card">
+              <h2>Today's Wins</h2>
+              <div className="value" style={{ color: '#00c853' }}>{data.todayStats.wins || 0}</div>
+            </div>
+            <div className="card">
+              <h2>Today's Win Rate</h2>
+              <div className="value" style={{ color: (data.todayStats.winRate || 0) >= 50 ? '#00c853' : data.todayStats.trades > 0 ? '#ff3d3d' : '#555' }}>
+                {data.todayStats.trades > 0 ? `${data.todayStats.winRate}%` : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* All-Time Stats */}
+      <div className="stats-grid" style={{ marginTop: 8 }}>
         <div className="card">
           <h2>Total Trades</h2>
           <div className="value">{stats.totalTrades || 0}</div>
