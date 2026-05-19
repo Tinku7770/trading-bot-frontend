@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 
@@ -37,6 +38,7 @@ function Dashboard() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
   const [running, setRunning]     = useState(false);
+  const [toggling, setToggling]   = useState(false);
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
   const [countdown, setCountdown] = useState('');
@@ -99,6 +101,7 @@ function Dashboard() {
 
   async function toggleBot() {
     try {
+      setToggling(true);
       if (botStatus) {
         await axios.post(`${API}/bot/stop`);
         setBotStatus(false);
@@ -108,6 +111,8 @@ function Dashboard() {
       }
     } catch {
       alert('Failed to toggle bot');
+    } finally {
+      setToggling(false);
     }
   }
 
@@ -200,8 +205,13 @@ function Dashboard() {
             </p>
           </div>
         </div>
-        <button className={`toggle-btn ${botStatus ? 'stop' : 'start'}`} onClick={toggleBot}>
-          {botStatus ? 'Stop Bot' : 'Start Bot'}
+        <button
+          className={`toggle-btn ${botStatus ? 'stop' : 'start'}`}
+          onClick={toggleBot}
+          disabled={toggling}
+          style={{ opacity: toggling ? 0.6 : 1, cursor: toggling ? 'not-allowed' : 'pointer' }}
+        >
+          {toggling ? (botStatus ? 'Stopping...' : 'Starting...') : (botStatus ? 'Stop Bot' : 'Start Bot')}
         </button>
         <span className="mode-badge">{tradeMode === 'paper' ? 'Paper Trading' : 'Live Trading'}</span>
         <span style={{ color: botStatus ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
@@ -372,7 +382,7 @@ function Dashboard() {
       <div className="section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>Latest AI Signals</h3>
-          <a href="/signals" style={{ color: '#5865f2', fontSize: 13, textDecoration: 'none' }}>View All →</a>
+          <Link to="/signals" style={{ color: '#5865f2', fontSize: 13, textDecoration: 'none' }}>View All →</Link>
         </div>
         <table>
           <thead>
@@ -406,7 +416,7 @@ function Dashboard() {
       <div className="section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>Recent Trades</h3>
-          <a href="/trades" style={{ color: '#5865f2', fontSize: 13, textDecoration: 'none' }}>View All →</a>
+          <Link to="/trades" style={{ color: '#5865f2', fontSize: 13, textDecoration: 'none' }}>View All →</Link>
         </div>
         <table>
           <thead>

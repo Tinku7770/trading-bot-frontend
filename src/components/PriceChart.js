@@ -56,7 +56,7 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
   // SHORT profits when price falls — invert direction
   const pnl = rawPnlPct !== null ? (isShort ? -rawPnlPct : rawPnlPct).toFixed(2) : null;
 
-  const isProfit = pnl >= 0;
+  const isProfit = parseFloat(pnl) >= 0;
   const lineColor = isProfit ? '#00c853' : '#ff3d3d';
 
   const minPrice = data.length ? Math.min(...data.map(d => d.price)) * 0.999 : 0;
