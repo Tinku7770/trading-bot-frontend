@@ -11,6 +11,14 @@ function Portfolio() {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [dateRange, setDateRange] = useState(0);
+
+  const RANGES = [
+    { label: 'Today',    days: 1  },
+    { label: '7 Days',   days: 7  },
+    { label: '30 Days',  days: 30 },
+    { label: 'All Time', days: 0  },
+  ];
 
   useEffect(() => {
     function load() {
@@ -28,12 +36,32 @@ function Portfolio() {
     return () => clearInterval(interval);
   }, []);
 
-  const closedTrades = trades
-    .filter(t => t.status === 'closed' && t.closedAt)
+  // Date filter cutoff
+  const cutoff = dateRange > 0 ? new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000) : null;
+
+  // Open trades always shown unfiltered (current positions)
+  const openTrades = trades.filter(t => t.status === 'open');
+  const capitalAtRisk = openTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  // All closed trades filtered by selected date range
+  const filteredClosed = trades
+    .filter(t => t.status === 'closed' && t.closedAt && (!cutoff || new Date(t.closedAt) >= cutoff))
     .sort((a, b) => new Date(a.closedAt) - new Date(b.closedAt));
 
-  // Use trade # as X-axis to avoid duplicate date labels
-  const plChartData = closedTrades.reduce((acc, t, i) => {
+  // Stats from filtered closed trades (client-side for filtered views, backend for all-time)
+  const winningList = filteredClosed.filter(t => (t.profitLoss || 0) > 0);
+  const losingList  = filteredClosed.filter(t => (t.profitLoss || 0) <= 0);
+  const avgWin  = winningList.length ? winningList.reduce((s, t) => s + t.profitLoss, 0) / winningList.length : 0;
+  const avgLoss = losingList.length  ? losingList.reduce((s, t)  => s + t.profitLoss, 0) / losingList.length  : 0;
+
+  const viewTotalTrades = dateRange === 0 ? (stats.totalTrades || 0)      : filteredClosed.length;
+  const viewWinRate     = dateRange === 0 ? (stats.winRate || 0)           : (filteredClosed.length > 0 ? Math.round(winningList.length / filteredClosed.length * 100) : 0);
+  const viewTotalPL     = dateRange === 0 ? (stats.totalProfitLoss || 0)   : filteredClosed.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
+  const viewWins        = dateRange === 0 ? (stats.winningTrades || 0)     : winningList.length;
+  const viewLosses      = viewTotalTrades - viewWins;
+
+  // Cumulative P/L chart from filtered trades
+  const plChartData = filteredClosed.reduce((acc, t, i) => {
     const prev = acc[i - 1]?.cumulative || 0;
     acc.push({
       trade: i + 1,
@@ -44,41 +72,24 @@ function Portfolio() {
     return acc;
   }, []);
 
-  // Pie chart: trade count allocation
-  const cryptoCount = trades.filter(t => t.market === 'crypto').length;
-  const stockCount = trades.filter(t => t.market === 'stock').length;
-  const pieData = cryptoCount === 0 && stockCount === 0
+  // Pie chart and market breakdown from filtered closed trades
+  const cryptoClosed = filteredClosed.filter(t => t.market === 'crypto');
+  const stockClosed  = filteredClosed.filter(t => t.market === 'stock');
+  const cryptoPL = cryptoClosed.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
+  const stockPL  = stockClosed.reduce((sum, t)  => sum + (t.profitLoss || 0), 0);
+  const cryptoWinRate = cryptoClosed.length ? Math.round(cryptoClosed.filter(t => (t.profitLoss || 0) > 0).length / cryptoClosed.length * 100) : 0;
+  const stockWinRate  = stockClosed.length  ? Math.round(stockClosed.filter(t =>  (t.profitLoss || 0) > 0).length / stockClosed.length  * 100) : 0;
+
+  const pieData = cryptoClosed.length === 0 && stockClosed.length === 0
     ? [{ name: 'No trades', value: 1 }]
     : [
-        ...(cryptoCount > 0 ? [{ name: 'Crypto', value: cryptoCount }] : []),
-        ...(stockCount > 0 ? [{ name: 'Stocks', value: stockCount }] : [])
+        ...(cryptoClosed.length > 0 ? [{ name: 'Crypto', value: cryptoClosed.length }] : []),
+        ...(stockClosed.length  > 0 ? [{ name: 'Stocks', value: stockClosed.length  }] : []),
       ];
 
-  // P/L by market
-  const cryptoPL = trades
-    .filter(t => t.market === 'crypto' && t.status === 'closed')
-    .reduce((sum, t) => sum + (t.profitLoss || 0), 0);
-  const stockPL = trades
-    .filter(t => t.market === 'stock' && t.status === 'closed')
-    .reduce((sum, t) => sum + (t.profitLoss || 0), 0);
-
-  const openTrades = trades.filter(t => t.status === 'open');
-  const capitalAtRisk = openTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
-  const losingTrades = (stats.totalTrades || 0) - (stats.winningTrades || 0);
-
-  const closedTrades2 = trades.filter(t => t.status === 'closed');
-  const winningList = closedTrades2.filter(t => (t.profitLoss || 0) > 0);
-  const losingList = closedTrades2.filter(t => (t.profitLoss || 0) <= 0);
-  const avgWin = winningList.length ? winningList.reduce((s, t) => s + t.profitLoss, 0) / winningList.length : 0;
-  const avgLoss = losingList.length ? losingList.reduce((s, t) => s + t.profitLoss, 0) / losingList.length : 0;
-
-  const cryptoClosed = trades.filter(t => t.market === 'crypto' && t.status === 'closed');
-  const stockClosed = trades.filter(t => t.market === 'stock' && t.status === 'closed');
-  const cryptoWinRate = cryptoClosed.length ? Math.round(cryptoClosed.filter(t => (t.profitLoss || 0) > 0).length / cryptoClosed.length * 100) : 0;
-  const stockWinRate = stockClosed.length ? Math.round(stockClosed.filter(t => (t.profitLoss || 0) > 0).length / stockClosed.length * 100) : 0;
-
+  // Per-symbol breakdown from filtered closed trades
   const bySymbol = {};
-  closedTrades2.forEach(t => {
+  filteredClosed.forEach(t => {
     if (!bySymbol[t.symbol]) bySymbol[t.symbol] = { pl: 0, wins: 0, losses: 0 };
     bySymbol[t.symbol].pl += t.profitLoss || 0;
     if ((t.profitLoss || 0) > 0) bySymbol[t.symbol].wins++;
@@ -109,30 +120,49 @@ function Portfolio() {
     <div>
       <h1 className="page-title">Portfolio</h1>
 
+      {/* Date Range Filter */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+        {RANGES.map(r => (
+          <button
+            key={r.days}
+            onClick={() => setDateRange(r.days)}
+            style={{
+              padding: '7px 18px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer',
+              background: dateRange === r.days ? '#5865f2' : '#1a1d27',
+              color: dateRange === r.days ? '#fff' : '#888',
+              border: dateRange === r.days ? 'none' : '1px solid #2a2d3e',
+            }}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
       {/* Stats */}
       <div className="stats-grid">
         <div className="card">
           <h2>Total Trades</h2>
-          <div className="value">{stats.totalTrades || 0}</div>
+          <div className="value">{viewTotalTrades}</div>
         </div>
         <div className="card">
           <h2>Win Rate</h2>
-          <div className="value" style={{ color: (stats.winRate || 0) >= 50 ? '#00c853' : '#ff3d3d' }}>
-            {stats.winRate || 0}%
+          <div className="value" style={{ color: viewWinRate >= 50 ? '#00c853' : '#ff3d3d' }}>
+            {viewTotalTrades > 0 ? `${viewWinRate}%` : '—'}
           </div>
         </div>
         <div className="card">
           <h2>Total P/L</h2>
-          <div className="value" style={{ color: plColor(stats.totalProfitLoss || 0) }}>
-            {plStr(stats.totalProfitLoss || 0)}
+          <div className="value" style={{ color: plColor(viewTotalPL) }}>
+            {plStr(viewTotalPL)}
           </div>
         </div>
         <div className="card">
           <h2>Wins / Losses</h2>
           <div className="value">
-            <span style={{ color: '#00c853' }}>{stats.winningTrades || 0}</span>
+            <span style={{ color: '#00c853' }}>{viewWins}</span>
             <span style={{ color: '#555', fontSize: 18 }}> / </span>
-            <span style={{ color: '#ff3d3d' }}>{losingTrades}</span>
+            <span style={{ color: '#ff3d3d' }}>{viewLosses}</span>
           </div>
         </div>
         <div className="card">

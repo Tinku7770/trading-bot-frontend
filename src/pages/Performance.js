@@ -36,14 +36,24 @@ function Performance() {
   const [error, setError] = useState(false);
   const [sortBy, setSortBy] = useState('totalPL');
   const [sortDir, setSortDir] = useState('desc');
+  const [dateRange, setDateRange] = useState(0);
+
+  const RANGES = [
+    { label: 'Today',    days: 1  },
+    { label: '7 Days',   days: 7  },
+    { label: '30 Days',  days: 30 },
+    { label: 'All Time', days: 0  },
+  ];
 
   const fetchData = useCallback(() => {
-    axios.get(`${API}/trades/performance`)
+    const params = dateRange > 0 ? `?days=${dateRange}` : '';
+    axios.get(`${API}/trades/performance${params}`)
       .then(res => { setData(res.data); setLoading(false); setError(false); })
       .catch(() => { setLoading(false); setError(true); });
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => {
+    setLoading(true);
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
@@ -93,6 +103,25 @@ function Performance() {
   return (
     <div>
       <h1 className="page-title">Performance Analytics</h1>
+
+      {/* Date Range Filter */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+        {RANGES.map(r => (
+          <button
+            key={r.days}
+            onClick={() => setDateRange(r.days)}
+            style={{
+              padding: '7px 18px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer',
+              background: dateRange === r.days ? '#5865f2' : '#1a1d27',
+              color: dateRange === r.days ? '#fff' : '#888',
+              border: dateRange === r.days ? 'none' : '1px solid #2a2d3e',
+            }}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
 
       {/* Summary Cards */}
       <div className="stats-grid">
