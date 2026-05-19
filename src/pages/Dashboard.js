@@ -6,17 +6,6 @@ import PriceChart from '../components/PriceChart';
 
 const API = process.env.REACT_APP_API_URL;
 
-function getNextRunTime() {
-  const now = new Date();
-  const next = new Date(now);
-  if (now.getMinutes() < 30) {
-    next.setMinutes(30, 0, 0);
-  } else {
-    next.setHours(now.getHours() + 1, 0, 0, 0);
-  }
-  return next;
-}
-
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00';
   const totalSec = Math.floor(ms / 1000);
@@ -42,6 +31,7 @@ function Dashboard() {
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
   const [countdown, setCountdown] = useState('');
+  const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
 
   useEffect(() => {
@@ -50,14 +40,33 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function fetchNextRun() {
+    try {
+      const res = await axios.get(`${API}/bot/next-run`);
+      setNextRunTime(new Date(res.data.nextRun));
+    } catch (err) {
+      console.error('Failed to fetch next run time:', err);
+    }
+  }
+
   useEffect(() => {
+    fetchNextRun();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!nextRunTime) return;
     function tick() {
-      setCountdown(formatCountdown(getNextRunTime() - new Date()));
+      const ms = nextRunTime - new Date();
+      if (ms <= 0) {
+        fetchNextRun();
+      } else {
+        setCountdown(formatCountdown(ms));
+      }
     }
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [nextRunTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!data?.openTrades?.length) return;
@@ -148,7 +157,7 @@ function Dashboard() {
     try {
       setRunning(true);
       await axios.post(`${API}/bot/run-now`);
-      setTimeout(() => { fetchDashboard(); setRunning(false); }, 8000);
+      setTimeout(() => { fetchDashboard(); fetchNextRun(); setRunning(false); }, 8000);
     } catch {
       alert('Failed to trigger bot');
       setRunning(false);
