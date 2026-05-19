@@ -94,7 +94,9 @@ function Dashboard() {
           const points = res.data || [];
           if (points.length > 0) results[trade.symbol] = points[points.length - 1].price;
         }
-      } catch {}
+      } catch (err) {
+        console.error(`Failed to fetch price for ${trade.symbol}:`, err);
+      }
     }));
     setCurrentPrices(prev => ({ ...prev, ...results }));
   }

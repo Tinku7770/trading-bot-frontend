@@ -30,7 +30,9 @@ export function AppProvider({ children }) {
           if (data.type === 'TRADE_CLOSED') setLiveTrades(prev =>
             prev.map(t => t._id === data.trade._id ? { ...t, ...data.trade } : t)
           );
-        } catch {}
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
+        }
       };
 
       socket.onerror = () => socket.close();

@@ -20,7 +20,8 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
         setCurrentPrice(points[points.length - 1].price);
       }
       setLoading(false);
-    } catch {
+    } catch (err) {
+      console.error(`Failed to fetch chart for ${symbol}:`, err);
       setLoading(false);
     }
   }, [symbol, market]);
@@ -31,8 +32,8 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
       const ticker = symbol.replace('/', '');
       const res = await axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`);
       setCurrentPrice(parseFloat(res.data.price));
-    } catch {
-      // silently fail — keep last known price
+    } catch (err) {
+      console.error(`Failed to fetch live price for ${symbol}:`, err);
     }
   }, [symbol, market]);
 
