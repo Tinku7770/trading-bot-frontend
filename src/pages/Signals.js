@@ -42,7 +42,8 @@ function Signals() {
       const res = await axios.get(`${API}/signals`);
       setSignals(res.data);
       setError(false);
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch signals:', err);
       setError(true);
     }
     setLoading(false);
