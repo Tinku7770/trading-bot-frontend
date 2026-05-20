@@ -34,10 +34,23 @@ function Dashboard() {
   const [countdown, setCountdown] = useState('');
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
+  const [scannedStocks, setScannedStocks] = useState([]);
 
   useEffect(() => {
     fetchDashboard();
     const interval = setInterval(fetchDashboard, 30000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    async function fetchScanned() {
+      try {
+        const res = await axios.get(`${API}/bot/scanned-stocks`);
+        setScannedStocks(res.data || []);
+      } catch { setScannedStocks([]); }
+    }
+    fetchScanned();
+    const interval = setInterval(fetchScanned, 60000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -312,6 +325,51 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Today's Scanner Picks */}
+      <div className="section">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Today's Scanner Picks</h3>
+            <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+              Top movers from Tech, Semiconductors &amp; Energy — added to bot watchlist at market open
+            </p>
+          </div>
+          <span style={{
+            background: scannedStocks.length > 0 ? '#0d2a0d' : '#1a1d27',
+            color: scannedStocks.length > 0 ? '#00c853' : '#555',
+            border: `1px solid ${scannedStocks.length > 0 ? '#00c853' : '#2a2d3e'}`,
+            borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600
+          }}>
+            {scannedStocks.length > 0 ? `${scannedStocks.length} active` : 'Market closed'}
+          </span>
+        </div>
+        {scannedStocks.length === 0 ? (
+          <div style={{ color: '#555', fontSize: 13, padding: '16px 0' }}>
+            No scanner picks yet — scanner runs automatically when market opens at 9:30 AM PT
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+            {scannedStocks.map(s => (
+              <div key={s.symbol} className="card" style={{ padding: '12px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <strong style={{ fontSize: 15 }}>{s.symbol}</strong>
+                  <span style={{
+                    background: '#1a2a0d', color: '#00c853',
+                    fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 700
+                  }}>SCAN</span>
+                </div>
+                <div style={{ color: s.changePct >= 0 ? '#00c853' : '#ff3d3d', fontWeight: 700, fontSize: 18, marginTop: 6 }}>
+                  {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+                </div>
+                <div style={{ color: '#888', fontSize: 11, marginTop: 4 }}>
+                  Vol: {s.volRatio.toFixed(1)}x avg &nbsp;·&nbsp; ${s.price?.toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* All-Time Stats */}
       <div className="stats-grid" style={{ marginTop: 8 }}>
