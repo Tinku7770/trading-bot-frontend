@@ -36,7 +36,9 @@ export function AppProvider({ children }) {
     let retryDelay = 1000;
 
     function connect() {
-      socket = new WebSocket(process.env.REACT_APP_WS_URL || 'wss://trading-bot-backend-production-9a53.up.railway.app');
+      const wsBase = process.env.REACT_APP_WS_URL || 'wss://trading-bot-backend-production-9a53.up.railway.app';
+      const wsKey  = process.env.REACT_APP_DASHBOARD_API_KEY;
+      socket = new WebSocket(wsKey ? `${wsBase}?key=${encodeURIComponent(wsKey)}` : wsBase);
 
       socket.onopen = () => {
         console.log('WebSocket connected');
