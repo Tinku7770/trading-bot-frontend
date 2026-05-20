@@ -34,7 +34,8 @@ function Dashboard() {
   const [countdown, setCountdown] = useState('');
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
-  const [scannedStocks, setScannedStocks] = useState([]);
+  const [scannedStocks, setScannedStocks]     = useState([]);
+  const [preMarketFlags, setPreMarketFlags]   = useState([]);
 
   useEffect(() => {
     fetchDashboard();
@@ -45,9 +46,13 @@ function Dashboard() {
   useEffect(() => {
     async function fetchScanned() {
       try {
-        const res = await axios.get(`${API}/bot/scanned-stocks`);
-        setScannedStocks(res.data || []);
-      } catch { setScannedStocks([]); }
+        const [scannedRes, preRes] = await Promise.all([
+          axios.get(`${API}/bot/scanned-stocks`),
+          axios.get(`${API}/bot/pre-market-flags`)
+        ]);
+        setScannedStocks(scannedRes.data || []);
+        setPreMarketFlags(preRes.data || []);
+      } catch { setScannedStocks([]); setPreMarketFlags([]); }
     }
     fetchScanned();
     const interval = setInterval(fetchScanned, 60000);
@@ -322,6 +327,46 @@ function Dashboard() {
                 {data.todayStats.trades > 0 ? `${data.todayStats.winRate}%` : '—'}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Market Alerts */}
+      {preMarketFlags.length > 0 && (
+        <div className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Pre-Market Alerts</h3>
+              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+                Flagged before market open — bot will trade these at 6:30 AM PT if AI confirms
+              </p>
+            </div>
+            <span style={{
+              background: '#2a1500', color: '#f5a623',
+              border: '1px solid #f5a623',
+              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600
+            }}>
+              {preMarketFlags.length} flagged
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+            {preMarketFlags.map(s => (
+              <div key={s.symbol} className="card" style={{ padding: '12px 16px', borderLeft: '3px solid #f5a623' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <strong style={{ fontSize: 15 }}>{s.symbol}</strong>
+                  <span style={{
+                    background: '#2a1500', color: '#f5a623',
+                    fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 700
+                  }}>PRE</span>
+                </div>
+                <div style={{ color: s.changePct >= 0 ? '#00c853' : '#ff3d3d', fontWeight: 700, fontSize: 18, marginTop: 6 }}>
+                  {s.changePct >= 0 ? '+' : ''}{s.changePct.toFixed(2)}%
+                </div>
+                <div style={{ color: '#888', fontSize: 11, marginTop: 4 }}>
+                  Vol: {s.volRatio.toFixed(1)}x avg &nbsp;·&nbsp; ${s.price?.toFixed(2)}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
