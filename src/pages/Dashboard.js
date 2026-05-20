@@ -36,6 +36,7 @@ function Dashboard() {
   const [currentPrices, setCurrentPrices] = useState({});
   const [scannedStocks, setScannedStocks]     = useState([]);
   const [preMarketFlags, setPreMarketFlags]   = useState([]);
+  const [cryptoHealth, setCryptoHealth]       = useState(null);
 
   useEffect(() => {
     fetchDashboard();
@@ -56,6 +57,18 @@ function Dashboard() {
     }
     fetchScanned();
     const interval = setInterval(fetchScanned, 60000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    async function fetchCryptoHealth() {
+      try {
+        const res = await axios.get(`${API}/market/crypto-health`);
+        setCryptoHealth(res.data);
+      } catch { /* keep previous data */ }
+    }
+    fetchCryptoHealth();
+    const interval = setInterval(fetchCryptoHealth, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -415,6 +428,117 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Crypto Market Health */}
+      {cryptoHealth && (
+        <div className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Crypto Market Health</h3>
+              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+                BTC dominance &amp; funding rates — refreshed every 10 min
+              </p>
+            </div>
+          </div>
+
+          {/* BTC Dominance */}
+          {cryptoHealth.btcDominance && (() => {
+            const dom = cryptoHealth.btcDominance;
+            const domColors = {
+              bearish_alts: '#ff3d3d',
+              elevated: '#f5a623',
+              altseason: '#00c853',
+              declining: '#5ac8fa',
+              neutral: '#888'
+            };
+            const domLabels = {
+              bearish_alts: 'BTC Dominant — Alts Weak',
+              elevated: 'Elevated Dominance',
+              altseason: 'Alt Season',
+              declining: 'Dominance Falling',
+              neutral: 'Neutral'
+            };
+            const color = domColors[dom.signal] || '#888';
+            return (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  BTC Dominance
+                </div>
+                <div className="card" style={{ padding: '14px 20px', borderLeft: `3px solid ${color}`, display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: 11, marginBottom: 2 }}>Dominance</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: color }}>{dom.value}%</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: 11, marginBottom: 2 }}>24h Change</div>
+                    <div style={{ fontSize: 18, fontWeight: 600, color: dom.change24h >= 0 ? '#00c853' : '#ff3d3d' }}>
+                      {dom.change24h >= 0 ? '+' : ''}{dom.change24h}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: 11, marginBottom: 4 }}>Signal</div>
+                    <span style={{
+                      background: color + '22', color: color,
+                      border: `1px solid ${color}`,
+                      borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
+                    }}>
+                      {domLabels[dom.signal] || dom.signal}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Funding Rates */}
+          {cryptoHealth.fundingRates && Object.keys(cryptoHealth.fundingRates).length > 0 && (
+            <div>
+              <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Funding Rates
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                {Object.entries(cryptoHealth.fundingRates).map(([sym, fr]) => {
+                  const frColors = {
+                    overheated_longs: '#ff3d3d',
+                    elevated_longs: '#f5a623',
+                    overheated_shorts: '#00c853',
+                    elevated_shorts: '#5ac8fa',
+                    neutral: '#888'
+                  };
+                  const frLabels = {
+                    overheated_longs: 'Longs Overheated',
+                    elevated_longs: 'Elevated Longs',
+                    overheated_shorts: 'Shorts Overheated',
+                    elevated_shorts: 'Elevated Shorts',
+                    neutral: 'Balanced'
+                  };
+                  const color = frColors[fr.signal] || '#888';
+                  const ticker = sym.replace('/USDT', '');
+                  return (
+                    <div key={sym} className="card" style={{ padding: '12px 16px', borderLeft: `3px solid ${color}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <strong style={{ fontSize: 14 }}>{ticker}</strong>
+                        <span style={{ color: '#555', fontSize: 10 }}>USDT</span>
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 700, marginTop: 6, color: fr.rate > 0 ? '#f5a623' : fr.rate < 0 ? '#5ac8fa' : '#888' }}>
+                        {fr.rate > 0 ? '+' : ''}{fr.rate.toFixed(4)}%
+                      </div>
+                      <div style={{
+                        marginTop: 6,
+                        background: color + '22', color: color,
+                        borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700,
+                        display: 'inline-block'
+                      }}>
+                        {frLabels[fr.signal] || fr.signal}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* All-Time Stats */}
       <div className="stats-grid" style={{ marginTop: 8 }}>
