@@ -64,7 +64,7 @@ function Trades() {
   const closedFiltered = filtered.filter(t => t.status === 'closed');
   const totalPL = closedFiltered.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
   const wins = closedFiltered.filter(t => (t.profitLoss || 0) > 0).length;
-  const losses = closedFiltered.filter(t => (t.profitLoss || 0) <= 0).length;
+  const losses = closedFiltered.filter(t => (t.profitLoss || 0) < 0).length;
   const winRate = closedFiltered.length > 0 ? Math.round(wins / closedFiltered.length * 100) : null;
 
   if (loading) return <div className="page-title">Loading...</div>;
@@ -182,7 +182,9 @@ function Trades() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={12} style={{ color: '#666', textAlign: 'center' }}>No trades match your filters</td>
+                <td colSpan={12} style={{ color: '#666', textAlign: 'center' }}>
+                    {allTrades.length === 0 ? 'No trades yet — start the bot' : 'No trades match your filters'}
+                  </td>
               </tr>
             ) : filtered.map((t) => (
               <React.Fragment key={t._id}>
@@ -193,11 +195,11 @@ function Trades() {
                   <td><strong>{t.symbol}</strong></td>
                   <td><span className={`badge ${t.type?.toLowerCase()}`}>{t.type}</span></td>
                   <td style={{ color: '#888' }}>{t.market}</td>
-                  <td>${t.price?.toFixed(2)}</td>
+                  <td>${t.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td style={{ color: t.closePrice ? '#fff' : '#555' }}>
-                    {t.closePrice ? `$${t.closePrice.toFixed(2)}` : '—'}
+                    {t.closePrice ? `$${t.closePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                   </td>
-                  <td>${t.amount?.toFixed(2)}</td>
+                  <td>${t.amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td style={{ color: (t.leverage || 1) > 1 ? '#f5a623' : '#555', fontWeight: (t.leverage || 1) > 1 ? 700 : 400 }}>
                     {t.leverage || 1}x
                   </td>
@@ -223,11 +225,13 @@ function Trades() {
                   <tr>
                     <td colSpan={12} style={{ background: '#13151f', padding: '16px 20px' }}>
                       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 14 }}>
-                        {t.executedAt && t.closedAt && (
+                        {t.executedAt && (
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Duration</div>
+                            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>
+                              {t.status === 'open' ? 'Held For' : 'Duration'}
+                            </div>
                             <div style={{ color: '#aaa', fontWeight: 600, fontSize: 13, marginTop: 4 }}>
-                              {formatDuration(t.executedAt, t.closedAt)}
+                              {formatDuration(t.executedAt, t.closedAt || new Date())}
                             </div>
                           </div>
                         )}
