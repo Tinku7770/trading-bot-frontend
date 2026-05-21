@@ -84,10 +84,12 @@ function SignalBadge({ signal }) {
   );
 }
 
-function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSignal }) {
-  const [chartData, setChartData] = useState([]);
-  const [price, setPrice]         = useState(null);
-  const [change, setChange]       = useState(null);
+// externalPrice / externalChange are passed from the parent for crypto (batched fetch).
+// Stocks derive price and change from their own chart data.
+function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSignal, externalPrice, externalChange }) {
+  const [chartData, setChartData]     = useState([]);
+  const [stockPrice, setStockPrice]   = useState(null);
+  const [stockChange, setStockChange] = useState(null);
   const [loadingChart, setLoadingChart] = useState(true);
 
   const fetchChart = useCallback(async () => {
@@ -97,10 +99,10 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSig
       const points = res.data || [];
       setChartData(points);
       if (!isCrypto && points.length > 0) {
-        const latest = points[points.length - 1].price;
+        const latest   = points[points.length - 1].price;
         const earliest = points[0].price;
-        setPrice(latest);
-        setChange(earliest > 0 ? (((latest - earliest) / earliest) * 100).toFixed(2) : '0.00');
+        setStockPrice(latest);
+        setStockChange(earliest > 0 ? (((latest - earliest) / earliest) * 100).toFixed(2) : '0.00');
       }
       setLoadingChart(false);
     } catch {
@@ -108,28 +110,16 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSig
     }
   }, [symbol, isCrypto]);
 
-  const fetchPrice = useCallback(async () => {
-    if (!isCrypto) return;
-    try {
-      const [priceRes, statsRes] = await Promise.all([
-        axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`),
-        axios.get(`https://api.binance.us/api/v3/ticker/24hr?symbol=${ticker}`)
-      ]);
-      setPrice(parseFloat(priceRes.data.price));
-      setChange(parseFloat(statsRes.data.priceChangePercent).toFixed(2));
-    } catch {}
-  }, [isCrypto, ticker]);
-
   useEffect(() => {
     fetchChart();
-    fetchPrice();
-    const chartInterval = setInterval(fetchChart, 5 * 60 * 1000);
-    const priceInterval = setInterval(fetchPrice, 30 * 1000);
-    return () => { clearInterval(chartInterval); clearInterval(priceInterval); };
-  }, [fetchChart, fetchPrice]);
+    const interval = setInterval(fetchChart, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchChart]);
 
-  const isUp      = parseFloat(change) >= 0;
-  const lineColor = isUp ? '#00c853' : '#ff3d3d';
+  const price     = isCrypto ? (externalPrice  ?? null) : stockPrice;
+  const change    = isCrypto ? (externalChange ?? null) : stockChange;
+  const isUp      = change !== null && parseFloat(change) >= 0;
+  const lineColor = change !== null ? (isUp ? '#00c853' : '#ff3d3d') : '#5865f2';
   const chartH    = selected ? 220 : 90;
 
   const minP = chartData.length ? Math.min(...chartData.map(d => d.price)) * 0.999 : 0;
@@ -218,7 +208,7 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSig
 
       {selected && (
         <div style={{ fontSize: 11, color: '#555', marginTop: 6, textAlign: 'right' }}>
-          {isCrypto ? '24h history · live price every 30s' : '24h history · price from chart data (updates every 5m)'}
+          {isCrypto ? '24h history · live price every 30s' : 'Intraday chart · change from market open · updates every 5m'}
         </div>
       )}
     </div>
@@ -241,9 +231,35 @@ function Market() {
     { symbol: 'XOM',  name: 'Exxon' },
     { symbol: 'CVX',  name: 'Chevron' },
   ]);
+  const [cryptoPrices, setCryptoPrices] = useState({});
   const [latestSignals, setLatestSignals] = useState({});
   const [session, setSession] = useState(getStockMarketSession());
   const [fearGreed, setFearGreed] = useState(null);
+
+  // Batch-fetch all crypto prices in one Binance call instead of one call per card
+  const fetchAllCryptoPrices = useCallback(async () => {
+    if (!cryptoSymbols.length) return;
+    try {
+      const tickers = JSON.stringify(cryptoSymbols.map(c => c.ticker));
+      const res = await axios.get(
+        `https://api.binance.us/api/v3/ticker/24hr?symbols=${encodeURIComponent(tickers)}`
+      );
+      const prices = {};
+      res.data.forEach(item => {
+        prices[item.symbol] = {
+          price:  parseFloat(item.lastPrice),
+          change: parseFloat(item.priceChangePercent).toFixed(2)
+        };
+      });
+      setCryptoPrices(prices);
+    } catch {}
+  }, [cryptoSymbols]);
+
+  useEffect(() => {
+    fetchAllCryptoPrices();
+    const interval = setInterval(fetchAllCryptoPrices, 30000);
+    return () => clearInterval(interval);
+  }, [fetchAllCryptoPrices]);
 
   // Load bot symbols from settings
   useEffect(() => {
@@ -338,6 +354,8 @@ function Market() {
               selected={selected === c.symbol}
               onClick={() => toggle(c.symbol)}
               lastSignal={latestSignals[c.symbol] || null}
+              externalPrice={cryptoPrices[c.ticker]?.price}
+              externalChange={cryptoPrices[c.ticker]?.change}
             />
           ))}
         </div>

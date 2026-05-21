@@ -160,13 +160,16 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Max Trade Amount ($)</label>
+          <label>Total Trading Capital ($)</label>
           <input
             type="number"
             min="1"
             value={settings.maxTradeAmount}
             onChange={e => numInput('maxTradeAmount', e.target.value)}
           />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Total capital available to the bot. Each trade receives an equal share — e.g. $1,000 across 5 symbols = ~$200 per trade.
+          </p>
         </div>
 
         <div className="form-group">

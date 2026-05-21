@@ -189,7 +189,7 @@ function Dashboard() {
     try {
       setRunning(true);
       await axios.post(`${API}/bot/run-now`);
-      setTimeout(() => { fetchDashboard(); fetchNextRun(); setRunning(false); }, 8000);
+      setTimeout(() => { fetchDashboard(); fetchNextRun(); setRunning(false); }, 25000);
     } catch {
       alert('Failed to trigger bot');
       setRunning(false);

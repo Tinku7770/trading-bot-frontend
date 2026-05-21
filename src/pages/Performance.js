@@ -161,8 +161,8 @@ function Performance() {
         </div>
         <div className="card">
           <h2>Profit Factor</h2>
-          <div className="value" style={{ color: (() => { const pf = data.avgWin && data.avgLoss ? Math.abs(data.avgWin / data.avgLoss) : 0; return pf >= 1.5 ? '#00c853' : pf >= 1 ? '#f5a623' : '#ff3d3d'; })() }}>
-            {data.avgWin && data.avgLoss ? Math.abs(data.avgWin / data.avgLoss).toFixed(2) : 'N/A'}
+          <div className="value" style={{ color: (() => { const pf = (data.avgWin && data.avgLoss && totalLosses > 0) ? (data.avgWin * totalWins) / (Math.abs(data.avgLoss) * totalLosses) : 0; return pf >= 1.5 ? '#00c853' : pf >= 1 ? '#f5a623' : '#ff3d3d'; })() }}>
+            {(data.avgWin && data.avgLoss && totalLosses > 0) ? ((data.avgWin * totalWins) / (Math.abs(data.avgLoss) * totalLosses)).toFixed(2) : 'N/A'}
           </div>
         </div>
       </div>
