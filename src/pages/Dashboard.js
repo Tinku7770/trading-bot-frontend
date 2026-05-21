@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -37,6 +37,7 @@ function Dashboard() {
   const [scannedStocks, setScannedStocks]     = useState([]);
   const [preMarketFlags, setPreMarketFlags]   = useState([]);
   const [cryptoHealth, setCryptoHealth]       = useState(null);
+  const openTradesRef = useRef([]);
 
   useEffect(() => {
     fetchDashboard();
@@ -90,6 +91,7 @@ function Dashboard() {
     function tick() {
       const ms = nextRunTime - new Date();
       if (ms <= 0) {
+        setCountdown('00:00');
         fetchNextRun();
       } else {
         setCountdown(formatCountdown(ms));
@@ -100,11 +102,17 @@ function Dashboard() {
     return () => clearInterval(timer);
   }, [nextRunTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keep ref in sync so the stable interval below always reads the latest trades
+  useEffect(() => {
+    openTradesRef.current = data?.openTrades || [];
+  }, [data?.openTrades]);
+
+  // Stable 30s interval — dep on length so it only restarts when positions open/close
   useEffect(() => {
     if (!data?.openTrades?.length) return;
-    const interval = setInterval(() => fetchCurrentPrices(data.openTrades), 30000);
+    const interval = setInterval(() => fetchCurrentPrices(openTradesRef.current), 30000);
     return () => clearInterval(interval);
-  }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchDashboard() {
     try {
@@ -123,22 +131,37 @@ function Dashboard() {
   async function fetchCurrentPrices(openTrades) {
     if (!openTrades || openTrades.length === 0) return;
     const results = {};
-    await Promise.all(openTrades.map(async (trade) => {
+    const cryptoTrades = openTrades.filter(t => t.market === 'crypto');
+    const stockTrades  = openTrades.filter(t => t.market !== 'crypto');
+
+    // One Binance call for all open crypto positions
+    if (cryptoTrades.length > 0) {
       try {
-        if (trade.market === 'crypto') {
-          const ticker = trade.symbol.replace('/', '');
-          const res = await axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`);
-          results[trade.symbol] = parseFloat(res.data.price);
-        } else {
-          const encoded = encodeURIComponent(trade.symbol);
-          const res = await axios.get(`${API}/dashboard/chart/${encoded}`);
-          const points = res.data || [];
-          if (points.length > 0) results[trade.symbol] = points[points.length - 1].price;
-        }
+        const tickers = JSON.stringify(cryptoTrades.map(t => t.symbol.replace('/', '')));
+        const res = await axios.get(
+          `https://api.binance.us/api/v3/ticker/price?symbols=${encodeURIComponent(tickers)}`
+        );
+        res.data.forEach(item => {
+          const trade = cryptoTrades.find(t => t.symbol.replace('/', '') === item.symbol);
+          if (trade) results[trade.symbol] = parseFloat(item.price);
+        });
+      } catch (err) {
+        console.error('Failed to batch-fetch crypto prices:', err);
+      }
+    }
+
+    // Stock prices from chart endpoint (no free batch alternative)
+    await Promise.all(stockTrades.map(async trade => {
+      try {
+        const encoded = encodeURIComponent(trade.symbol);
+        const res = await axios.get(`${API}/dashboard/chart/${encoded}`);
+        const points = res.data || [];
+        if (points.length > 0) results[trade.symbol] = points[points.length - 1].price;
       } catch (err) {
         console.error(`Failed to fetch price for ${trade.symbol}:`, err);
       }
     }));
+
     setCurrentPrices(prev => ({ ...prev, ...results }));
   }
 
@@ -262,11 +285,12 @@ function Dashboard() {
         </span>
         <button
           onClick={runNow}
-          disabled={running}
+          disabled={running || !botStatus}
           style={{
             marginLeft: 'auto', padding: '10px 20px', borderRadius: 8,
-            border: 'none', background: running ? '#333' : '#5865f2',
-            color: '#fff', fontWeight: 600, cursor: running ? 'not-allowed' : 'pointer', fontSize: 14
+            border: 'none', background: (running || !botStatus) ? '#333' : '#5865f2',
+            color: (running || !botStatus) ? '#666' : '#fff',
+            fontWeight: 600, cursor: (running || !botStatus) ? 'not-allowed' : 'pointer', fontSize: 14
           }}
         >
           {running ? 'Analyzing...' : 'Run Now'}
@@ -289,7 +313,7 @@ function Dashboard() {
             </div>
             <div style={{ color: '#c8852a', fontSize: 13, lineHeight: 1.6 }}>
               A <strong style={{ color: '#f5a623' }}>1% move against you</strong> = <strong style={{ color: '#f5a623' }}>{data.leverageMultiplier}% real loss</strong> per trade.
-              A <strong style={{ color: '#ff3d3d' }}>{(100 / data.leverageMultiplier).toFixed(0)}% move</strong> = full position liquidation.
+              A <strong style={{ color: '#ff3d3d' }}>{(100 / (data.leverageMultiplier || 1)).toFixed(0)}% move</strong> = full position liquidation.
               Make sure your stop loss is set tight and your trade amount is small.
             </div>
           </div>
@@ -309,40 +333,46 @@ function Dashboard() {
             </div>
             <div style={{ color: '#666', fontSize: 13, lineHeight: 1.6 }}>
               You're testing {data.leverageMultiplier}x leverage safely in paper mode. Before switching to live,
-              remember: a {(100 / data.leverageMultiplier).toFixed(0)}% adverse move will liquidate your position.
+              remember: a {(100 / (data.leverageMultiplier || 1)).toFixed(0)}% adverse move will liquidate your position.
             </div>
           </div>
         </div>
       )}
 
-      {/* Today's Performance */}
-      {data?.todayStats && (
-        <div className="section">
-          <h3>Today's Performance</h3>
-          <div className="stats-grid">
-            <div className="card">
-              <h2>Today's P/L</h2>
-              <div className="value" style={{ color: (data.todayStats.pl || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
-                {(data.todayStats.pl || 0) >= 0 ? '+' : ''}${(data.todayStats.pl || 0).toFixed(2)}
+      {/* Today's Performance — always shown; zeroed when no trades yet */}
+      {(() => {
+        const ts = data?.todayStats || { pl: 0, trades: 0, wins: 0, winRate: 0 };
+        return (
+          <div className="section">
+            <h3>Today's Performance</h3>
+            {ts.trades === 0 && (
+              <p style={{ color: '#555', fontSize: 13, marginBottom: 12 }}>No trades closed today — bot is watching the market.</p>
+            )}
+            <div className="stats-grid">
+              <div className="card">
+                <h2>Today's P/L</h2>
+                <div className="value" style={{ color: (ts.pl || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                  {(ts.pl || 0) >= 0 ? '+' : ''}${(ts.pl || 0).toFixed(2)}
+                </div>
               </div>
-            </div>
-            <div className="card">
-              <h2>Trades Today</h2>
-              <div className="value">{data.todayStats.trades || 0}</div>
-            </div>
-            <div className="card">
-              <h2>Today's Wins</h2>
-              <div className="value" style={{ color: '#00c853' }}>{data.todayStats.wins || 0}</div>
-            </div>
-            <div className="card">
-              <h2>Today's Win Rate</h2>
-              <div className="value" style={{ color: (data.todayStats.winRate || 0) >= 50 ? '#00c853' : data.todayStats.trades > 0 ? '#ff3d3d' : '#555' }}>
-                {data.todayStats.trades > 0 ? `${data.todayStats.winRate}%` : '—'}
+              <div className="card">
+                <h2>Trades Today</h2>
+                <div className="value">{ts.trades || 0}</div>
+              </div>
+              <div className="card">
+                <h2>Today's Wins</h2>
+                <div className="value" style={{ color: '#00c853' }}>{ts.wins || 0}</div>
+              </div>
+              <div className="card">
+                <h2>Today's Win Rate</h2>
+                <div className="value" style={{ color: (ts.winRate || 0) >= 50 ? '#00c853' : ts.trades > 0 ? '#ff3d3d' : '#555' }}>
+                  {ts.trades > 0 ? `${ts.winRate}%` : '—'}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Pre-Market Alerts */}
       {preMarketFlags.length > 0 && (
