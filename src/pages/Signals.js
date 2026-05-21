@@ -67,9 +67,9 @@ function Signals() {
     return true;
   });
 
-  const buys  = allSignals.filter(s => s.decision === 'BUY').length;
-  const sells = allSignals.filter(s => s.decision === 'SELL').length;
-  const holds = allSignals.filter(s => s.decision === 'HOLD').length;
+  const buys  = filtered.filter(s => s.decision === 'BUY').length;
+  const sells = filtered.filter(s => s.decision === 'SELL').length;
+  const holds = filtered.filter(s => s.decision === 'HOLD').length;
 
   if (loading) return <div className="page-title">Loading...</div>;
 
@@ -129,7 +129,7 @@ function Signals() {
             <strong style={{ color: '#ffd600' }}>{holds} HOLD</strong>
           </span>
           <span style={{ color: '#555', fontSize: 13 }}>
-            {filtered.length} of {allSignals.length} signals (last 7 days)
+            {filtered.length} of {allSignals.length} signals{allSignals.length > 0 ? ` · since ${new Date(allSignals[allSignals.length - 1].createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : ''}
           </span>
         </div>
       </div>

@@ -217,24 +217,13 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSig
 
 function Market() {
   const [selected, setSelected]       = useState(null);
-  const [cryptoSymbols, setCryptoSymbols] = useState([
-    { symbol: 'BTC/USDT', name: 'Bitcoin',  ticker: 'BTCUSDT' },
-    { symbol: 'ETH/USDT', name: 'Ethereum', ticker: 'ETHUSDT' },
-    { symbol: 'SOL/USDT', name: 'Solana',   ticker: 'SOLUSDT' },
-    { symbol: 'BNB/USDT', name: 'BNB',      ticker: 'BNBUSDT' },
-    { symbol: 'XRP/USDT', name: 'Ripple',   ticker: 'XRPUSDT' },
-  ]);
-  const [stockSymbols, setStockSymbols] = useState([
-    { symbol: 'AAPL', name: 'Apple' },
-    { symbol: 'TSLA', name: 'Tesla' },
-    { symbol: 'NVDA', name: 'NVIDIA' },
-    { symbol: 'XOM',  name: 'Exxon' },
-    { symbol: 'CVX',  name: 'Chevron' },
-  ]);
+  const [cryptoSymbols, setCryptoSymbols] = useState([]);
+  const [stockSymbols, setStockSymbols] = useState([]);
   const [cryptoPrices, setCryptoPrices] = useState({});
   const [latestSignals, setLatestSignals] = useState({});
   const [session, setSession] = useState(getStockMarketSession());
   const [fearGreed, setFearGreed] = useState(null);
+  const [symbolsLoaded, setSymbolsLoaded] = useState(false);
 
   // Batch-fetch all crypto prices in one Binance call instead of one call per card
   const fetchAllCryptoPrices = useCallback(async () => {
@@ -275,19 +264,25 @@ function Market() {
           symbol: s, name: STOCK_NAME_MAP[s] || s
         })));
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setSymbolsLoaded(true));
   }, []);
 
-  // Fetch latest signal per symbol
-  useEffect(() => {
-    axios.get(`${API}/signals`).then(res => {
+  const fetchLatestSignals = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/signals`);
       const map = {};
       for (const signal of res.data) {
         if (!map[signal.symbol]) map[signal.symbol] = signal;
       }
       setLatestSignals(map);
-    }).catch(() => {});
+    } catch {}
   }, []);
+
+  useEffect(() => {
+    fetchLatestSignals();
+    const interval = setInterval(fetchLatestSignals, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchLatestSignals]);
 
   // Update stock market session every minute
   useEffect(() => {
@@ -295,12 +290,11 @@ function Market() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fear & Greed index
+  // Fear & Greed index — use backend endpoint which caches for 5 min
   useEffect(() => {
-    axios.get('https://api.alternative.me/fng/')
+    axios.get(`${API}/market/status`)
       .then(res => {
-        const d = res.data?.data?.[0];
-        if (d) setFearGreed({ value: parseInt(d.value), label: d.value_classification });
+        if (res.data?.fearGreed) setFearGreed(res.data.fearGreed);
       })
       .catch(() => {});
   }, []);
@@ -344,6 +338,7 @@ function Market() {
       <div className="section">
         <h3>Crypto</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {!symbolsLoaded && <div style={{ color: '#555', fontSize: 13, gridColumn: '1/-1', padding: '20px 0' }}>Loading symbols…</div>}
           {cryptoSymbols.map(c => (
             <SymbolCard
               key={c.symbol}
@@ -376,6 +371,7 @@ function Market() {
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {!symbolsLoaded && <div style={{ color: '#555', fontSize: 13, gridColumn: '1/-1', padding: '20px 0' }}>Loading symbols…</div>}
           {stockSymbols.map(s => (
             <SymbolCard
               key={s.symbol}
