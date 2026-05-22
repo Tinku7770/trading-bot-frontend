@@ -31,6 +31,9 @@ function Dashboard() {
   const [toggling, setToggling]   = useState(false);
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(null);
+  const [confirmCloseAll, setConfirmCloseAll] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [countdown, setCountdown] = useState('');
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
@@ -38,6 +41,11 @@ function Dashboard() {
   const [preMarketFlags, setPreMarketFlags]   = useState([]);
   const [cryptoHealth, setCryptoHealth]       = useState(null);
   const openTradesRef = useRef([]);
+  const runNowTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => { if (runNowTimerRef.current) clearTimeout(runNowTimerRef.current); };
+  }, []);
 
   useEffect(() => {
     fetchDashboard();
@@ -168,6 +176,7 @@ function Dashboard() {
   async function toggleBot() {
     try {
       setToggling(true);
+      setActionError('');
       if (botStatus) {
         await axios.post(`${API}/bot/stop`);
         setBotStatus(false);
@@ -176,34 +185,48 @@ function Dashboard() {
         setBotStatus(true);
       }
     } catch {
-      alert('Failed to toggle bot');
+      setActionError('Failed to toggle bot — check your connection');
     } finally {
       setToggling(false);
     }
   }
 
-  async function closePosition(tradeId, symbol) {
-    if (!window.confirm(`Close ${symbol} position at current market price?`)) return;
+  async function closePosition(tradeId) {
+    if (confirmClose !== tradeId) {
+      setConfirmClose(tradeId);
+      setConfirmCloseAll(false);
+      setTimeout(() => setConfirmClose(c => c === tradeId ? null : c), 3000);
+      return;
+    }
+    setConfirmClose(null);
+    setActionError('');
     try {
       setClosingId(tradeId);
       await axios.post(`${API}/bot/close-position/${tradeId}`);
       await fetchDashboard();
-      setClosingId(null);
     } catch {
-      alert('Failed to close position');
+      setActionError('Failed to close position');
+    } finally {
       setClosingId(null);
     }
   }
 
   async function closeAllPositions() {
-    if (!window.confirm('Close ALL open positions at current market prices?')) return;
+    if (!confirmCloseAll) {
+      setConfirmCloseAll(true);
+      setConfirmClose(null);
+      setTimeout(() => setConfirmCloseAll(false), 3000);
+      return;
+    }
+    setConfirmCloseAll(false);
+    setActionError('');
     try {
       setClosingAll(true);
       await axios.post(`${API}/bot/close-all`);
       await fetchDashboard();
-      setClosingAll(false);
     } catch {
-      alert('Failed to close all positions');
+      setActionError('Failed to close all positions');
+    } finally {
       setClosingAll(false);
     }
   }
@@ -211,10 +234,15 @@ function Dashboard() {
   async function runNow() {
     try {
       setRunning(true);
+      setActionError('');
       await axios.post(`${API}/bot/run-now`);
-      setTimeout(() => { fetchDashboard(); fetchNextRun(); setRunning(false); }, 25000);
+      runNowTimerRef.current = setTimeout(() => {
+        fetchDashboard();
+        fetchNextRun();
+        setRunning(false);
+      }, 25000);
     } catch {
-      alert('Failed to trigger bot');
+      setActionError('Failed to trigger bot — check your connection');
       setRunning(false);
     }
   }
@@ -252,7 +280,32 @@ function Dashboard() {
 
   return (
     <div>
-      <h1 className="page-title">Dashboard</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h1 className="page-title" style={{ margin: 0 }}>Dashboard</h1>
+        <button
+          onClick={() => { fetchDashboard(); fetchNextRun(); }}
+          title="Refresh dashboard"
+          style={{
+            background: 'none', border: '1px solid #2a2d3e', borderRadius: 8,
+            padding: '6px 12px', color: '#888', fontSize: 13, cursor: 'pointer'
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = '#c9d1d9'}
+          onMouseLeave={e => e.currentTarget.style.color = '#888'}
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
+      {actionError && (
+        <div style={{
+          background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8,
+          padding: '10px 14px', marginBottom: 16, color: '#ff3d3d', fontSize: 13,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          {actionError}
+          <button onClick={() => setActionError('')} style={{ background: 'none', border: 'none', color: '#ff3d3d', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Bot Control */}
       <div className="bot-toggle">
@@ -351,8 +404,8 @@ function Dashboard() {
             <div className="stats-grid">
               <div className="card">
                 <h2>Today's P/L</h2>
-                <div className="value" style={{ color: (ts.pl || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
-                  {(ts.pl || 0) >= 0 ? '+' : ''}${(ts.pl || 0).toFixed(2)}
+                <div className="value" style={{ color: (ts.pl || 0) > 0 ? '#00c853' : (ts.pl || 0) < 0 ? '#ff3d3d' : '#888' }}>
+                  {(ts.pl || 0) > 0 ? '+' : ''}${(ts.pl || 0).toFixed(2)}
                 </div>
               </div>
               <div className="card">
@@ -415,7 +468,7 @@ function Dashboard() {
       )}
 
       {/* Today's Scanner Picks */}
-      <div className="section">
+      {scannedStocks.length > 0 && <div className="section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
             <h3 style={{ margin: 0 }}>Today's Scanner Picks</h3>
@@ -457,7 +510,7 @@ function Dashboard() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Crypto Market Health */}
       {cryptoHealth && (
@@ -571,6 +624,9 @@ function Dashboard() {
       )}
 
       {/* All-Time Stats */}
+      <div className="section" style={{ paddingBottom: 0 }}>
+        <h3>All-Time Performance</h3>
+      </div>
       <div className="stats-grid" style={{ marginTop: 8 }}>
         <div className="card">
           <h2>Total Trades</h2>
@@ -584,8 +640,8 @@ function Dashboard() {
         </div>
         <div className="card">
           <h2>Profit / Loss</h2>
-          <div className="value" style={{ color: (stats.totalProfitLoss || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
-            {(stats.totalProfitLoss || 0) >= 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
+          <div className="value" style={{ color: (stats.totalProfitLoss || 0) > 0 ? '#00c853' : (stats.totalProfitLoss || 0) < 0 ? '#ff3d3d' : '#888' }}>
+            {(stats.totalProfitLoss || 0) > 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
           </div>
         </div>
         <div className="card">
@@ -635,13 +691,15 @@ function Dashboard() {
               onClick={closeAllPositions}
               disabled={closingAll}
               style={{
-                padding: '6px 14px', borderRadius: 6, border: '1px solid #ff3d3d',
-                background: closingAll ? '#2a1a1a' : 'transparent',
-                color: '#ff3d3d', fontWeight: 600,
-                cursor: closingAll ? 'not-allowed' : 'pointer', fontSize: 12
+                padding: '6px 14px', borderRadius: 6,
+                border: `1px solid ${confirmCloseAll ? '#f5a623' : '#ff3d3d'}`,
+                background: confirmCloseAll ? '#2a1500' : closingAll ? '#2a1a1a' : 'transparent',
+                color: confirmCloseAll ? '#f5a623' : '#ff3d3d',
+                fontWeight: 600, cursor: closingAll ? 'not-allowed' : 'pointer',
+                fontSize: 12, transition: 'all 0.2s'
               }}
             >
-              {closingAll ? 'Closing All...' : 'Close All Positions'}
+              {closingAll ? 'Closing All...' : confirmCloseAll ? 'Confirm Close All?' : 'Close All Positions'}
             </button>
           </div>
           <table>
@@ -688,15 +746,18 @@ function Dashboard() {
                   })()}</td>
                   <td>
                     <button
-                      onClick={() => closePosition(trade._id, trade.symbol)}
+                      onClick={() => closePosition(trade._id)}
                       disabled={closingId === trade._id}
                       style={{
-                        padding: '6px 14px', borderRadius: 6, border: '1px solid #ff3d3d',
-                        background: 'transparent', color: '#ff3d3d', fontWeight: 600,
-                        cursor: closingId === trade._id ? 'not-allowed' : 'pointer', fontSize: 12
+                        padding: '6px 14px', borderRadius: 6,
+                        border: `1px solid ${confirmClose === trade._id ? '#f5a623' : '#ff3d3d'}`,
+                        background: confirmClose === trade._id ? '#2a1500' : 'transparent',
+                        color: confirmClose === trade._id ? '#f5a623' : '#ff3d3d',
+                        fontWeight: 600, cursor: closingId === trade._id ? 'not-allowed' : 'pointer',
+                        fontSize: 12, transition: 'all 0.2s'
                       }}
                     >
-                      {closingId === trade._id ? 'Closing...' : 'Close'}
+                      {closingId === trade._id ? 'Closing...' : confirmClose === trade._id ? 'Confirm?' : 'Close'}
                     </button>
                   </td>
                 </tr>
@@ -743,7 +804,7 @@ function Dashboard() {
                 <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>
                 <td>{s.confidence}%</td>
                 <td style={{ color: s.newsSentiment === 'positive' ? '#00c853' : s.newsSentiment === 'negative' ? '#ff3d3d' : '#888' }}>
-                  {s.newsSentiment}
+                  {s.newsSentiment || '—'}
                 </td>
                 <td style={{ color: '#666', fontSize: 12 }}>{formatDateTime(s.createdAt)}</td>
               </tr>
@@ -769,11 +830,12 @@ function Dashboard() {
               <th>Leverage</th>
               <th>Status</th>
               <th>P/L</th>
+              <th>Close Reason</th>
             </tr>
           </thead>
           <tbody>
             {recentTrades.length === 0 ? (
-              <tr><td colSpan={8} style={{ color: '#666', textAlign: 'center' }}>No trades yet</td></tr>
+              <tr><td colSpan={9} style={{ color: '#666', textAlign: 'center' }}>No trades yet</td></tr>
             ) : recentTrades.map((t) => (
               <tr key={t._id}>
                 <td><strong>{t.symbol}</strong></td>
@@ -785,8 +847,11 @@ function Dashboard() {
                   {t.leverage || 1}x
                 </td>
                 <td><span className={`badge ${t.status}`}>{t.status}</span></td>
-                <td style={{ color: t.status === 'open' ? '#888' : (t.profitLoss || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
-                  {t.status === 'open' ? '—' : `${(t.profitLoss || 0) >= 0 ? '+' : ''}$${(t.profitLoss || 0).toFixed(2)}`}
+                <td style={{ color: t.status === 'open' ? '#888' : (t.profitLoss || 0) > 0 ? '#00c853' : (t.profitLoss || 0) < 0 ? '#ff3d3d' : '#888' }}>
+                  {t.status === 'open' ? '—' : `${(t.profitLoss || 0) > 0 ? '+' : ''}$${(t.profitLoss || 0).toFixed(2)}`}
+                </td>
+                <td style={{ color: '#666', fontSize: 12, maxWidth: 160 }}>
+                  {t.closeReason || '—'}
                 </td>
               </tr>
             ))}
