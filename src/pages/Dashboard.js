@@ -37,9 +37,10 @@ function Dashboard() {
   const [countdown, setCountdown] = useState('');
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
-  const [scannedStocks, setScannedStocks]     = useState([]);
-  const [preMarketFlags, setPreMarketFlags]   = useState([]);
-  const [cryptoHealth, setCryptoHealth]       = useState(null);
+  const [scannedStocks, setScannedStocks]       = useState([]);
+  const [preMarketFlags, setPreMarketFlags]     = useState([]);
+  const [cryptoHealth, setCryptoHealth]         = useState(null);
+  const [scannerPerf, setScannerPerf]           = useState(null);
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
 
@@ -78,6 +79,18 @@ function Dashboard() {
     }
     fetchCryptoHealth();
     const interval = setInterval(fetchCryptoHealth, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    async function fetchScannerPerf() {
+      try {
+        const res = await axios.get(`${API}/scanner/performance`);
+        setScannerPerf(res.data);
+      } catch { /* keep previous data */ }
+    }
+    fetchScannerPerf();
+    const interval = setInterval(fetchScannerPerf, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -511,6 +524,92 @@ function Dashboard() {
           </div>
         )}
       </div>}
+
+      {/* Scanner Performance */}
+      {scannerPerf && (scannerPerf.summary.totalPicks > 0 || scannerPerf.summary.tradedPicks > 0) && (
+        <div className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Scanner Performance</h3>
+              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+                How scanner picks have performed as trades — last 30 days
+              </p>
+            </div>
+            <span style={{
+              background: (scannerPerf.summary.totalPL || 0) >= 0 ? '#0d2a0d' : '#2a1a1a',
+              color: (scannerPerf.summary.totalPL || 0) >= 0 ? '#00c853' : '#ff3d3d',
+              border: `1px solid ${(scannerPerf.summary.totalPL || 0) >= 0 ? '#00c853' : '#ff3d3d'}`,
+              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
+            }}>
+              {(scannerPerf.summary.totalPL || 0) >= 0 ? '+' : ''}${(scannerPerf.summary.totalPL || 0).toFixed(2)} P/L
+            </span>
+          </div>
+
+          {/* Summary cards */}
+          <div className="stats-grid" style={{ marginBottom: 16 }}>
+            <div className="card">
+              <h2>Picks Found</h2>
+              <div className="value">{scannerPerf.summary.totalPicks}</div>
+            </div>
+            <div className="card">
+              <h2>Trades Taken</h2>
+              <div className="value">{scannerPerf.summary.tradedPicks}</div>
+            </div>
+            <div className="card">
+              <h2>Win Rate</h2>
+              <div className="value" style={{ color: (scannerPerf.summary.winRate || 0) >= 40 ? '#00c853' : scannerPerf.summary.tradedPicks > 0 ? '#ff3d3d' : '#555' }}>
+                {scannerPerf.summary.tradedPicks > 0 ? `${scannerPerf.summary.winRate}%` : '—'}
+              </div>
+            </div>
+            <div className="card">
+              <h2>Avg P/L per Trade</h2>
+              <div className="value" style={{ color: (scannerPerf.summary.avgPL || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                {scannerPerf.summary.tradedPicks > 0
+                  ? `${(scannerPerf.summary.avgPL || 0) >= 0 ? '+' : ''}$${(scannerPerf.summary.avgPL || 0).toFixed(2)}`
+                  : '—'}
+              </div>
+            </div>
+          </div>
+
+          {/* Per-symbol breakdown */}
+          {scannerPerf.bySymbol.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                By Symbol
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Trades</th>
+                    <th>Win Rate</th>
+                    <th>Total P/L</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scannerPerf.bySymbol.map(s => (
+                    <tr key={s.symbol}>
+                      <td><strong>{s.symbol}</strong></td>
+                      <td>{s.trades}</td>
+                      <td style={{ color: s.winRate >= 40 ? '#00c853' : '#ff3d3d' }}>{s.winRate}%</td>
+                      <td style={{ color: s.totalPL >= 0 ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+                        {s.totalPL >= 0 ? '+' : ''}${s.totalPL.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* No trades yet message */}
+          {scannerPerf.summary.tradedPicks === 0 && scannerPerf.summary.totalPicks > 0 && (
+            <p style={{ color: '#555', fontSize: 13 }}>
+              Scanner has found {scannerPerf.summary.totalPicks} picks but no trades have been taken from them yet. Trades will appear here once the bot acts on a scanner pick.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Crypto Market Health */}
       {cryptoHealth && (
