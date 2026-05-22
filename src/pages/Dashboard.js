@@ -34,6 +34,7 @@ function Dashboard() {
   const [confirmClose, setConfirmClose] = useState(null);
   const [confirmCloseAll, setConfirmCloseAll] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [refreshing, setRefreshing]   = useState(false);
   const [countdown, setCountdown] = useState('');
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
@@ -296,16 +297,23 @@ function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Dashboard</h1>
         <button
-          onClick={() => { fetchDashboard(); fetchNextRun(); }}
+          onClick={async () => {
+            setRefreshing(true);
+            await Promise.all([fetchDashboard(), fetchNextRun()]);
+            setRefreshing(false);
+          }}
+          disabled={refreshing}
           title="Refresh dashboard"
           style={{
             background: 'none', border: '1px solid #2a2d3e', borderRadius: 8,
-            padding: '6px 12px', color: '#888', fontSize: 13, cursor: 'pointer'
+            padding: '6px 12px', color: refreshing ? '#5865f2' : '#888',
+            fontSize: 13, cursor: refreshing ? 'not-allowed' : 'pointer',
+            opacity: refreshing ? 0.7 : 1, transition: 'color 0.2s'
           }}
-          onMouseEnter={e => e.currentTarget.style.color = '#c9d1d9'}
-          onMouseLeave={e => e.currentTarget.style.color = '#888'}
+          onMouseEnter={e => { if (!refreshing) e.currentTarget.style.color = '#c9d1d9'; }}
+          onMouseLeave={e => { if (!refreshing) e.currentTarget.style.color = '#888'; }}
         >
-          ↻ Refresh
+          {refreshing ? '↻ Refreshing...' : '↻ Refresh'}
         </button>
       </div>
 
