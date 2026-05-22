@@ -58,7 +58,6 @@ function SymbolTags({ symbols, onChange, placeholder }) {
         value={input}
         onChange={e => setInput(e.target.value)}
         onKeyDown={onKeyDown}
-        onBlur={addSymbol}
         placeholder={symbols.length === 0 ? placeholder : ''}
         style={{
           background: 'none', border: 'none', outline: 'none',
@@ -90,10 +89,18 @@ function Settings() {
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [originalSettings, setOriginalSettings] = useState(null);
 
   useEffect(() => {
     axios.get(`${API}/bot/status`)
-      .then(res => { if (res.data) { setSettings(res.data); setLoadError(false); } })
+      .then(res => {
+        if (res.data) {
+          setSettings(res.data);
+          setOriginalSettings(res.data);
+          setLoadError(false);
+        }
+      })
       .catch(() => setLoadError(true));
   }, []);
 
@@ -116,17 +123,27 @@ function Settings() {
     return null;
   }
 
+  function discardSettings() {
+    if (originalSettings) {
+      setSettings(originalSettings);
+      setDirty(false);
+      setSaveError('');
+    }
+  }
+
   async function saveSettings() {
     const err = validate();
-    if (err) { alert(err); return; }
+    if (err) { setSaveError(err); return; }
+    setSaveError('');
     try {
       await axios.put(`${API}/bot/settings`, settings);
       setTradeMode(settings.tradeMode);
+      setOriginalSettings(settings);
       setSaved(true);
       setDirty(false);
       setTimeout(() => setSaved(false), 3000);
     } catch {
-      alert('Failed to save settings — check your connection');
+      setSaveError('Failed to save settings — check your connection');
     }
   }
 
@@ -286,7 +303,7 @@ function Settings() {
             <span style={{ background: '#3d1a00', color: '#ff6b35', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>SHORT</span>
           </label>
           <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
-            When enabled: bot opens a SHORT position when AI says SELL with {settings.minConfidence || 65}%+ confidence.
+            When enabled: bot opens a SHORT position when AI says SELL with {settings.minConfidence}%+ confidence.
             Profits when price goes <strong style={{ color: '#ff6b35' }}>down</strong>, loses when price goes up.
           </p>
         </div>
@@ -333,7 +350,7 @@ function Settings() {
             min="55"
             max="90"
             step="1"
-            value={settings.minConfidence || 65}
+            value={settings.minConfidence}
             onChange={e => numInput('minConfidence', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
@@ -365,12 +382,34 @@ function Settings() {
           </p>
         </div>
 
+        {saveError && (
+          <div style={{
+            background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8,
+            padding: '10px 14px', marginBottom: 12, color: '#ff3d3d', fontSize: 13
+          }}>
+            {saveError}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button className="save-btn" onClick={saveSettings}>
             {saved ? 'Saved!' : 'Save Settings'}
           </button>
           {dirty && !saved && (
-            <span style={{ color: '#f5a623', fontSize: 13 }}>Unsaved changes</span>
+            <>
+              <button
+                onClick={discardSettings}
+                style={{
+                  background: 'none', border: '1px solid #2a2d3e', borderRadius: 8,
+                  padding: '8px 16px', color: '#888', fontSize: 13, cursor: 'pointer'
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#c9d1d9'}
+                onMouseLeave={e => e.currentTarget.style.color = '#888'}
+              >
+                Discard
+              </button>
+              <span style={{ color: '#f5a623', fontSize: 13 }}>Unsaved changes</span>
+            </>
           )}
         </div>
       </div>
@@ -379,17 +418,28 @@ function Settings() {
       <div className="section" style={{ maxWidth: 600 }}>
         <h3>How The Bot Works</h3>
         <div style={{ color: '#888', fontSize: 14, lineHeight: 1.8 }}>
-          <p>1. Every 30 minutes the bot runs an analysis cycle</p>
-          <p>2. It fetches latest news, price, whale activity, Fear &amp; Greed index, macro news, and Alpaca financial news (stocks) for each symbol</p>
-          <p>3. Technical indicators: RSI, MACD, MA50, MA200</p>
+          <p>1. Every <strong style={{ color: '#c9d1d9' }}>30 minutes</strong> the bot runs an analysis cycle for every symbol</p>
+          <p>2. Data collected per symbol: live price, news, whale activity, Fear &amp; Greed index, macro news, Alpaca financial news (stocks), order book imbalance &amp; liquidation data (crypto), funding rate, BTC dominance</p>
+          <p>3. Technical indicators computed: RSI, MACD histogram, MA50, MA200</p>
           <p>4. Social sentiment from StockTwits + Polymarket prediction markets</p>
-          <p>5. All data is sent to Claude AI for a trading decision</p>
-          <p>6. If confidence ≥ {settings.minConfidence || 60}% and decision is BUY → opens LONG position</p>
-          <p>7. If confidence ≥ {settings.minConfidence || 60}% and decision is SELL + shorting enabled → opens SHORT</p>
-          <p>8. Stop loss at {settings.stopLossPercent || 1}% | Take profit at {settings.takeProfitPercent || 1.5}% — checked every 5 minutes</p>
-          <p>9. 2-hour re-entry cooldown after a stop loss hit | 1-hour cooldown after an AI-signal close</p>
-          <p>10. BTC correlation guard: skips new ETH/SOL entries when BTC is strongly bearish (SELL ≥ 75%)</p>
-          <p>11. Daily report sent at 1 AM UTC (6 PM California time)</p>
+          <p>5. All data is sent to Claude AI for a BUY / SELL / HOLD decision</p>
+          <p>6. Confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.minConfidence}%</strong> + BUY → opens LONG position</p>
+          <p>7. Confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.minConfidence}%</strong> + SELL + shorting enabled → opens SHORT</p>
+          <p>8. Open trades checked <strong style={{ color: '#c9d1d9' }}>every 5 minutes</strong> for stop loss / take profit</p>
+          {settings.trailingStopEnabled
+            ? <p>9. <strong style={{ color: '#00c853' }}>Trailing stop</strong> at {settings.trailingStopPercent}% — stop moves up as price rises, locking in profits | Take profit at {settings.takeProfitPercent}%</p>
+            : <p>9. Stop loss at {settings.stopLossPercent}% | Take profit at {settings.takeProfitPercent}%</p>
+          }
+          <p>10. <strong style={{ color: '#c9d1d9' }}>2-hour</strong> re-entry cooldown after a stop loss | <strong style={{ color: '#c9d1d9' }}>1-hour</strong> cooldown after an AI-signal close</p>
+          <p>11. <strong style={{ color: '#c9d1d9' }}>BTC correlation guard</strong>: skips new ETH/SOL/XRP/BNB entries when BTC is strongly bearish (SELL ≥ 75%)</p>
+          <p>12. <strong style={{ color: '#c9d1d9' }}>Pre-market scanner</strong> runs 5:25–6:30 AM PT, flags high-volume movers before open. Sends Telegram alert.</p>
+          <p>13. <strong style={{ color: '#c9d1d9' }}>Daily stock scanner</strong> runs at market open — finds top movers by volume and % change, adds them to the watchlist for the day</p>
+          {settings.winRatePauseEnabled && (
+            <p>14. <strong style={{ color: '#a855f7' }}>Win rate auto-pause</strong>: bot pauses 1 hour if today's win rate drops below {settings.minWinRate}% after 5+ trades. Sends Telegram alert.</p>
+          )}
+          <p>{settings.winRatePauseEnabled ? '15.' : '14.'} <strong style={{ color: '#c9d1d9' }}>Max daily loss</strong>: bot stops if total daily loss (realized + unrealized) exceeds {settings.maxDailyLossPercent}% of capital (${((settings.maxTradeAmount || 0) * (settings.maxDailyLossPercent || 0) / 100).toFixed(0)})</p>
+          <p>{settings.winRatePauseEnabled ? '16.' : '15.'} Daily report sent at <strong style={{ color: '#c9d1d9' }}>1 AM UTC</strong> (6 PM California time) via Telegram</p>
+          <p>{settings.winRatePauseEnabled ? '17.' : '16.'} Stale positions older than 7 days auto-closed every Sunday at 2 AM UTC</p>
         </div>
       </div>
     </div>
