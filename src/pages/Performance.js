@@ -37,6 +37,7 @@ function Performance() {
   const [sortBy, setSortBy] = useState('totalPL');
   const [sortDir, setSortDir] = useState('desc');
   const [dateRange, setDateRange] = useState(0);
+  const [confBreakdown, setConfBreakdown] = useState(null);
 
   const RANGES = [
     { label: 'Today',    days: 1  },
@@ -58,6 +59,12 @@ function Performance() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  useEffect(() => {
+    axios.get(`${API}/trades/confidence-breakdown`)
+      .then(res => setConfBreakdown(res.data))
+      .catch(() => {});
+  }, []);
 
   function handleSort(field) {
     if (sortBy === field) {
@@ -281,6 +288,59 @@ function Performance() {
           </tbody>
         </table>
       </div>
+
+      {/* Confidence Breakdown */}
+      {confBreakdown && confBreakdown.bands.length > 0 && (
+        <div className="section">
+          <h3>Win Rate by AI Confidence Band</h3>
+          {confBreakdown.recommendation && (
+            <div style={{
+              background: '#1e1a2e', border: '1px solid #5865f2', borderRadius: 8,
+              padding: '10px 16px', color: '#aaa', fontSize: 13, marginBottom: 16
+            }}>
+              {confBreakdown.recommendation}
+            </div>
+          )}
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={confBreakdown.bands} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+              <XAxis dataKey="band" stroke="#666" tick={{ fontSize: 12 }} />
+              <YAxis stroke="#666" tickFormatter={v => `${v}%`} domain={[0, 100]} />
+              <Tooltip
+                contentStyle={{ background: '#1a1d27', border: '1px solid #2a2d3e', fontSize: 13 }}
+                formatter={(value, name) => name === 'winRate' ? [`${value}%`, 'Win Rate'] : [fmt(value), 'Avg P/L']}
+              />
+              <Bar dataKey="winRate" radius={[4, 4, 0, 0]} name="winRate">
+                {confBreakdown.bands.map(b => (
+                  <Cell key={b.band} fill={b.winRate >= 50 ? '#00c853' : '#ff3d3d'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <table style={{ marginTop: 16 }}>
+            <thead>
+              <tr>
+                <th>Band</th>
+                <th>Trades</th>
+                <th>Win Rate</th>
+                <th>Avg P/L</th>
+                <th>Total P/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {confBreakdown.bands.map(b => (
+                <tr key={b.band}>
+                  <td><strong>{b.band}</strong></td>
+                  <td>{b.trades} ({b.wins}W / {b.losses}L)</td>
+                  <td style={{ color: b.winRate >= 50 ? '#00c853' : '#ff3d3d' }}>{b.winRate}%</td>
+                  <td style={{ color: plColor(b.avgPL) }}>{fmt(b.avgPL)}</td>
+                  <td style={{ color: plColor(b.totalPL), fontWeight: 700 }}>{fmt(b.totalPL)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

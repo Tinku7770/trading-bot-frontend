@@ -285,6 +285,12 @@ function Trades() {
                           </span>
                         </div>
                       )}
+                      {t.postMortem && (
+                        <div style={{ borderTop: '1px solid #2a2d3e', paddingTop: 12, marginTop: 10 }}>
+                          <span style={{ color: '#5865f2', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginRight: 8 }}>AI Post-Mortem</span>
+                          <div style={{ color: '#aaa', fontSize: 13, lineHeight: 1.7, marginTop: 6, fontStyle: 'italic' }}>{t.postMortem}</div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}

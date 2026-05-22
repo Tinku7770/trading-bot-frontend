@@ -10,6 +10,7 @@ import Portfolio from './pages/Portfolio';
 import Market from './pages/Market';
 import Settings from './pages/Settings';
 import Performance from './pages/Performance';
+import Backtest from './pages/Backtest';
 import './App.css';
 
 // Attach API key to every axios request automatically
@@ -32,6 +33,7 @@ function App() {
               <Route path="/market" element={<Market />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/performance" element={<Performance />} />
+              <Route path="/backtest" element={<Backtest />} />
             </Routes>
           </div>
         </div>
