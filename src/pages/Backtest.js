@@ -203,7 +203,9 @@ function Backtest() {
                   </div>
                   <div className="card">
                     <h2>Max Drawdown</h2>
-                    <div className="value" style={{ color: '#f5a623' }}>-{fmt(result.stats.maxDrawdown)}</div>
+                    <div className="value" style={{ color: '#f5a623' }}>
+                      {result.stats.maxDrawdown > 0 ? `-$${result.stats.maxDrawdown.toFixed(2)}` : '$0.00'}
+                    </div>
                   </div>
                 </div>
               </div>
