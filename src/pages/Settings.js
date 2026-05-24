@@ -82,6 +82,7 @@ function Settings() {
     trailingStopPercent: 2,
     winRatePauseEnabled: false,
     minWinRate: 40,
+    scaleOutEnabled: false,
     minConfidence: 60,
     cryptoSymbols: [],
     stockSymbols: []
@@ -175,6 +176,7 @@ function Settings() {
         if (originalSettings.trailingStopPercent !== settings.trailingStopPercent) changes.push(`Trailing Distance → ${settings.trailingStopPercent}%`);
         if (originalSettings.winRatePauseEnabled !== settings.winRatePauseEnabled) changes.push(`Win Rate Pause → ${settings.winRatePauseEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
+        if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
         const prevCrypto = (originalSettings.cryptoSymbols || []).join(',');
         const newCrypto  = (settings.cryptoSymbols || []).join(',');
         if (prevCrypto !== newCrypto) changes.push(`Crypto symbols updated (${(settings.cryptoSymbols || []).length} symbols)`);
@@ -376,6 +378,23 @@ function Settings() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
             <input
               type="checkbox"
+              checked={settings.scaleOutEnabled || false}
+              onChange={e => updateSettings({ scaleOutEnabled: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <span>Scale-Out Exit</span>
+            <span style={{ background: '#0d1a2a', color: '#5865f2', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>MAXIMIZES WINNERS</span>
+          </label>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
+            When take profit is hit, closes <strong style={{ color: '#c9d1d9' }}>50% of the position</strong> to lock in gains.
+            The remaining 50% stays open with a trailing stop — letting winners run further.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
               checked={settings.shortingEnabled || false}
               onChange={e => updateSettings({ shortingEnabled: e.target.checked })}
               style={{ width: 18, height: 18, cursor: 'pointer' }}
@@ -548,7 +567,11 @@ function Settings() {
             ? <p>9. <strong style={{ color: '#00c853' }}>Trailing stop</strong> at {settings.trailingStopPercent}% — stop moves up as price rises, locking in profits | Take profit at {settings.takeProfitPercent}%</p>
             : <p>9. Stop loss at {settings.stopLossPercent}% | Take profit at {settings.takeProfitPercent}%</p>
           }
+          {settings.scaleOutEnabled && (
+            <p>9b. <strong style={{ color: '#5865f2' }}>Scale-Out Exit</strong>: closes 50% at take profit, lets the remaining 50% trail — captures more upside on strong moves</p>
+          )}
           <p>10. <strong style={{ color: '#c9d1d9' }}>2-hour</strong> re-entry cooldown after a stop loss | <strong style={{ color: '#c9d1d9' }}>1-hour</strong> cooldown after an AI-signal close</p>
+          <p>10b. <strong style={{ color: '#c9d1d9' }}>Smarter re-entry</strong>: after a stop loss, requires <strong style={{ color: '#c9d1d9' }}>75%+</strong> AI confidence for the next 24 hours before re-entering that symbol</p>
           <p>11. <strong style={{ color: '#c9d1d9' }}>BTC correlation guard</strong>: skips new ETH/SOL/XRP/BNB entries when BTC is strongly bearish (SELL ≥ 75%)</p>
           <p>12. <strong style={{ color: '#c9d1d9' }}>Pre-market scanner</strong> runs 5:25–6:30 AM PT, flags high-volume movers before open. Sends Telegram alert.</p>
           <p>13. <strong style={{ color: '#c9d1d9' }}>Daily stock scanner</strong> runs at market open — finds top movers by volume and % change, adds them to the watchlist for the day</p>

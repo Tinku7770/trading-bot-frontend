@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, ReferenceLine
 } from 'recharts';
 
 const API = process.env.REACT_APP_API_URL;
@@ -38,6 +38,7 @@ function Performance() {
   const [sortDir, setSortDir] = useState('desc');
   const [dateRange, setDateRange] = useState(0);
   const [confBreakdown, setConfBreakdown] = useState(null);
+  const [equityCurve, setEquityCurve] = useState(null);
 
   const RANGES = [
     { label: 'Today',    days: 1  },
@@ -53,6 +54,9 @@ function Performance() {
       .catch(() => { setLoading(false); setError(true); });
     axios.get(`${API}/trades/confidence-breakdown`)
       .then(res => setConfBreakdown(res.data))
+      .catch(() => {});
+    axios.get(`${API}/trades/equity-curve`)
+      .then(res => setEquityCurve(res.data))
       .catch(() => {});
   }, [dateRange]);
 
@@ -285,6 +289,63 @@ function Performance() {
           </tbody>
         </table>
       </div>
+
+      {/* Equity Curve */}
+      {equityCurve && equityCurve.points.length > 1 && (
+        <div className="section">
+          <h3>Account Equity Curve</h3>
+          <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
+            Running account value over time. Starts at <strong style={{ color: '#c9d1d9' }}>${equityCurve.startingCapital?.toLocaleString()}</strong> (your configured capital).
+          </p>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={equityCurve.points} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
+              <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 11 }} />
+              <YAxis stroke="#666" tickFormatter={v => `$${v.toLocaleString()}`} />
+              <Tooltip
+                contentStyle={{ background: '#1a1d27', border: '1px solid #2a2d3e', fontSize: 13 }}
+                formatter={(value, name) => [
+                  `$${value.toLocaleString()}`,
+                  name === 'equity' ? 'Account Value' : 'Daily P/L'
+                ]}
+              />
+              <ReferenceLine
+                y={equityCurve.startingCapital}
+                stroke="#444"
+                strokeDasharray="4 4"
+                label={{ value: 'Starting Capital', fill: '#555', fontSize: 11 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="equity"
+                stroke="#5865f2"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, fill: '#5865f2' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          <div style={{ display: 'flex', gap: 24, marginTop: 12, flexWrap: 'wrap' }}>
+            {(() => {
+              const last = equityCurve.points[equityCurve.points.length - 1];
+              const totalReturn = last ? last.equity - equityCurve.startingCapital : 0;
+              const pct = equityCurve.startingCapital > 0 ? (totalReturn / equityCurve.startingCapital * 100).toFixed(1) : 0;
+              return (
+                <>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: '#555', fontSize: 11, marginBottom: 4 }}>Current Value</div>
+                    <div style={{ color: '#c9d1d9', fontSize: 18, fontWeight: 700 }}>${last?.equity?.toLocaleString() ?? '—'}</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: '#555', fontSize: 11, marginBottom: 4 }}>Total Return</div>
+                    <div style={{ color: plColor(totalReturn), fontSize: 18, fontWeight: 700 }}>{fmt(totalReturn)} ({pct}%)</div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Confidence Breakdown */}
       {confBreakdown && confBreakdown.bands.length > 0 && (
