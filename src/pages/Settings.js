@@ -87,6 +87,7 @@ function Settings() {
     stockSymbols: []
   });
   const [saved, setSaved] = useState(false);
+  const [savedFields, setSavedFields] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -158,10 +159,35 @@ function Settings() {
       const { _id, __v, cooldowns, updatedAt, isRunning, ...payload } = settings;
       await axios.put(`${API}/bot/settings`, payload);
       setTradeMode(settings.tradeMode);
+
+      // Build a summary of what changed so the user knows exactly what was saved
+      const changes = [];
+      if (originalSettings) {
+        if (originalSettings.tradeMode !== settings.tradeMode) changes.push(`Trade Mode → ${settings.tradeMode}`);
+        if (originalSettings.maxTradeAmount !== settings.maxTradeAmount) changes.push(`Capital → $${settings.maxTradeAmount}`);
+        if (originalSettings.stopLossPercent !== settings.stopLossPercent) changes.push(`Stop Loss → ${settings.stopLossPercent}%`);
+        if (originalSettings.takeProfitPercent !== settings.takeProfitPercent) changes.push(`Take Profit → ${settings.takeProfitPercent}%`);
+        if (originalSettings.maxDailyLossPercent !== settings.maxDailyLossPercent) changes.push(`Max Daily Loss → ${settings.maxDailyLossPercent}%`);
+        if (originalSettings.minConfidence !== settings.minConfidence) changes.push(`Min Confidence → ${settings.minConfidence}%`);
+        if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Leverage → ${settings.leverageMultiplier}x`);
+        if (originalSettings.shortingEnabled !== settings.shortingEnabled) changes.push(`Shorting → ${settings.shortingEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.trailingStopEnabled !== settings.trailingStopEnabled) changes.push(`Trailing Stop → ${settings.trailingStopEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.trailingStopPercent !== settings.trailingStopPercent) changes.push(`Trailing Distance → ${settings.trailingStopPercent}%`);
+        if (originalSettings.winRatePauseEnabled !== settings.winRatePauseEnabled) changes.push(`Win Rate Pause → ${settings.winRatePauseEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
+        const prevCrypto = (originalSettings.cryptoSymbols || []).join(',');
+        const newCrypto  = (settings.cryptoSymbols || []).join(',');
+        if (prevCrypto !== newCrypto) changes.push(`Crypto symbols updated (${(settings.cryptoSymbols || []).length} symbols)`);
+        const prevStocks = (originalSettings.stockSymbols || []).join(',');
+        const newStocks  = (settings.stockSymbols || []).join(',');
+        if (prevStocks !== newStocks) changes.push(`Stock symbols updated (${(settings.stockSymbols || []).length} symbols)`);
+      }
+
       setOriginalSettings(settings);
       setSaved(true);
+      setSavedFields(changes.length > 0 ? changes : ['All settings saved']);
       setDirty(false);
-      setTimeout(() => setSaved(false), 3000);
+      setTimeout(() => { setSaved(false); setSavedFields(null); }, 8000);
     } catch {
       setSaveError('Failed to save settings — check your connection');
     }
@@ -437,6 +463,29 @@ function Settings() {
           </p>
         </div>
 
+        {saved && savedFields && (
+          <div style={{
+            background: '#0d2a1a', border: '1px solid #00c853', borderRadius: 8,
+            padding: '14px 16px', marginBottom: 12
+          }}>
+            <div style={{ color: '#00c853', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+              ✓ Settings saved — takes effect on next bot cycle (within 30 min)
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {savedFields.map((f, i) => (
+                <span key={i} style={{
+                  background: '#0a1f12', border: '1px solid #00c85340',
+                  borderRadius: 20, padding: '3px 10px',
+                  color: '#00c853', fontSize: 12, fontWeight: 600
+                }}>{f}</span>
+              ))}
+            </div>
+            <div style={{ color: '#555', fontSize: 11, marginTop: 10 }}>
+              To apply immediately → go to Dashboard and click <strong style={{ color: '#888' }}>Run Now</strong>
+            </div>
+          </div>
+        )}
+
         {saveError && (
           <div style={{
             background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8,
@@ -448,7 +497,7 @@ function Settings() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button className="save-btn" onClick={saveSettings}>
-            {saved ? 'Saved!' : 'Save Settings'}
+            {saved ? '✓ Saved' : 'Save Settings'}
           </button>
           {dirty && !saved && (
             <>
