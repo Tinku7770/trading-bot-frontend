@@ -119,7 +119,7 @@ function Settings() {
     if ((settings.stopLossPercent || 0) <= 0) return 'Stop Loss must be greater than 0%';
     if ((settings.takeProfitPercent || 0) <= 0) return 'Take Profit must be greater than 0%';
     if ((settings.maxDailyLossPercent || 0) <= 0) return 'Max Daily Loss must be greater than 0%';
-    if ((settings.minConfidence || 0) < 55 || (settings.minConfidence || 0) > 90) return 'Min Confidence must be between 55% and 90%';
+    if ((settings.minConfidence || 0) < 50 || (settings.minConfidence || 0) > 90) return 'Min Confidence must be between 50% and 90%';
     if ((settings.leverageMultiplier || 0) < 1) return 'Leverage must be at least 1x';
     if ((settings.leverageMultiplier || 0) > 10) return 'Leverage cannot exceed 10x';
     if ((settings.maxTradeAmount || 0) <= 0) return 'Max Trade Amount must be greater than $0';
@@ -402,14 +402,14 @@ function Settings() {
           <label>Minimum AI Confidence (%) to Trade</label>
           <input
             type="number"
-            min="55"
+            min="50"
             max="90"
             step="1"
             value={settings.minConfidence ?? 60}
             onChange={e => numInput('minConfidence', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Bot only trades when AI confidence is at or above this %. Higher = fewer but better trades. Recommended: 65%.
+            Bot only trades when AI confidence is at or above this %. 50–60% = more trades, higher risk. 65–75% = fewer but higher quality. Recommended: 60%.
           </p>
         </div>
 
