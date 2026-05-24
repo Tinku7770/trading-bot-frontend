@@ -21,7 +21,8 @@ function Backtest() {
     stopLoss: 2,
     takeProfit: 4,
     tradeAmount: 100,
-    symbol: ''
+    symbol: '',
+    shortingEnabled: false
   });
   const [result, setResult]   = useState(null);
   const [loading, setLoading] = useState(false);
@@ -37,11 +38,12 @@ function Backtest() {
     setResult(null);
     try {
       const q = new URLSearchParams({
-        days:          params.days,
-        minConfidence: params.minConfidence,
-        stopLoss:      params.stopLoss,
-        takeProfit:    params.takeProfit,
-        tradeAmount:   params.tradeAmount,
+        days:            params.days,
+        minConfidence:   params.minConfidence,
+        stopLoss:        params.stopLoss,
+        takeProfit:      params.takeProfit,
+        tradeAmount:     params.tradeAmount,
+        shortingEnabled: params.shortingEnabled,
         ...(params.symbol ? { symbol: params.symbol.trim().toUpperCase() } : {})
       });
       const res = await axios.get(`${API}/backtest?${q}`);
@@ -54,6 +56,7 @@ function Backtest() {
   }
 
   const DAY_OPTS = [7, 14, 30, 60, 90];
+  const SIGNAL_RETENTION_DAYS = 90;
 
   return (
     <div>
@@ -85,18 +88,23 @@ function Backtest() {
                 </button>
               ))}
             </div>
+            {params.days > SIGNAL_RETENTION_DAYS && (
+              <p style={{ color: '#f5a623', fontSize: 11, marginTop: 6 }}>
+                Signals are stored for {SIGNAL_RETENTION_DAYS} days — results beyond that will be empty.
+              </p>
+            )}
           </div>
 
           <div className="form-group" style={{ margin: 0 }}>
             <label>Min Confidence: <strong style={{ color: '#c9d1d9' }}>{params.minConfidence}%</strong></label>
             <input
-              type="range" min="55" max="90" step="1"
+              type="range" min="30" max="90" step="1"
               value={params.minConfidence}
               onChange={e => update('minConfidence', parseInt(e.target.value))}
               style={{ width: '100%', marginTop: 6 }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#555' }}>
-              <span>55% (more trades)</span><span>90% (fewer trades)</span>
+              <span>30% (more trades)</span><span>90% (fewer trades)</span>
             </div>
           </div>
 
@@ -133,6 +141,21 @@ function Backtest() {
               onChange={e => update('symbol', e.target.value)}
             />
             <p style={{ color: '#555', fontSize: 11, marginTop: 4 }}>Leave blank to include all symbols</p>
+          </div>
+
+          <div className="form-group" style={{ margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <label style={{ marginBottom: 10 }}>Simulate Short Trades</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={params.shortingEnabled}
+                onChange={e => update('shortingEnabled', e.target.checked)}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 13, color: params.shortingEnabled ? '#c9d1d9' : '#555' }}>
+                {params.shortingEnabled ? 'Enabled — SELL signals open SHORT positions' : 'Disabled — SELL signals only close longs'}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -247,6 +270,7 @@ function Backtest() {
                   <thead>
                     <tr>
                       <th>Symbol</th>
+                      <th>Type</th>
                       <th>Entry</th>
                       <th>Exit</th>
                       <th>Confidence</th>
@@ -260,6 +284,14 @@ function Backtest() {
                     {result.trades.map((t, i) => (
                       <tr key={i}>
                         <td><strong>{t.symbol}</strong></td>
+                        <td>
+                          <span style={{
+                            color: t.type === 'BUY' ? '#00c853' : '#ff3d3d',
+                            fontWeight: 700, fontSize: 12
+                          }}>
+                            {t.type}
+                          </span>
+                        </td>
                         <td>${t.entryPrice.toFixed(2)}</td>
                         <td>${t.closePrice.toFixed(2)}</td>
                         <td style={{ color: t.entryConfidence >= 70 ? '#00c853' : '#ffd600' }}>
