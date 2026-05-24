@@ -827,7 +827,12 @@ function Dashboard() {
               {data.openTrades.map((trade) => (
                 <tr key={trade._id}>
                   <td><strong>{trade.symbol}</strong></td>
-                  <td><span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span></td>
+                  <td>
+                    <span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span>
+                    <span style={{ fontSize: 10, color: trade.type === 'SHORT' ? '#ff6b35' : '#00c853', marginLeft: 6 }}>
+                      {trade.type === 'SHORT' ? '↓ profits when price falls' : '↑ profits when price rises'}
+                    </span>
+                  </td>
                   <td style={{ color: '#888' }}>{trade.market}</td>
                   <td>${trade.price?.toFixed(2)}</td>
                   <td>${trade.amount?.toFixed(2)}</td>
