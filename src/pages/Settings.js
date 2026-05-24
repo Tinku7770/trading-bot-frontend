@@ -384,9 +384,23 @@ function Settings() {
             <span style={{ background: '#3d1a00', color: '#ff6b35', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>SHORT</span>
           </label>
           <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
-            When enabled: bot opens a SHORT position when AI says SELL with {settings.minConfidence}%+ confidence.
-            Profits when price goes <strong style={{ color: '#ff6b35' }}>down</strong>, loses when price goes up.
+            When AI says SELL with {settings.minConfidence}%+ confidence, the bot opens a SHORT — profits when price goes{' '}
+            <strong style={{ color: '#ff6b35' }}>down</strong>, loses when price goes up.
           </p>
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700, minWidth: 14 }}>✓</span>
+              <span style={{ color: '#888', fontSize: 12 }}>
+                <strong style={{ color: '#c9d1d9' }}>Stocks (paper + live)</strong> — Alpaca supports short selling. Works in both modes.
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700, minWidth: 14 }}>!</span>
+              <span style={{ color: '#888', fontSize: 12 }}>
+                <strong style={{ color: '#c9d1d9' }}>Crypto (paper only)</strong> — Binance.US spot accounts cannot short-sell. Crypto shorts are recorded in paper mode but skipped in live mode. SELL signals are still shown on the dashboard either way.
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="form-group">
