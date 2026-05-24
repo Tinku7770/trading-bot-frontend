@@ -4,10 +4,11 @@ import axios from 'axios';
 const API = process.env.REACT_APP_API_URL;
 
 const SESSION_CONFIG = {
-  open:       { label: 'Market Open',   color: '#00c853', hint: '6:30 AM – 1:00 PM PT' },
-  premarket:  { label: 'Pre-Market',    color: '#f5a623', hint: '1:00 AM – 6:30 AM PT' },
-  afterhours: { label: 'After-Hours',   color: '#5865f2', hint: '1:00 PM – 5:00 PM PT' },
-  closed:     { label: 'Market Closed', color: '#555',    hint: 'Opens 1:00 AM PT (Pre-Market)' },
+  open:       { label: 'Market Open',    color: '#00c853', hint: '6:30 AM – 1:00 PM PT' },
+  premarket:  { label: 'Pre-Market',     color: '#f5a623', hint: '1:00 AM – 6:30 AM PT' },
+  afterhours: { label: 'After-Hours',    color: '#5865f2', hint: '1:00 PM – 5:00 PM PT' },
+  closed:     { label: 'Market Closed',  color: '#555',    hint: 'Opens 1:00 AM PT (Pre-Market)' },
+  holiday:    { label: 'Market Holiday', color: '#888',    hint: '' },
 };
 
 const NEXT_LABEL = {
@@ -15,6 +16,7 @@ const NEXT_LABEL = {
   premarket:  'Pre-Market starts',
   afterhours: 'After-Hours starts',
   closed:     'Closes',
+  holiday:    'Opens',
 };
 
 function formatCountdown(targetISO) {
@@ -134,9 +136,14 @@ function MarketStatus() {
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: session.color, boxShadow: `0 0 6px ${session.color}` }} />
-              <span style={{ color: session.color, fontWeight: 700, fontSize: 15 }}>{session.label}</span>
+              <span style={{ color: session.color, fontWeight: 700, fontSize: 15 }}>
+                {status.session === 'holiday' ? status.holiday : session.label}
+              </span>
             </div>
-            <div style={{ color: '#555', fontSize: 11 }}>{session.hint}</div>
+            {status.session === 'holiday'
+              ? <div style={{ color: '#888', fontSize: 11 }}>Market Holiday — Opens {status.nextTradingDay}</div>
+              : <div style={{ color: '#555', fontSize: 11 }}>{session.hint}</div>
+            }
           </>
         ) : (
           <div style={{ color: '#555' }}>Loading...</div>
