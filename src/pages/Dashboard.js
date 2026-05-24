@@ -951,7 +951,12 @@ function Dashboard() {
             ) : recentTrades.map((t) => (
               <tr key={t._id}>
                 <td><strong>{t.symbol}</strong></td>
-                <td><span className={`badge ${t.type?.toLowerCase()}`}>{t.type}</span></td>
+                <td>
+                  <span className={`badge ${t.type?.toLowerCase()}`}>{t.type}</span>
+                  <span style={{ fontSize: 10, marginLeft: 6, color: t.type === 'SHORT' ? '#ff6b35' : '#00c853' }}>
+                    {t.type === 'SHORT' ? '↓' : '↑'}
+                  </span>
+                </td>
                 <td style={{ color: '#888' }}>{t.market}</td>
                 <td>${t.price?.toFixed(2)}</td>
                 <td>${t.amount?.toFixed(2)}</td>
