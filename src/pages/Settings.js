@@ -91,6 +91,7 @@ function Settings() {
   const [loadError, setLoadError] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [originalSettings, setOriginalSettings] = useState(null);
+  const [showLiveConfirm, setShowLiveConfirm] = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/bot/status`)
@@ -117,10 +118,27 @@ function Settings() {
   function validate() {
     if ((settings.stopLossPercent || 0) <= 0) return 'Stop Loss must be greater than 0%';
     if ((settings.takeProfitPercent || 0) <= 0) return 'Take Profit must be greater than 0%';
+    if ((settings.maxDailyLossPercent || 0) <= 0) return 'Max Daily Loss must be greater than 0%';
     if ((settings.minConfidence || 0) < 55 || (settings.minConfidence || 0) > 90) return 'Min Confidence must be between 55% and 90%';
+    if ((settings.leverageMultiplier || 0) < 1) return 'Leverage must be at least 1x';
+    if ((settings.leverageMultiplier || 0) > 10) return 'Leverage cannot exceed 10x';
     if ((settings.maxTradeAmount || 0) <= 0) return 'Max Trade Amount must be greater than $0';
     if ((settings.cryptoSymbols?.length || 0) + (settings.stockSymbols?.length || 0) === 0) return 'Add at least one symbol to trade';
     return null;
+  }
+
+  function handleTradeModeChange(newMode) {
+    if (newMode === 'live' && settings.tradeMode !== 'live') {
+      setShowLiveConfirm(true);
+    } else {
+      updateSettings({ tradeMode: newMode });
+      setShowLiveConfirm(false);
+    }
+  }
+
+  function confirmLiveMode() {
+    updateSettings({ tradeMode: 'live' });
+    setShowLiveConfirm(false);
   }
 
   function discardSettings() {
@@ -128,6 +146,7 @@ function Settings() {
       setSettings(originalSettings);
       setDirty(false);
       setSaveError('');
+      setShowLiveConfirm(false);
     }
   }
 
@@ -136,7 +155,8 @@ function Settings() {
     if (err) { setSaveError(err); return; }
     setSaveError('');
     try {
-      await axios.put(`${API}/bot/settings`, settings);
+      const { _id, __v, cooldowns, updatedAt, isRunning, ...payload } = settings;
+      await axios.put(`${API}/bot/settings`, payload);
       setTradeMode(settings.tradeMode);
       setOriginalSettings(settings);
       setSaved(true);
@@ -165,14 +185,49 @@ function Settings() {
 
         <div className="form-group">
           <label>Trade Mode</label>
-          <select value={settings.tradeMode} onChange={e => updateSettings({ tradeMode: e.target.value })}>
+          <select value={settings.tradeMode} onChange={e => handleTradeModeChange(e.target.value)}>
             <option value="paper">Paper Trading (Simulated)</option>
             <option value="live">Live Trading (Real Money)</option>
           </select>
-          {settings.tradeMode === 'live' && (
+          {settings.tradeMode === 'live' && !showLiveConfirm && (
             <p style={{ color: '#ff3d3d', fontSize: 12, marginTop: 6 }}>
-              Warning: Live mode uses real money. Use at your own risk.
+              Live mode is active — bot is trading with real money.
             </p>
+          )}
+          {showLiveConfirm && (
+            <div style={{
+              marginTop: 10, background: '#2a1500', border: '1px solid #ff3d3d',
+              borderRadius: 8, padding: '14px 16px'
+            }}>
+              <p style={{ color: '#ff3d3d', fontWeight: 700, fontSize: 13, margin: '0 0 6px' }}>
+                Switch to Live Trading?
+              </p>
+              <p style={{ color: '#c8852a', fontSize: 12, margin: '0 0 12px', lineHeight: 1.6 }}>
+                This will use <strong>real money</strong> on your connected Alpaca and Binance accounts.
+                Make sure your API keys are configured and you understand the risks before proceeding.
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={confirmLiveMode}
+                  style={{
+                    background: '#ff3d3d', border: 'none', borderRadius: 6,
+                    padding: '7px 14px', color: '#fff', fontSize: 13,
+                    fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  Yes, switch to Live
+                </button>
+                <button
+                  onClick={() => setShowLiveConfirm(false)}
+                  style={{
+                    background: 'none', border: '1px solid #2a2d3e', borderRadius: 6,
+                    padding: '7px 14px', color: '#888', fontSize: 13, cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -350,7 +405,7 @@ function Settings() {
             min="55"
             max="90"
             step="1"
-            value={settings.minConfidence}
+            value={settings.minConfidence ?? 60}
             onChange={e => numInput('minConfidence', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
