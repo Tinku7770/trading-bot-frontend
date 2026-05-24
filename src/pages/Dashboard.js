@@ -161,7 +161,7 @@ function Dashboard() {
       try {
         const tickers = JSON.stringify(cryptoTrades.map(t => t.symbol.replace('/', '')));
         const res = await axios.get(
-          `https://api.binance.us/api/v3/ticker/price?symbols=${encodeURIComponent(tickers)}`
+          `${API}/market/crypto-prices?tickers=${encodeURIComponent(tickers)}`
         );
         res.data.forEach(item => {
           const trade = cryptoTrades.find(t => t.symbol.replace('/', '') === item.symbol);
@@ -209,7 +209,7 @@ function Dashboard() {
     if (confirmClose !== tradeId) {
       setConfirmClose(tradeId);
       setConfirmCloseAll(false);
-      setTimeout(() => setConfirmClose(c => c === tradeId ? null : c), 3000);
+      setTimeout(() => setConfirmClose(c => c === tradeId ? null : c), 8000);
       return;
     }
     setConfirmClose(null);
@@ -229,7 +229,7 @@ function Dashboard() {
     if (!confirmCloseAll) {
       setConfirmCloseAll(true);
       setConfirmClose(null);
-      setTimeout(() => setConfirmCloseAll(false), 3000);
+      setTimeout(() => setConfirmCloseAll(false), 8000);
       return;
     }
     setConfirmCloseAll(false);
@@ -254,7 +254,7 @@ function Dashboard() {
         fetchDashboard();
         fetchNextRun();
         setRunning(false);
-      }, 25000);
+      }, 90000);
     } catch {
       setActionError('Failed to trigger bot — check your connection');
       setRunning(false);
@@ -374,7 +374,7 @@ function Dashboard() {
       <MarketStatus />
 
       {/* High Leverage Warning */}
-      {data.leverageMultiplier > 3 && data.tradeMode === 'live' && (
+      {(data?.leverageMultiplier ?? 1) > 3 && data?.tradeMode === 'live' && (
         <div style={{
           background: '#2a1500', border: '1px solid #f5a623', borderRadius: 10,
           padding: '14px 20px', marginBottom: 24,
@@ -394,7 +394,7 @@ function Dashboard() {
         </div>
       )}
 
-      {data.leverageMultiplier > 3 && data.tradeMode === 'paper' && (
+      {(data?.leverageMultiplier ?? 1) > 3 && data?.tradeMode === 'paper' && (
         <div style={{
           background: '#1a1500', border: '1px solid #555', borderRadius: 10,
           padding: '14px 20px', marginBottom: 24,

@@ -50,7 +50,7 @@ function Portfolio() {
 
   // Stats from filtered closed trades (client-side for filtered views, backend for all-time)
   const winningList = filteredClosed.filter(t => (t.profitLoss || 0) > 0);
-  const losingList  = filteredClosed.filter(t => (t.profitLoss || 0) <= 0);
+  const losingList  = filteredClosed.filter(t => (t.profitLoss || 0) < 0);
   const avgWin  = winningList.length ? winningList.reduce((s, t) => s + t.profitLoss, 0) / winningList.length : 0;
   const avgLoss = losingList.length  ? losingList.reduce((s, t)  => s + t.profitLoss, 0) / losingList.length  : 0;
 
@@ -58,7 +58,7 @@ function Portfolio() {
   const viewWinRate     = dateRange === 0 ? (stats.winRate || 0)           : (filteredClosed.length > 0 ? Math.round(winningList.length / filteredClosed.length * 100) : 0);
   const viewTotalPL     = dateRange === 0 ? (stats.totalProfitLoss || 0)   : filteredClosed.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
   const viewWins        = dateRange === 0 ? (stats.winningTrades || 0)     : winningList.length;
-  const viewLosses      = viewTotalTrades - viewWins;
+  const viewLosses      = dateRange === 0 ? (stats.losingTrades ?? (viewTotalTrades - viewWins)) : losingList.length;
 
   // Cumulative P/L chart from filtered trades
   const plChartData = filteredClosed.reduce((acc, t, i) => {
@@ -99,8 +99,8 @@ function Portfolio() {
     .map(([symbol, d]) => ({ symbol, ...d, total: d.wins + d.losses, winRate: Math.round(d.wins / (d.wins + d.losses) * 100) }))
     .sort((a, b) => b.pl - a.pl);
 
-  const plColor = v => v >= 0 ? '#00c853' : '#ff3d3d';
-  const plStr = v => `${v >= 0 ? '+' : ''}$${v.toFixed(2)}`;
+  const plColor = v => (v ?? 0) >= 0 ? '#00c853' : '#ff3d3d';
+  const plStr = v => v == null ? '—' : `${v >= 0 ? '+' : ''}$${v.toFixed(2)}`;
 
   if (loading) return <div className="page-title">Loading...</div>;
 

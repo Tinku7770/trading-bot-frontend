@@ -51,6 +51,9 @@ function Performance() {
     axios.get(`${API}/trades/performance${params}`)
       .then(res => { setData(res.data); setLoading(false); setError(false); })
       .catch(() => { setLoading(false); setError(true); });
+    axios.get(`${API}/trades/confidence-breakdown`)
+      .then(res => setConfBreakdown(res.data))
+      .catch(() => {});
   }, [dateRange]);
 
   useEffect(() => {
@@ -59,12 +62,6 @@ function Performance() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
-
-  useEffect(() => {
-    axios.get(`${API}/trades/confidence-breakdown`)
-      .then(res => setConfBreakdown(res.data))
-      .catch(() => {});
-  }, []);
 
   function handleSort(field) {
     if (sortBy === field) {

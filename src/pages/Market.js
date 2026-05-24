@@ -225,13 +225,13 @@ function Market() {
   const [fearGreed, setFearGreed] = useState(null);
   const [symbolsLoaded, setSymbolsLoaded] = useState(false);
 
-  // Batch-fetch all crypto prices in one Binance call instead of one call per card
+  // Batch-fetch all crypto prices via backend proxy (avoids CORS / geo-block from user browsers)
   const fetchAllCryptoPrices = useCallback(async () => {
     if (!cryptoSymbols.length) return;
     try {
       const tickers = JSON.stringify(cryptoSymbols.map(c => c.ticker));
       const res = await axios.get(
-        `https://api.binance.us/api/v3/ticker/24hr?symbols=${encodeURIComponent(tickers)}`
+        `${API}/market/crypto-prices?tickers=${encodeURIComponent(tickers)}&mode=24hr`
       );
       const prices = {};
       res.data.forEach(item => {
@@ -267,12 +267,13 @@ function Market() {
     }).catch(() => {}).finally(() => setSymbolsLoaded(true));
   }, []);
 
+  // Use /signals/latest — server aggregates latest-per-symbol, avoids full history scan
   const fetchLatestSignals = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/signals`);
+      const res = await axios.get(`${API}/signals/latest`);
       const map = {};
       for (const signal of res.data) {
-        if (!map[signal.symbol]) map[signal.symbol] = signal;
+        map[signal.symbol] = signal;
       }
       setLatestSignals(map);
     } catch {}
@@ -290,14 +291,19 @@ function Market() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fear & Greed index — use backend endpoint which caches for 5 min
-  useEffect(() => {
-    axios.get(`${API}/market/status`)
-      .then(res => {
-        if (res.data?.fearGreed) setFearGreed(res.data.fearGreed);
-      })
-      .catch(() => {});
+  // Fear & Greed — refresh hourly (index updates once per day, but keep it fresh across a session)
+  const fetchFearGreed = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/market/status`);
+      if (res.data?.fearGreed) setFearGreed(res.data.fearGreed);
+    } catch {}
   }, []);
+
+  useEffect(() => {
+    fetchFearGreed();
+    const interval = setInterval(fetchFearGreed, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchFearGreed]);
 
   function toggle(symbol) {
     setSelected(prev => prev === symbol ? null : symbol);
