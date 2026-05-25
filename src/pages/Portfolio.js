@@ -20,21 +20,25 @@ function Portfolio() {
     { label: 'All Time', days: 0  },
   ];
 
+  // Trades for charts and symbol breakdown (100-trade limit is fine for visuals)
   useEffect(() => {
-    function load() {
-      Promise.all([
-        axios.get(`${API}/trades`),
-        axios.get(`${API}/trades/stats`)
-      ]).then(([tradesRes, statsRes]) => {
-        setTrades(tradesRes.data);
-        setStats(statsRes.data);
-        setLoading(false);
-      }).catch(() => { setLoading(false); setError(true); });
+    function loadTrades() {
+      axios.get(`${API}/trades`)
+        .then(res => { setTrades(res.data); setLoading(false); })
+        .catch(() => { setLoading(false); setError(true); });
     }
-    load();
-    const interval = setInterval(load, 60000);
+    loadTrades();
+    const interval = setInterval(loadTrades, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Stats re-fetched from backend whenever date range changes — accurate across all trades
+  useEffect(() => {
+    const params = dateRange > 0 ? `?days=${dateRange}` : '';
+    axios.get(`${API}/trades/stats${params}`)
+      .then(res => setStats(res.data))
+      .catch(() => {});
+  }, [dateRange]);
 
   // Date filter cutoff
   const cutoff = dateRange > 0 ? new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000) : null;
@@ -48,17 +52,14 @@ function Portfolio() {
     .filter(t => t.status === 'closed' && t.closedAt && (!cutoff || new Date(t.closedAt) >= cutoff))
     .sort((a, b) => new Date(a.closedAt) - new Date(b.closedAt));
 
-  // Stats from filtered closed trades (client-side for filtered views, backend for all-time)
-  const winningList = filteredClosed.filter(t => (t.profitLoss || 0) > 0);
-  const losingList  = filteredClosed.filter(t => (t.profitLoss || 0) < 0);
-  const avgWin  = winningList.length ? winningList.reduce((s, t) => s + t.profitLoss, 0) / winningList.length : 0;
-  const avgLoss = losingList.length  ? losingList.reduce((s, t)  => s + t.profitLoss, 0) / losingList.length  : 0;
-
-  const viewTotalTrades = dateRange === 0 ? (stats.totalTrades || 0)      : filteredClosed.length;
-  const viewWinRate     = dateRange === 0 ? (stats.winRate || 0)           : (filteredClosed.length > 0 ? Math.round(winningList.length / filteredClosed.length * 100) : 0);
-  const viewTotalPL     = dateRange === 0 ? (stats.totalProfitLoss || 0)   : filteredClosed.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
-  const viewWins        = dateRange === 0 ? (stats.winningTrades || 0)     : winningList.length;
-  const viewLosses      = dateRange === 0 ? (stats.losingTrades ?? (viewTotalTrades - viewWins)) : losingList.length;
+  // Always use backend stats — accurate across all trades, not just the 100-trade fetch limit
+  const viewTotalTrades = stats.totalTrades || 0;
+  const viewWinRate     = stats.winRate || 0;
+  const viewTotalPL     = stats.totalProfitLoss || 0;
+  const viewWins        = stats.winningTrades || 0;
+  const viewLosses      = stats.losingTrades || 0;
+  const viewAvgWin      = stats.avgWin || 0;
+  const viewAvgLoss     = stats.avgLoss || 0;
 
   // Cumulative P/L chart from filtered trades
   const plChartData = filteredClosed.reduce((acc, t, i) => {
@@ -167,11 +168,11 @@ function Portfolio() {
         </div>
         <div className="card">
           <h2>Avg Win</h2>
-          <div className="value" style={{ color: '#00c853' }}>{winningList.length ? plStr(avgWin) : '—'}</div>
+          <div className="value" style={{ color: '#00c853' }}>{viewWins > 0 ? plStr(viewAvgWin) : '—'}</div>
         </div>
         <div className="card">
           <h2>Avg Loss</h2>
-          <div className="value" style={{ color: '#ff3d3d' }}>{losingList.length ? plStr(avgLoss) : '—'}</div>
+          <div className="value" style={{ color: '#ff3d3d' }}>{viewLosses > 0 ? plStr(viewAvgLoss) : '—'}</div>
         </div>
       </div>
 

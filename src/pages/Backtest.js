@@ -263,6 +263,41 @@ function Backtest() {
                 </div>
               )}
 
+              {/* Per-symbol breakdown — only meaningful when multiple symbols were run */}
+              {result.bySymbol && result.bySymbol.length > 1 && (
+                <div className="section">
+                  <h3>Results by Symbol</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Symbol</th>
+                        <th>Trades</th>
+                        <th>Wins</th>
+                        <th>Losses</th>
+                        <th>Win Rate</th>
+                        <th>Total P/L</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.bySymbol.map(s => (
+                        <tr key={s.symbol}>
+                          <td><strong>{s.symbol}</strong></td>
+                          <td style={{ color: '#888' }}>{s.trades}</td>
+                          <td style={{ color: '#00c853' }}>{s.wins}</td>
+                          <td style={{ color: '#ff3d3d' }}>{s.losses}</td>
+                          <td style={{ color: s.winRate >= 50 ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+                            {s.winRate}%
+                          </td>
+                          <td style={{ color: plColor(s.totalPL), fontWeight: 700 }}>
+                            {fmt(s.totalPL)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {/* Trade list */}
               <div className="section">
                 <h3>Simulated Trades ({result.trades.length})</h3>

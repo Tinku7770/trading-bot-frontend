@@ -68,8 +68,20 @@ function SymbolTags({ symbols, onChange, placeholder }) {
   );
 }
 
+function ConnectionDot({ connected, configured }) {
+  const color = connected ? '#00c853' : configured ? '#ff3d3d' : '#555';
+  return (
+    <div style={{
+      width: 10, height: 10, borderRadius: '50%', background: color,
+      boxShadow: connected ? `0 0 6px ${color}` : 'none', flexShrink: 0
+    }} />
+  );
+}
+
 function Settings() {
   const { setTradeMode } = useApp();
+  const [connStatus, setConnStatus] = useState(null);
+  const [testing, setTesting]       = useState(false);
   const [settings, setSettings] = useState({
     maxTradeAmount: 1000,
     stopLossPercent: 1,
@@ -109,6 +121,21 @@ function Settings() {
       })
       .catch(() => setLoadError(true));
   }, []);
+
+  useEffect(() => {
+    axios.get(`${API}/bot/connection-status`)
+      .then(res => setConnStatus(res.data))
+      .catch(() => {});
+  }, []);
+
+  async function testConnections() {
+    setTesting(true);
+    try {
+      const res = await axios.get(`${API}/bot/connection-status`);
+      setConnStatus(res.data);
+    } catch {}
+    setTesting(false);
+  }
 
   function updateSettings(patch) {
     setSettings(prev => ({ ...prev, ...patch }));
@@ -605,6 +632,86 @@ function Settings() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Connection Status */}
+      <div className="section" style={{ maxWidth: 600 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>Connection Status</h3>
+          <button
+            onClick={testConnections}
+            disabled={testing}
+            style={{
+              background: 'none', border: '1px solid #2a2d3e', borderRadius: 8,
+              padding: '6px 14px', color: testing ? '#5865f2' : '#888',
+              fontSize: 13, cursor: testing ? 'not-allowed' : 'pointer',
+              opacity: testing ? 0.7 : 1
+            }}
+            onMouseEnter={e => { if (!testing) e.currentTarget.style.color = '#c9d1d9'; }}
+            onMouseLeave={e => { if (!testing) e.currentTarget.style.color = '#888'; }}
+          >
+            {testing ? 'Testing...' : 'Test All'}
+          </button>
+        </div>
+
+        {!connStatus ? (
+          <div style={{ color: '#555', fontSize: 13, padding: '8px 0' }}>Loading connection status...</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { key: 'alpaca',    label: 'Alpaca',    desc: 'Stock trading' },
+              { key: 'binance',   label: 'Binance US', desc: 'Crypto trading' },
+              { key: 'telegram',  label: 'Telegram',  desc: 'Alerts & reports' },
+              { key: 'anthropic', label: 'Anthropic', desc: 'AI decisions' },
+            ].map(({ key, label, desc }) => {
+              const s = connStatus[key] || {};
+              const statusColor = s.connected ? '#00c853' : s.configured ? '#ff3d3d' : '#555';
+              const statusText  = s.connected ? 'Connected' : s.configured ? 'Error' : 'Not configured';
+              return (
+                <div key={key} className="card" style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '12px 16px',
+                  borderLeft: `3px solid ${statusColor}`
+                }}>
+                  <ConnectionDot connected={s.connected} configured={s.configured} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{label}</span>
+                      <span style={{ color: '#555', fontSize: 12 }}>{desc}</span>
+                    </div>
+                    <div style={{ color: '#666', fontSize: 12, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.label || '—'}
+                    </div>
+                  </div>
+                  <span style={{
+                    color: statusColor, fontSize: 12, fontWeight: 600,
+                    background: `${statusColor}18`, border: `1px solid ${statusColor}40`,
+                    borderRadius: 20, padding: '3px 10px', flexShrink: 0
+                  }}>
+                    {statusText}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {connStatus && !connStatus.alpaca?.connected && settings.tradeMode === 'live' && (
+          <div style={{
+            marginTop: 14, background: '#2a1500', border: '1px solid #f5a623',
+            borderRadius: 8, padding: '10px 14px', color: '#c8852a', fontSize: 13
+          }}>
+            <strong style={{ color: '#f5a623' }}>Warning:</strong> You're in Live mode but Alpaca is not connected. Stock trades will fail. Check your <code>ALPACA_API_KEY</code> and <code>ALPACA_SECRET_KEY</code> environment variables.
+          </div>
+        )}
+        {connStatus && !connStatus.anthropic?.connected && (
+          <div style={{
+            marginTop: 14, background: '#2a1a1a', border: '1px solid #ff3d3d',
+            borderRadius: 8, padding: '10px 14px', color: '#ff3d3d', fontSize: 13
+          }}>
+            <strong>Critical:</strong> Anthropic API key is not configured. The bot cannot make any BUY/SELL/HOLD decisions. Set <code>ANTHROPIC_API_KEY</code> in your environment variables.
+          </div>
+        )}
       </div>
 
       {/* Info */}
