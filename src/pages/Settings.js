@@ -84,6 +84,9 @@ function Settings() {
     minWinRate: 40,
     scaleOutEnabled: false,
     minConfidence: 60,
+    maxConcurrentPositions: 3,
+    maxHoldHours: 48,
+    aiModel: 'claude-haiku-4-5-20251001',
     cryptoSymbols: [],
     stockSymbols: []
   });
@@ -177,6 +180,9 @@ function Settings() {
         if (originalSettings.winRatePauseEnabled !== settings.winRatePauseEnabled) changes.push(`Win Rate Pause → ${settings.winRatePauseEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
+        if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Max Hold Time → ${settings.maxHoldHours}h`);
+        if (originalSettings.aiModel !== settings.aiModel) changes.push(`AI Model → ${settings.aiModel}`);
         const prevCrypto = (originalSettings.cryptoSymbols || []).join(',');
         const newCrypto  = (settings.cryptoSymbols || []).join(',');
         if (prevCrypto !== newCrypto) changes.push(`Crypto symbols updated (${(settings.cryptoSymbols || []).length} symbols)`);
@@ -255,6 +261,24 @@ function Settings() {
                   Cancel
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label>AI Model</label>
+          <select value={settings.aiModel || 'claude-haiku-4-5-20251001'} onChange={e => updateSettings({ aiModel: e.target.value })}>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku (Fast · Cheapest · Recommended)</option>
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Smarter · Higher Cost)</option>
+            <option value="claude-opus-4-7">Claude Opus 4.7 (Most Powerful · Most Expensive)</option>
+          </select>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Model used for every BUY/SELL/HOLD decision. <strong style={{ color: '#c9d1d9' }}>Haiku</strong> runs ~100 decisions/day cheaply.
+            Switch to <strong style={{ color: '#c9d1d9' }}>Sonnet</strong> for higher quality decisions when using larger capital or live trading.
+          </p>
+          {(settings.aiModel || '').includes('opus') && (
+            <div style={{ background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
+              <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700 }}>⚠️ Opus is ~15x more expensive than Haiku per decision. Only recommended for live trading with significant capital.</span>
             </div>
           )}
         </div>
@@ -473,6 +497,38 @@ function Settings() {
         </div>
 
         <div className="form-group">
+          <label>Max Concurrent Positions</label>
+          <input
+            type="number"
+            min="1"
+            max="20"
+            step="1"
+            value={settings.maxConcurrentPositions ?? 3}
+            onChange={e => numInput('maxConcurrentPositions', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Bot will not open new trades when this many positions are already open.
+            Lower = less capital at risk at once. Recommended: 3–5.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Max Hold Time (hours)</label>
+          <input
+            type="number"
+            min="1"
+            max="168"
+            step="1"
+            value={settings.maxHoldHours ?? 48}
+            onChange={e => numInput('maxHoldHours', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Any open position held longer than this is automatically closed, regardless of P/L.
+            Prevents trades from sitting open for days or weeks. Recommended: 24–72h.
+          </p>
+        </div>
+
+        <div className="form-group">
           <label>Crypto Symbols</label>
           <SymbolTags
             symbols={settings.cryptoSymbols || []}
@@ -555,7 +611,7 @@ function Settings() {
       <div className="section" style={{ maxWidth: 600 }}>
         <h3>How The Bot Works</h3>
         <div style={{ color: '#888', fontSize: 14, lineHeight: 1.8 }}>
-          <p>1. Every <strong style={{ color: '#c9d1d9' }}>30 minutes</strong> the bot runs an analysis cycle for every symbol</p>
+          <p>1. Every <strong style={{ color: '#c9d1d9' }}>30 minutes</strong> the bot runs a full cycle (crypto + stocks). Crypto is also re-analyzed every <strong style={{ color: '#c9d1d9' }}>10 minutes</strong> to catch fast moves.</p>
           <p>2. Data collected per symbol: live price, news, whale activity, Fear &amp; Greed index, macro news, Alpaca financial news (stocks), order book imbalance &amp; liquidation data (crypto), funding rate, BTC dominance</p>
           <p>3. Technical indicators computed: RSI, MACD histogram, MA50, MA200</p>
           <p>4. Social sentiment from StockTwits + Polymarket prediction markets</p>
