@@ -170,6 +170,7 @@ function Trades() {
               <th>Market</th>
               <th>Entry</th>
               <th>ATR Stop</th>
+              <th>ATR TP</th>
               <th>Exit</th>
               <th>Amount</th>
               <th>Leverage</th>
@@ -183,7 +184,7 @@ function Trades() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={13} style={{ color: '#666', textAlign: 'center' }}>
+                <td colSpan={14} style={{ color: '#666', textAlign: 'center' }}>
                     {allTrades.length === 0 ? 'No trades yet — start the bot' : 'No trades match your filters'}
                   </td>
               </tr>
@@ -200,6 +201,11 @@ function Trades() {
                   <td style={{ color: t.atrStopPrice ? (t.status === 'open' ? '#ff6b35' : '#555') : '#444', fontSize: 12, whiteSpace: 'nowrap' }}>
                     {t.atrStopPrice
                       ? `$${t.atrStopPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : '—'}
+                  </td>
+                  <td style={{ color: t.atrTakePrice ? (t.status === 'open' ? '#00c853' : '#555') : '#444', fontSize: 12, whiteSpace: 'nowrap' }}>
+                    {t.atrTakePrice
+                      ? `$${t.atrTakePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       : '—'}
                   </td>
                   <td style={{ color: t.closePrice ? '#fff' : '#555' }}>
@@ -229,7 +235,7 @@ function Trades() {
 
                 {expandedId === t._id && (
                   <tr>
-                    <td colSpan={13} style={{ background: '#13151f', padding: '16px 20px' }}>
+                    <td colSpan={14} style={{ background: '#13151f', padding: '16px 20px' }}>
                       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 14 }}>
                         {t.executedAt && (
                           <div style={{ textAlign: 'center' }}>
@@ -271,6 +277,14 @@ function Trades() {
                             <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>ATR Stop</div>
                             <div style={{ color: t.status === 'open' ? '#ff6b35' : '#666', fontWeight: 700, fontSize: 13, marginTop: 4 }}>
                               ${t.atrStopPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                        )}
+                        {t.atrTakePrice && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>ATR TP</div>
+                            <div style={{ color: t.status === 'open' ? '#00c853' : '#666', fontWeight: 700, fontSize: 13, marginTop: 4 }}>
+                              ${t.atrTakePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                           </div>
                         )}
