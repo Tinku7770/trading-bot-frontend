@@ -4,11 +4,6 @@ import axios from 'axios';
 const AppContext = createContext();
 const API = process.env.REACT_APP_API_URL;
 
-// Set once — every axios call in the app inherits this header automatically
-if (process.env.REACT_APP_DASHBOARD_API_KEY) {
-  axios.defaults.headers.common['x-api-key'] = process.env.REACT_APP_DASHBOARD_API_KEY;
-}
-
 function notify(title, body) {
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     new Notification(title, { body, icon: '/favicon.ico' });
