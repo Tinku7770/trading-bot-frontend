@@ -92,6 +92,11 @@ function Settings() {
     leverageMultiplier: 1,
     trailingStopEnabled: false,
     trailingStopPercent: 2,
+    trailingStopActivationPercent: 2,
+    breakevenStopEnabled: false,
+    breakevenActivationPercent: 1.5,
+    weeklyTrendFilterEnabled: false,
+    maxWeeklyLossPercent: 10,
     winRatePauseEnabled: false,
     minWinRate: 40,
     scaleOutEnabled: false,
@@ -204,6 +209,11 @@ function Settings() {
         if (originalSettings.shortingEnabled !== settings.shortingEnabled) changes.push(`Shorting → ${settings.shortingEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.trailingStopEnabled !== settings.trailingStopEnabled) changes.push(`Trailing Stop → ${settings.trailingStopEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.trailingStopPercent !== settings.trailingStopPercent) changes.push(`Trailing Distance → ${settings.trailingStopPercent}%`);
+        if (originalSettings.trailingStopActivationPercent !== settings.trailingStopActivationPercent) changes.push(`Trailing Activation → ${settings.trailingStopActivationPercent}%`);
+        if (originalSettings.breakevenStopEnabled !== settings.breakevenStopEnabled) changes.push(`Breakeven Stop → ${settings.breakevenStopEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.breakevenActivationPercent !== settings.breakevenActivationPercent) changes.push(`Breakeven Activation → ${settings.breakevenActivationPercent}%`);
+        if (originalSettings.weeklyTrendFilterEnabled !== settings.weeklyTrendFilterEnabled) changes.push(`Weekly Trend Filter → ${settings.weeklyTrendFilterEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.maxWeeklyLossPercent !== settings.maxWeeklyLossPercent) changes.push(`Max Weekly Loss → ${settings.maxWeeklyLossPercent}%`);
         if (originalSettings.winRatePauseEnabled !== settings.winRatePauseEnabled) changes.push(`Win Rate Pause → ${settings.winRatePauseEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
@@ -360,6 +370,20 @@ function Settings() {
         </div>
 
         <div className="form-group">
+          <label>Max Weekly Loss (% of total capital)</label>
+          <input
+            type="number"
+            min="0.1"
+            step="0.5"
+            value={settings.maxWeeklyLossPercent ?? 10}
+            onChange={e => numInput('maxWeeklyLossPercent', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Bot auto-stops for the week if cumulative loss (Monday UTC reset) exceeds this %. e.g. 10% of $1,000 = bot stops after -$100 loss in one week.
+          </p>
+        </div>
+
+        <div className="form-group">
           <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -388,6 +412,24 @@ function Settings() {
             />
             <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
               e.g. 2% — if TSLA peaks at $420, stop sits at $411.60. If price drops to $411.60 → closes trade.
+            </p>
+          </div>
+        )}
+
+        {settings.trailingStopEnabled && (
+          <div className="form-group">
+            <label>Trailing Stop Activation Threshold (%)</label>
+            <input
+              type="number"
+              min="0.5"
+              max="10"
+              step="0.5"
+              value={settings.trailingStopActivationPercent ?? 2}
+              onChange={e => numInput('trailingStopActivationPercent', e.target.value)}
+            />
+            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              Trailing stop only kicks in after the trade gains this much. Prevents early exits on normal noise.
+              e.g. 2% = trailing stop ignores the trade until it's up 2%, then starts protecting profits.
             </p>
           </div>
         )}
@@ -446,6 +488,40 @@ function Settings() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
             <input
               type="checkbox"
+              checked={settings.breakevenStopEnabled || false}
+              onChange={e => updateSettings({ breakevenStopEnabled: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <span>Breakeven Stop</span>
+            <span style={{ background: '#0d1a2a', color: '#5865f2', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>LOCKS ENTRY</span>
+          </label>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
+            After a trade gains enough profit, locks the entry price as the stop floor.
+            If price then falls back to entry → closes at breakeven instead of a loss.
+          </p>
+        </div>
+
+        {settings.breakevenStopEnabled && (
+          <div className="form-group">
+            <label>Breakeven Activation Threshold (%)</label>
+            <input
+              type="number"
+              min="0.5"
+              max="10"
+              step="0.5"
+              value={settings.breakevenActivationPercent ?? 1.5}
+              onChange={e => numInput('breakevenActivationPercent', e.target.value)}
+            />
+            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              Breakeven stop locks in after the trade gains this %. e.g. 1.5% = once trade is up 1.5%, entry price becomes the floor.
+            </p>
+          </div>
+        )}
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
               checked={settings.shortingEnabled || false}
               onChange={e => updateSettings({ shortingEnabled: e.target.checked })}
               style={{ width: 18, height: 18, cursor: 'pointer' }}
@@ -471,6 +547,23 @@ function Settings() {
               </span>
             </div>
           </div>
+        </div>
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={settings.weeklyTrendFilterEnabled || false}
+              onChange={e => updateSettings({ weeklyTrendFilterEnabled: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <span>Weekly Trend Filter</span>
+            <span style={{ background: '#0d1a0d', color: '#00c853', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>TREND ALIGNMENT</span>
+          </label>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
+            Checks the weekly MA10 trend before entering. Only BUYs when weekly trend is up; only SHORTs when weekly trend is down.
+            Filters out counter-trend trades that fight the bigger picture.
+          </p>
         </div>
 
         <div className="form-group">
