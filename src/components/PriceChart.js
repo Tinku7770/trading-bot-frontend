@@ -30,8 +30,9 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
     if (market !== 'crypto') return;
     try {
       const ticker = symbol.replace('/', '');
-      const res = await axios.get(`https://api.binance.us/api/v3/ticker/price?symbol=${ticker}`);
-      setCurrentPrice(parseFloat(res.data.price));
+      const res = await axios.get(`${API}/market/crypto-prices?tickers=${encodeURIComponent(JSON.stringify([ticker]))}`);
+      const entry = (res.data || []).find(d => d.symbol === ticker);
+      if (entry) setCurrentPrice(parseFloat(entry.price));
     } catch (err) {
       console.error(`Failed to fetch live price for ${symbol}:`, err);
     }
