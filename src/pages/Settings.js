@@ -612,7 +612,8 @@ function Settings() {
             onChange={e => numInput('minConfidence', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Bot only trades when AI confidence is at or above this %. 50–60% = more trades, higher risk. 65–75% = fewer but higher quality. Recommended: 60%.
+            Bot only trades when AI confidence is at or above this %. 50–60% = more trades, higher risk. 65–75% = fewer but higher quality. Recommended: 63%.
+            Scanner picks (daily movers with high volume) automatically use 58% regardless of this setting — they are already momentum-filtered.
           </p>
         </div>
 
@@ -816,8 +817,8 @@ function Settings() {
           <p>3. Technical indicators computed: RSI, MACD histogram, MA50, MA200</p>
           <p>4. Social sentiment from StockTwits + Polymarket prediction markets</p>
           <p>5. All data is sent to Claude AI for a BUY / SELL / HOLD decision</p>
-          <p>6. Confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.minConfidence}%</strong> + BUY → opens LONG position</p>
-          <p>7. Confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.minConfidence}%</strong> + SELL + shorting enabled → opens SHORT</p>
+          <p>6. Confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.minConfidence}%</strong> + BUY → opens LONG (scanner picks use 58%)</p>
+          <p>7. Confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.minConfidence}%</strong> + SELL + shorting enabled → opens SHORT (scanner picks use 58%)</p>
           <p>8. Open trades checked <strong style={{ color: '#c9d1d9' }}>every 5 minutes</strong> for stop loss / take profit</p>
           {settings.trailingStopEnabled
             ? <p>9. <strong style={{ color: '#00c853' }}>Trailing stop</strong> at {settings.trailingStopPercent}% — stop moves up as price rises, locking in profits | Take profit at {settings.takeProfitPercent}%</p>
