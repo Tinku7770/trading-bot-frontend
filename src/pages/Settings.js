@@ -100,6 +100,7 @@ function Settings() {
     winRatePauseEnabled: false,
     minWinRate: 40,
     scaleOutEnabled: false,
+    cryptoEnabled: true,
     minConfidence: 60,
     maxConcurrentPositions: 3,
     maxHoldHours: 48,
@@ -217,6 +218,7 @@ function Settings() {
         if (originalSettings.winRatePauseEnabled !== settings.winRatePauseEnabled) changes.push(`Win Rate Pause → ${settings.winRatePauseEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
         if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
         if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Max Hold Time → ${settings.maxHoldHours}h`);
         if (originalSettings.aiModel !== settings.aiModel) changes.push(`AI Model → ${settings.aiModel}`);
@@ -647,6 +649,30 @@ function Settings() {
             Any open position held longer than this is automatically closed, regardless of P/L.
             Prevents trades from sitting open for days or weeks. Recommended: 24–72h.
           </p>
+        </div>
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={settings.cryptoEnabled !== false}
+              onChange={e => updateSettings({ cryptoEnabled: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <span>Enable Crypto Trading</span>
+            {settings.cryptoEnabled !== false
+              ? <span style={{ background: '#0d2a1a', color: '#00c853', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>ON</span>
+              : <span style={{ background: '#2a1a1a', color: '#ff3d3d', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>OFF</span>
+            }
+          </label>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
+            When OFF, all crypto analysis cycles are skipped — saves ~70% of daily AI costs. Open crypto positions are <strong style={{ color: '#c9d1d9' }}>not force-closed</strong>; they will exit naturally via stop loss or take profit.
+          </p>
+          {settings.cryptoEnabled === false && (
+            <div style={{ background: '#1a1200', border: '1px solid #f5a623', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
+              <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700 }}>Crypto trading is paused. Stocks + scanner continue running normally.</span>
+            </div>
+          )}
         </div>
 
         <div className="form-group">
