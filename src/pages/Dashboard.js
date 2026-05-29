@@ -39,6 +39,7 @@ function Dashboard() {
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
   const [scannedStocks, setScannedStocks]       = useState([]);
+  const [scannedCrypto, setScannedCrypto]       = useState([]);
   const [preMarketFlags, setPreMarketFlags]     = useState([]);
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [scannerPerf, setScannerPerf]           = useState(null);
@@ -58,13 +59,15 @@ function Dashboard() {
   useEffect(() => {
     async function fetchScanned() {
       try {
-        const [scannedRes, preRes] = await Promise.all([
+        const [scannedRes, preRes, cryptoRes] = await Promise.all([
           axios.get(`${API}/bot/scanned-stocks`),
-          axios.get(`${API}/bot/pre-market-flags`)
+          axios.get(`${API}/bot/pre-market-flags`),
+          axios.get(`${API}/bot/scanned-crypto`)
         ]);
         setScannedStocks(scannedRes.data || []);
         setPreMarketFlags(preRes.data || []);
-      } catch { setScannedStocks([]); setPreMarketFlags([]); }
+        setScannedCrypto(cryptoRes.data || []);
+      } catch { setScannedStocks([]); setPreMarketFlags([]); setScannedCrypto([]); }
     }
     fetchScanned();
     const interval = setInterval(fetchScanned, 60000);
@@ -532,6 +535,46 @@ function Dashboard() {
           </div>
         )}
       </div>}
+
+      {/* Crypto Scanner Picks */}
+      {scannedCrypto.length > 0 && (
+        <div className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Crypto Scanner Picks</h3>
+              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+                Top gainers on Binance.US — scanned every 2 hours · $1M+ volume · 5%+ move
+              </p>
+            </div>
+            <span style={{
+              background: '#0d1a2a', color: '#5865f2',
+              border: '1px solid #5865f2',
+              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600
+            }}>
+              {scannedCrypto.length} active
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+            {scannedCrypto.map(c => (
+              <div key={c.symbol} className="card" style={{ padding: '12px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <strong style={{ fontSize: 14 }}>{c.symbol}</strong>
+                  <span style={{
+                    background: '#0d1a2a', color: '#5865f2',
+                    fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 700
+                  }}>SCAN</span>
+                </div>
+                <div style={{ color: '#00c853', fontWeight: 700, fontSize: 18, marginTop: 6 }}>
+                  +{c.changePct.toFixed(2)}%
+                </div>
+                <div style={{ color: '#888', fontSize: 11, marginTop: 4 }}>
+                  Vol: ${(c.volume24h / 1_000_000).toFixed(1)}M &nbsp;·&nbsp; ${c.price?.toFixed(4)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Scanner Performance */}
       {scannerPerf && (scannerPerf.summary.totalPicks > 0 || scannerPerf.summary.tradedPicks > 0) && (
