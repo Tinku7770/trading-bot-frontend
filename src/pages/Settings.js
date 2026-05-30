@@ -862,7 +862,8 @@ function Settings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
               { key: 'alpaca',    label: 'Alpaca',    desc: 'Stock trading' },
-              { key: 'binance',   label: 'Binance US', desc: 'Crypto trading' },
+              { key: 'binance',   label: 'Binance US', desc: 'Crypto spot trading' },
+              { key: 'kraken',    label: 'Kraken',    desc: 'Crypto margin shorts' },
               { key: 'telegram',  label: 'Telegram',  desc: 'Alerts & reports' },
               { key: 'anthropic', label: 'Anthropic', desc: 'AI decisions' },
             ].map(({ key, label, desc }) => {
@@ -904,6 +905,14 @@ function Settings() {
             borderRadius: 8, padding: '10px 14px', color: '#c8852a', fontSize: 13
           }}>
             <strong style={{ color: '#f5a623' }}>Warning:</strong> You're in Live mode but Alpaca is not connected. Stock trades will fail. Check your <code>ALPACA_API_KEY</code> and <code>ALPACA_SECRET_KEY</code> environment variables.
+          </div>
+        )}
+        {connStatus && !connStatus.kraken?.connected && settings.krakenEnabled && settings.tradeMode === 'live' && (
+          <div style={{
+            marginTop: 14, background: '#2a1500', border: '1px solid #f5a623',
+            borderRadius: 8, padding: '10px 14px', color: '#c8852a', fontSize: 13
+          }}>
+            <strong style={{ color: '#f5a623' }}>Warning:</strong> Kraken is enabled in Live mode but not connected. Crypto shorts will fail. Check your <code>KRAKEN_API_KEY</code> and <code>KRAKEN_PRIVATE_KEY</code> environment variables.
           </div>
         )}
         {connStatus && !connStatus.anthropic?.connected && (
