@@ -223,7 +223,8 @@ function Settings() {
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
         if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
         if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Stock Max Hold → ${settings.maxHoldHours}h`);
-        if (originalSettings.cryptoMaxHoldHours !== settings.cryptoMaxHoldHours) changes.push(`Crypto Max Hold → ${settings.cryptoMaxHoldHours}h`);
+        if (originalSettings.cryptoMaxHoldHours !== settings.cryptoMaxHoldHours) changes.push(`Crypto Core Max Hold → ${settings.cryptoMaxHoldHours}h`);
+        if (originalSettings.cryptoScannerMaxHoldHours !== settings.cryptoScannerMaxHoldHours) changes.push(`Crypto Scanner Max Hold → ${settings.cryptoScannerMaxHoldHours}h`);
         if (originalSettings.aiModel !== settings.aiModel) changes.push(`AI Model → ${settings.aiModel}`);
         const prevCrypto = (originalSettings.cryptoSymbols || []).join(',');
         const newCrypto  = (settings.cryptoSymbols || []).join(',');
@@ -668,17 +669,32 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Max Hold Time — Crypto (hours)</label>
+          <label>Max Hold Time — Crypto Core Watchlist (hours)</label>
           <input
             type="number"
             min="1"
             max="168"
             step="1"
-            value={settings.cryptoMaxHoldHours ?? 24}
+            value={settings.cryptoMaxHoldHours ?? 16}
             onChange={e => numInput('cryptoMaxHoldHours', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Crypto only. Shorter than stocks — crypto moves fast and gains fade quickly. Recommended: 8–24h.
+            BTC, ETH and any coin you added manually to your crypto watchlist. Recommended: 12–24h.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Max Hold Time — Crypto Scanner Picks (hours)</label>
+          <input
+            type="number"
+            min="1"
+            max="48"
+            step="1"
+            value={settings.cryptoScannerMaxHoldHours ?? 12}
+            onChange={e => numInput('cryptoScannerMaxHoldHours', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Coins discovered by the scanner (momentum picks like XLM, HYPE). These move fast and fade fast — exit sooner. Recommended: 8–12h.
           </p>
         </div>
 
