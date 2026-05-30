@@ -35,6 +35,7 @@ function Dashboard() {
   const [confirmCloseAll, setConfirmCloseAll] = useState(false);
   const [actionError, setActionError] = useState('');
   const [refreshing, setRefreshing]   = useState(false);
+  const [sendingReport, setSendingReport] = useState(false);
   const [countdown, setCountdown] = useState('');
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
@@ -261,6 +262,18 @@ function Dashboard() {
     }
   }
 
+  async function sendDailyReport() {
+    try {
+      setSendingReport(true);
+      setActionError('');
+      await axios.post(`${API}/bot/send-daily-report`);
+    } catch {
+      setActionError('Failed to send daily report');
+    } finally {
+      setSendingReport(false);
+    }
+  }
+
   async function runNow() {
     try {
       setRunning(true);
@@ -384,6 +397,18 @@ function Dashboard() {
           }}
         >
           {running ? 'Analyzing...' : 'Run Now'}
+        </button>
+        <button
+          onClick={sendDailyReport}
+          disabled={sendingReport}
+          style={{
+            marginLeft: 8, padding: '10px 20px', borderRadius: 8,
+            border: 'none', background: sendingReport ? '#333' : '#1a7f37',
+            color: sendingReport ? '#666' : '#fff',
+            fontWeight: 600, cursor: sendingReport ? 'not-allowed' : 'pointer', fontSize: 14
+          }}
+        >
+          {sendingReport ? 'Sending...' : 'Send Daily Report'}
         </button>
       </div>
 
