@@ -157,7 +157,8 @@ function Settings() {
     if ((settings.stopLossPercent || 0) <= 0) return 'Stop Loss must be greater than 0%';
     if ((settings.takeProfitPercent || 0) <= 0) return 'Take Profit must be greater than 0%';
     if ((settings.maxDailyLossPercent || 0) <= 0) return 'Max Daily Loss must be greater than 0%';
-    if ((settings.minConfidence || 0) < 50 || (settings.minConfidence || 0) > 90) return 'Min Confidence must be between 50% and 90%';
+    if ((settings.minConfidence || 0) < 50 || (settings.minConfidence || 0) > 90) return 'Stock Min Confidence must be between 50% and 90%';
+    if ((settings.cryptoMinConfidence || 0) < 50 || (settings.cryptoMinConfidence || 0) > 90) return 'Crypto Min Confidence must be between 50% and 90%';
     if ((settings.leverageMultiplier || 0) < 1) return 'Leverage must be at least 1x';
     if ((settings.leverageMultiplier || 0) > 10) return 'Leverage cannot exceed 10x';
     if ((settings.maxTradeAmount || 0) <= 0) return 'Max Trade Amount must be greater than $0';
@@ -205,7 +206,8 @@ function Settings() {
         if (originalSettings.stopLossPercent !== settings.stopLossPercent) changes.push(`Stop Loss → ${settings.stopLossPercent}%`);
         if (originalSettings.takeProfitPercent !== settings.takeProfitPercent) changes.push(`Take Profit → ${settings.takeProfitPercent}%`);
         if (originalSettings.maxDailyLossPercent !== settings.maxDailyLossPercent) changes.push(`Max Daily Loss → ${settings.maxDailyLossPercent}%`);
-        if (originalSettings.minConfidence !== settings.minConfidence) changes.push(`Min Confidence → ${settings.minConfidence}%`);
+        if (originalSettings.minConfidence !== settings.minConfidence) changes.push(`Stock Min Confidence → ${settings.minConfidence}%`);
+        if (originalSettings.cryptoMinConfidence !== settings.cryptoMinConfidence) changes.push(`Crypto Min Confidence → ${settings.cryptoMinConfidence}%`);
         if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Leverage → ${settings.leverageMultiplier}x`);
         if (originalSettings.shortingEnabled !== settings.shortingEnabled) changes.push(`Shorting → ${settings.shortingEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.trailingStopEnabled !== settings.trailingStopEnabled) changes.push(`Trailing Stop → ${settings.trailingStopEnabled ? 'ON' : 'OFF'}`);
@@ -220,7 +222,8 @@ function Settings() {
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
         if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
-        if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Max Hold Time → ${settings.maxHoldHours}h`);
+        if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Stock Max Hold → ${settings.maxHoldHours}h`);
+        if (originalSettings.cryptoMaxHoldHours !== settings.cryptoMaxHoldHours) changes.push(`Crypto Max Hold → ${settings.cryptoMaxHoldHours}h`);
         if (originalSettings.aiModel !== settings.aiModel) changes.push(`AI Model → ${settings.aiModel}`);
         const prevCrypto = (originalSettings.cryptoSymbols || []).join(',');
         const newCrypto  = (settings.cryptoSymbols || []).join(',');
@@ -604,7 +607,7 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Minimum AI Confidence (%) to Trade</label>
+          <label>Min AI Confidence — Stocks (%)</label>
           <input
             type="number"
             min="50"
@@ -614,8 +617,22 @@ function Settings() {
             onChange={e => numInput('minConfidence', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Bot only trades when AI confidence is at or above this %. 50–60% = more trades, higher risk. 65–75% = fewer but higher quality. Recommended: 63%.
-            Scanner picks (daily movers with high volume) automatically use 58% regardless of this setting — they are already momentum-filtered.
+            Stocks only. Bot trades when AI confidence ≥ this %. 50–60% = more trades, higher risk. 65–75% = fewer but higher quality. Recommended: 63%.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Min AI Confidence — Crypto (%)</label>
+          <input
+            type="number"
+            min="50"
+            max="90"
+            step="1"
+            value={settings.cryptoMinConfidence ?? 72}
+            onChange={e => numInput('cryptoMinConfidence', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Crypto only. Higher than stocks because crypto is more volatile and spot-only (no shorting). Recommended: 72–75%. Scanner picks use 58% regardless.
           </p>
         </div>
 
@@ -636,7 +653,7 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Max Hold Time (hours)</label>
+          <label>Max Hold Time — Stocks (hours)</label>
           <input
             type="number"
             min="1"
@@ -646,8 +663,22 @@ function Settings() {
             onChange={e => numInput('maxHoldHours', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Any open position held longer than this is automatically closed, regardless of P/L.
-            Prevents trades from sitting open for days or weeks. Recommended: 24–72h.
+            Stocks only. Any position held longer than this is automatically closed regardless of P/L. Recommended: 24–72h.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Max Hold Time — Crypto (hours)</label>
+          <input
+            type="number"
+            min="1"
+            max="168"
+            step="1"
+            value={settings.cryptoMaxHoldHours ?? 24}
+            onChange={e => numInput('cryptoMaxHoldHours', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Crypto only. Shorter than stocks — crypto moves fast and gains fade quickly. Recommended: 8–24h.
           </p>
         </div>
 
