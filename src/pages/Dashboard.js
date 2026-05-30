@@ -581,7 +581,7 @@ function Dashboard() {
             <div>
               <h3 style={{ margin: 0 }}>Crypto Scanner</h3>
               <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
-                Top gainers on Binance.US — runs every 2h · 3%+ move · $200k+ volume
+                Global top gainers (Binance.com) · filtered to Binance.US · runs every 2h · 3%+ move · $200k+ volume
                 {cryptoScanHistory?.totalRuns > 0 && (
                   <span style={{ color: '#5865f2', marginLeft: 8 }}>· {cryptoScanHistory.totalRuns} runs (7d)</span>
                 )}
