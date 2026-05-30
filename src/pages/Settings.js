@@ -715,11 +715,20 @@ function Settings() {
             }
           </label>
           <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
-            When ON, crypto SELL signals open real margin shorts on Kraken (24/7 including weekends). When OFF, falls back to BITI stock via Alpaca (weekdays only). Requires KRAKEN_API_KEY + KRAKEN_PRIVATE_KEY in Railway env vars.
+            Controls how crypto SELL signals are handled. When OFF, falls back to BITI stock via Alpaca (weekdays only).
+            <br /><strong style={{ color: '#f5a623' }}>Paper mode:</strong> simulates Kraken shorts as paper trades — no real orders, no money touched.
+            <br /><strong style={{ color: '#ff6b35' }}>Live mode only:</strong> sends real margin orders to Kraken 24/7. Requires KRAKEN_API_KEY + KRAKEN_PRIVATE_KEY in Railway env vars.
           </p>
           {settings.krakenEnabled && (
-            <div style={{ background: '#0d1a2a', border: '1px solid #00c853', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
-              <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700 }}>Kraken margin active — crypto shorts will execute on Kraken 24/7.</span>
+            <div style={{
+              background: settings.tradeMode === 'live' ? '#1a0d00' : '#0d1a0d',
+              border: `1px solid ${settings.tradeMode === 'live' ? '#ff6b35' : '#00c853'}`,
+              borderRadius: 8, padding: '10px 14px', marginTop: 8
+            }}>
+              {settings.tradeMode === 'live'
+                ? <span style={{ color: '#ff6b35', fontSize: 12, fontWeight: 700 }}>⚠️ Live mode — Kraken will send REAL margin orders. Make sure your Kraken account is funded.</span>
+                : <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700 }}>✓ Paper mode — Kraken shorts are simulated only. No real orders sent.</span>
+              }
             </div>
           )}
         </div>
