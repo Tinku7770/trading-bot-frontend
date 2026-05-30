@@ -101,6 +101,7 @@ function Settings() {
     minWinRate: 40,
     scaleOutEnabled: false,
     cryptoEnabled: true,
+    krakenEnabled: false,
     minConfidence: 60,
     maxConcurrentPositions: 3,
     maxHoldHours: 48,
@@ -220,6 +221,7 @@ function Settings() {
         if (originalSettings.winRatePauseEnabled !== settings.winRatePauseEnabled) changes.push(`Win Rate Pause → ${settings.winRatePauseEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.krakenEnabled !== settings.krakenEnabled) changes.push(`Kraken Margin Shorts → ${settings.krakenEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
         if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
         if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Stock Max Hold → ${settings.maxHoldHours}h`);
@@ -696,6 +698,30 @@ function Settings() {
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
             Coins discovered by the scanner (momentum picks like XLM, HYPE). These move fast and fade fast — exit sooner. Recommended: 8–12h.
           </p>
+        </div>
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={settings.krakenEnabled === true}
+              onChange={e => updateSettings({ krakenEnabled: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <span>Enable Kraken Margin Shorts</span>
+            {settings.krakenEnabled
+              ? <span style={{ background: '#0d2a1a', color: '#00c853', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>ON</span>
+              : <span style={{ background: '#2a1a1a', color: '#ff3d3d', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>OFF</span>
+            }
+          </label>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
+            When ON, crypto SELL signals open real margin shorts on Kraken (24/7 including weekends). When OFF, falls back to BITI stock via Alpaca (weekdays only). Requires KRAKEN_API_KEY + KRAKEN_PRIVATE_KEY in Railway env vars.
+          </p>
+          {settings.krakenEnabled && (
+            <div style={{ background: '#0d1a2a', border: '1px solid #00c853', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
+              <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700 }}>Kraken margin active — crypto shorts will execute on Kraken 24/7.</span>
+            </div>
+          )}
         </div>
 
         <div className="form-group">
