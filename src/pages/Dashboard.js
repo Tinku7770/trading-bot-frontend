@@ -284,8 +284,8 @@ function Dashboard() {
         fetchNextRun();
         setRunning(false);
       }, 90000);
-    } catch {
-      setActionError('Failed to trigger bot — check your connection');
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Failed to trigger bot — check your connection');
       setRunning(false);
     }
   }
@@ -700,7 +700,6 @@ function Dashboard() {
           </div>
         );
       })()}
-      )}
 
       {/* Scanner Performance */}
       {scannerPerf && (scannerPerf.summary.totalPicks > 0 || scannerPerf.summary.tradedPicks > 0) && (
