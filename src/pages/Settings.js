@@ -336,9 +336,22 @@ function Settings() {
             value={settings.maxTradeAmount}
             onChange={e => numInput('maxTradeAmount', e.target.value)}
           />
-          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Total capital available to the bot. Each trade receives an equal share — e.g. $1,000 across 5 symbols = ~$200 per trade.
-          </p>
+          <div style={{ marginTop: 8, background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>Position size scales with AI confidence — higher conviction = more capital deployed:</div>
+            {[
+              { label: '90%+ confidence', pct: 1.00, color: '#00c853' },
+              { label: '80–89% confidence', pct: 0.75, color: '#69f0ae' },
+              { label: '70–79% confidence', pct: 0.50, color: '#f5a623' },
+              { label: '65–69% confidence', pct: 0.25, color: '#ff7043' },
+            ].map(({ label, pct, color }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
+                <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+                  ${((settings.maxTradeAmount || 0) * pct).toFixed(0)} ({(pct * 100).toFixed(0)}%)
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="form-group">
