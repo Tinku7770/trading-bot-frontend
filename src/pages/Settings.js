@@ -90,6 +90,7 @@ function Settings() {
     tradeMode: 'paper',
     shortingEnabled: false,
     leverageMultiplier: 1,
+    cryptoLeverageMultiplier: 1,
     trailingStopEnabled: false,
     trailingStopPercent: 2,
     trailingStopActivationPercent: 2,
@@ -160,8 +161,10 @@ function Settings() {
     if ((settings.maxDailyLossPercent || 0) <= 0) return 'Max Daily Loss must be greater than 0%';
     if ((settings.minConfidence || 0) < 50 || (settings.minConfidence || 0) > 90) return 'Stock Min Confidence must be between 50% and 90%';
     if ((settings.cryptoMinConfidence || 0) < 50 || (settings.cryptoMinConfidence || 0) > 90) return 'Crypto Min Confidence must be between 50% and 90%';
-    if ((settings.leverageMultiplier || 0) < 1) return 'Leverage must be at least 1x';
-    if ((settings.leverageMultiplier || 0) > 10) return 'Leverage cannot exceed 10x';
+    if ((settings.leverageMultiplier || 0) < 1) return 'Stock Leverage must be at least 1x';
+    if ((settings.leverageMultiplier || 0) > 10) return 'Stock Leverage cannot exceed 10x';
+    if ((settings.cryptoLeverageMultiplier || 0) < 1) return 'Crypto Leverage must be at least 1x';
+    if ((settings.cryptoLeverageMultiplier || 0) > 10) return 'Crypto Leverage cannot exceed 10x';
     if ((settings.maxTradeAmount || 0) <= 0) return 'Max Trade Amount must be greater than $0';
     if ((settings.cryptoSymbols?.length || 0) + (settings.stockSymbols?.length || 0) === 0) return 'Add at least one symbol to trade';
     return null;
@@ -209,7 +212,8 @@ function Settings() {
         if (originalSettings.maxDailyLossPercent !== settings.maxDailyLossPercent) changes.push(`Max Daily Loss → ${settings.maxDailyLossPercent}%`);
         if (originalSettings.minConfidence !== settings.minConfidence) changes.push(`Stock Min Confidence → ${settings.minConfidence}%`);
         if (originalSettings.cryptoMinConfidence !== settings.cryptoMinConfidence) changes.push(`Crypto Min Confidence → ${settings.cryptoMinConfidence}%`);
-        if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Leverage → ${settings.leverageMultiplier}x`);
+        if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Stock Leverage → ${settings.leverageMultiplier}x`);
+        if (originalSettings.cryptoLeverageMultiplier !== settings.cryptoLeverageMultiplier) changes.push(`Crypto Leverage → ${settings.cryptoLeverageMultiplier}x`);
         if (originalSettings.shortingEnabled !== settings.shortingEnabled) changes.push(`Shorting → ${settings.shortingEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.trailingStopEnabled !== settings.trailingStopEnabled) changes.push(`Trailing Stop → ${settings.trailingStopEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.trailingStopPercent !== settings.trailingStopPercent) changes.push(`Trailing Distance → ${settings.trailingStopPercent}%`);
@@ -342,7 +346,7 @@ function Settings() {
               { label: '90%+ confidence', pct: 1.00, color: '#00c853' },
               { label: '80–89% confidence', pct: 0.75, color: '#69f0ae' },
               { label: '70–79% confidence', pct: 0.50, color: '#f5a623' },
-              { label: '65–69% confidence', pct: 0.25, color: '#ff7043' },
+              { label: '60–69% confidence', pct: 0.25, color: '#ff7043' },
             ].map(({ label, pct, color }) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                 <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
@@ -588,7 +592,7 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Leverage Multiplier (1x = no leverage)</label>
+          <label>Stock Leverage Multiplier (1x = no leverage)</label>
           <input
             type="number"
             min="1"
@@ -618,7 +622,41 @@ function Settings() {
             </p>
           )}
           {(settings.leverageMultiplier || 1) === 1 && (
-            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>1x = no leverage (spot trading). Try 2x or 3x to test.</p>
+            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>1x = no leverage (spot trading). Stocks: keep at 1x unless you know margin trading well.</p>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label>Crypto Leverage Multiplier (1x = no leverage)</label>
+          <input
+            type="number"
+            min="1"
+            max="10"
+            step="0.5"
+            value={settings.cryptoLeverageMultiplier || 1}
+            onChange={e => numInput('cryptoLeverageMultiplier', e.target.value)}
+          />
+          {(settings.cryptoLeverageMultiplier || 1) > 3 && (
+            <div style={{
+              background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8,
+              padding: '10px 14px', marginTop: 8
+            }}>
+              <div style={{ color: '#f5a623', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                ⚠️ High Leverage Warning — {settings.cryptoLeverageMultiplier}x on Crypto
+              </div>
+              <p style={{ color: '#c8852a', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+                A 1% move against you = <strong style={{ color: '#f5a623' }}>{settings.cryptoLeverageMultiplier}% real loss</strong>.
+                Crypto is more volatile than stocks — high leverage can liquidate quickly.
+              </p>
+            </div>
+          )}
+          {(settings.cryptoLeverageMultiplier || 1) > 1 && (settings.cryptoLeverageMultiplier || 1) <= 3 && (
+            <p style={{ color: '#f5a623', fontSize: 12, marginTop: 4 }}>
+              ⚠️ {settings.cryptoLeverageMultiplier}x leverage amplifies both gains AND losses by {settings.cryptoLeverageMultiplier}x.
+            </p>
+          )}
+          {(settings.cryptoLeverageMultiplier || 1) === 1 && (
+            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>1x = no leverage (spot trading). Try 2x for crypto — it's commonly used and manageable.</p>
           )}
         </div>
 
