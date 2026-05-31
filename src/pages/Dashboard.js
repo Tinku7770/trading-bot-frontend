@@ -575,105 +575,131 @@ function Dashboard() {
       </div>}
 
       {/* Crypto Scanner Picks + History */}
-      {(scannedCrypto.length > 0 || cryptoScanHistory) && (
-        <div className="section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div>
-              <h3 style={{ margin: 0 }}>Crypto Scanner</h3>
-              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
-                Kraken + Coinbase + Binance.US · runs every 2h · 2%+ move · $200k+ volume
-                {cryptoScanHistory?.totalRuns > 0 && (
-                  <span style={{ color: '#5865f2', marginLeft: 8 }}>· {cryptoScanHistory.totalRuns} runs (7d)</span>
-                )}
-              </p>
+      {cryptoScanHistory && (() => {
+        const totalPicksFound = cryptoScanHistory.runs?.reduce((sum, r) => sum + r.picks.length, 0) || 0;
+        const uniqueSymbols   = [...new Set((cryptoScanHistory.runs || []).flatMap(r => r.picks.map(p => p.symbol)))].length;
+        return (
+          <div className="section">
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Crypto Scanner</h3>
+                <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+                  Top movers on Binance.US · runs every 2h · 2%+ move · $200k+ volume
+                </p>
+              </div>
+              <span style={{
+                background: totalPicksFound > 0 ? '#0d2a0d' : '#0d1a2a',
+                color: totalPicksFound > 0 ? '#00c853' : '#5865f2',
+                border: `1px solid ${totalPicksFound > 0 ? '#00c853' : '#5865f2'}`,
+                borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
+              }}>
+                {totalPicksFound > 0 ? `+${totalPicksFound} picks (7d)` : 'No picks yet (7d)'}
+              </span>
             </div>
-            <span style={{
-              background: '#0d1a2a', color: '#5865f2',
-              border: '1px solid #5865f2',
-              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600
-            }}>
-              {scannedCrypto.length > 0 ? `${scannedCrypto.length} active now` : 'No picks in memory'}
-            </span>
+
+            {/* Stats grid */}
+            <div className="stats-grid" style={{ marginBottom: 20 }}>
+              <div className="card">
+                <h2>Runs (7d)</h2>
+                <div className="value">{cryptoScanHistory.totalRuns}</div>
+              </div>
+              <div className="card">
+                <h2>Picks Found</h2>
+                <div className="value">{totalPicksFound}</div>
+              </div>
+              <div className="card">
+                <h2>Unique Symbols</h2>
+                <div className="value">{uniqueSymbols}</div>
+              </div>
+              <div className="card">
+                <h2>Active in Memory</h2>
+                <div className="value" style={{ color: scannedCrypto.length > 0 ? '#00c853' : '#555' }}>
+                  {scannedCrypto.length > 0 ? scannedCrypto.length : '—'}
+                </div>
+              </div>
+            </div>
+
+            {/* Current in-memory picks or awaiting notice */}
+            {scannedCrypto.length > 0 ? (
+              <>
+                <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Current Picks (this cycle)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 20 }}>
+                  {scannedCrypto.map(c => (
+                    <div key={c.symbol} className="card" style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <strong style={{ fontSize: 14 }}>{c.symbol}</strong>
+                        <span style={{ background: '#0d1a2a', color: '#5865f2', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 700 }}>LIVE</span>
+                      </div>
+                      <div style={{ color: c.changePct >= 0 ? '#00c853' : '#ff3d3d', fontWeight: 700, fontSize: 18, marginTop: 6 }}>
+                        {c.changePct >= 0 ? '+' : ''}{c.changePct.toFixed(2)}%
+                      </div>
+                      <div style={{ color: '#888', fontSize: 11, marginTop: 4 }}>
+                        Vol: ${(c.volume24h / 1_000_000).toFixed(1)}M · ${c.price?.toFixed(4)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ color: '#555', fontSize: 13, padding: '4px 0 16px', fontStyle: 'italic' }}>
+                Awaiting next scan — picks will appear here after the next 2-hour cycle.
+              </div>
+            )}
+
+            {/* Scan run history from DB */}
+            {cryptoScanHistory.runs?.length > 0 && (
+              <>
+                <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Scan History (last 7 days · {cryptoScanHistory.totalRuns} runs)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {cryptoScanHistory.runs.map((run, i) => {
+                    const runTime = new Date(run.runAt);
+                    const minsAgo = Math.round((Date.now() - runTime) / 60000);
+                    const timeLabel = minsAgo < 60
+                      ? `${minsAgo}m ago`
+                      : minsAgo < 1440
+                        ? `${Math.round(minsAgo / 60)}h ago`
+                        : runTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    return (
+                      <div key={i} className="card" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: 70 }}>
+                          <div style={{ color: '#5865f2', fontWeight: 700, fontSize: 13 }}>{timeLabel}</div>
+                          <div style={{ color: '#555', fontSize: 11 }}>
+                            {runTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        <div style={{ minWidth: 60 }}>
+                          <div style={{ color: '#aaa', fontSize: 11 }}>Picks</div>
+                          <div style={{ color: run.picks.length > 0 ? '#00c853' : '#555', fontWeight: 700, fontSize: 16 }}>
+                            {run.picks.length}
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {run.picks.length === 0 ? (
+                            <span style={{ color: '#444', fontSize: 12 }}>No qualifying movers</span>
+                          ) : run.picks.map(p => (
+                            <span key={p.symbol} style={{
+                              background: '#0d1a2a', color: '#5865f2',
+                              border: '1px solid #1a2a3e',
+                              borderRadius: 6, padding: '3px 8px', fontSize: 12
+                            }}>
+                              {p.symbol} <span style={{ color: p.changePct >= 0 ? '#00c853' : '#ff3d3d' }}>{p.changePct >= 0 ? '+' : ''}{p.changePct}%</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
-
-          {/* Current in-memory picks */}
-          {scannedCrypto.length > 0 && (
-            <>
-              <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Current Picks (this cycle)
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 20 }}>
-                {scannedCrypto.map(c => (
-                  <div key={c.symbol} className="card" style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <strong style={{ fontSize: 14 }}>{c.symbol}</strong>
-                      <span style={{ background: '#0d1a2a', color: '#5865f2', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 700 }}>LIVE</span>
-                    </div>
-                    <div style={{ color: '#00c853', fontWeight: 700, fontSize: 18, marginTop: 6 }}>
-                      +{c.changePct.toFixed(2)}%
-                    </div>
-                    <div style={{ color: '#888', fontSize: 11, marginTop: 4 }}>
-                      Vol: ${(c.volume24h / 1_000_000).toFixed(1)}M · ${c.price?.toFixed(4)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Scan run history from DB */}
-          {cryptoScanHistory?.runs?.length > 0 ? (
-            <>
-              <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Scan History (last 7 days · {cryptoScanHistory.totalRuns} runs)
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {cryptoScanHistory.runs.map((run, i) => {
-                  const runTime = new Date(run.runAt);
-                  const minsAgo = Math.round((Date.now() - runTime) / 60000);
-                  const timeLabel = minsAgo < 60
-                    ? `${minsAgo}m ago`
-                    : minsAgo < 1440
-                      ? `${Math.round(minsAgo / 60)}h ago`
-                      : runTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
-                  return (
-                    <div key={i} className="card" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                      <div style={{ minWidth: 70 }}>
-                        <div style={{ color: '#5865f2', fontWeight: 700, fontSize: 13 }}>{timeLabel}</div>
-                        <div style={{ color: '#555', fontSize: 11 }}>
-                          {runTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                      <div style={{ minWidth: 60 }}>
-                        <div style={{ color: '#aaa', fontSize: 11 }}>Picks</div>
-                        <div style={{ color: run.picks.length > 0 ? '#00c853' : '#555', fontWeight: 700, fontSize: 16 }}>
-                          {run.picks.length}
-                        </div>
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {run.picks.length === 0 ? (
-                          <span style={{ color: '#444', fontSize: 12 }}>No qualifying movers</span>
-                        ) : run.picks.map(p => (
-                          <span key={p.symbol} style={{
-                            background: '#0d1a2a', color: '#5865f2',
-                            border: '1px solid #1a2a3e',
-                            borderRadius: 6, padding: '3px 8px', fontSize: 12
-                          }}>
-                            {p.symbol} <span style={{ color: '#00c853' }}>+{p.changePct}%</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <div style={{ color: '#444', fontSize: 13, padding: '12px 0' }}>
-              No scan history yet — history will appear here after the next 2-hour scan cycle.
-            </div>
-          )}
-        </div>
+        );
+      })()}
       )}
 
       {/* Scanner Performance */}
