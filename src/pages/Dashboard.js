@@ -45,6 +45,7 @@ function Dashboard() {
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [scannerPerf, setScannerPerf]           = useState(null);
   const [cryptoScanHistory, setCryptoScanHistory] = useState(null);
+  const [scanHistoryExpanded, setScanHistoryExpanded] = useState(false);
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
 
@@ -314,6 +315,7 @@ function Dashboard() {
   const seenSignalIds = new Set();
   const recentSignals = [...liveSignals, ...(data?.recentSignals || [])]
     .filter(s => { if (seenSignalIds.has(s._id)) return false; seenSignalIds.add(s._id); return true; })
+    .filter(s => (s.confidence || 0) > 0)
     .slice(0, 8);
 
   const capitalPctRaw = stats.totalCapital > 0
@@ -454,40 +456,141 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Today's Performance — always shown; zeroed when no trades yet */}
-      {(() => {
-        const ts = data?.todayStats || { pl: 0, trades: 0, wins: 0, winRate: 0 };
-        return (
-          <div className="section">
-            <h3>Today's Performance</h3>
-            {ts.trades === 0 && (
-              <p style={{ color: '#555', fontSize: 13, marginBottom: 12 }}>No trades closed today — bot is watching the market.</p>
-            )}
-            <div className="stats-grid">
-              <div className="card">
-                <h2>Today's P/L</h2>
-                <div className="value" style={{ color: (ts.pl || 0) > 0 ? '#00c853' : (ts.pl || 0) < 0 ? '#ff3d3d' : '#888' }}>
-                  {(ts.pl || 0) > 0 ? '+' : ''}${(ts.pl || 0).toFixed(2)}
+      {/* Today's Performance + Open Positions — 2-col */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, alignItems: 'start' }}>
+        {/* Today's Performance */}
+        {(() => {
+          const ts = data?.todayStats || { pl: 0, trades: 0, wins: 0, winRate: 0 };
+          return (
+            <div className="section">
+              <h3>Today's Performance</h3>
+              {ts.trades === 0 && (
+                <p style={{ color: '#555', fontSize: 13, marginBottom: 12 }}>No trades closed today — bot is watching the market.</p>
+              )}
+              <div className="stats-grid">
+                <div className="card">
+                  <h2>Today's P/L</h2>
+                  <div className="value" style={{ color: (ts.pl || 0) > 0 ? '#00c853' : (ts.pl || 0) < 0 ? '#ff3d3d' : '#888' }}>
+                    {(ts.pl || 0) > 0 ? '+' : ''}${(ts.pl || 0).toFixed(2)}
+                  </div>
                 </div>
-              </div>
-              <div className="card">
-                <h2>Trades Today</h2>
-                <div className="value">{ts.trades || 0}</div>
-              </div>
-              <div className="card">
-                <h2>Today's Wins</h2>
-                <div className="value" style={{ color: '#00c853' }}>{ts.wins || 0}</div>
-              </div>
-              <div className="card">
-                <h2>Today's Win Rate</h2>
-                <div className="value" style={{ color: (ts.winRate || 0) >= 50 ? '#00c853' : ts.trades > 0 ? '#ff3d3d' : '#555' }}>
-                  {ts.trades > 0 ? `${ts.winRate}%` : '—'}
+                <div className="card">
+                  <h2>Trades Today</h2>
+                  <div className="value">{ts.trades || 0}</div>
+                </div>
+                <div className="card">
+                  <h2>Today's Wins</h2>
+                  <div className="value" style={{ color: '#00c853' }}>{ts.wins || 0}</div>
+                </div>
+                <div className="card">
+                  <h2>Today's Win Rate</h2>
+                  <div className="value" style={{ color: (ts.winRate || 0) >= 50 ? '#00c853' : ts.trades > 0 ? '#ff3d3d' : '#555' }}>
+                    {ts.trades > 0 ? `${ts.winRate}%` : '—'}
+                  </div>
                 </div>
               </div>
             </div>
+          );
+        })()}
+
+        {/* Open Positions (table only — charts are full-width below) */}
+        {data?.openTrades?.length > 0 && (
+          <div className="section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Open Positions</h3>
+              <button
+                onClick={closeAllPositions}
+                disabled={closingAll}
+                style={{
+                  padding: '6px 14px', borderRadius: 6,
+                  border: `1px solid ${confirmCloseAll ? '#f5a623' : '#ff3d3d'}`,
+                  background: confirmCloseAll ? '#2a1500' : closingAll ? '#2a1a1a' : 'transparent',
+                  color: confirmCloseAll ? '#f5a623' : '#ff3d3d',
+                  fontWeight: 600, cursor: closingAll ? 'not-allowed' : 'pointer',
+                  fontSize: 12, transition: 'all 0.2s'
+                }}
+              >
+                {closingAll ? 'Closing All...' : confirmCloseAll ? 'Confirm Close All?' : 'Close All Positions'}
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Type</th>
+                    <th>Entry</th>
+                    <th>Amount</th>
+                    <th>Lev</th>
+                    <th>Unrealized P/L</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.openTrades.map((trade) => (
+                    <tr key={trade._id}>
+                      <td><strong>{trade.symbol}</strong></td>
+                      <td><span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span></td>
+                      <td>${trade.price?.toFixed(2)}</td>
+                      <td>${trade.amount?.toFixed(2)}</td>
+                      <td style={{ color: (trade.leverage || 1) > 1 ? '#f5a623' : '#555', fontWeight: (trade.leverage || 1) > 1 ? 700 : 400 }}>
+                        {trade.leverage || 1}x
+                      </td>
+                      <td>{(() => {
+                        const cur = currentPrices[trade.symbol];
+                        if (!cur || !trade.price) return <span style={{ color: '#555' }}>—</span>;
+                        const isShort = trade.type === 'SHORT';
+                        const pnlPct = (cur - trade.price) / trade.price * 100 * (isShort ? -1 : 1);
+                        const pnlDollar = pnlPct / 100 * (trade.amount || 0) * (trade.leverage || 1);
+                        const color = pnlDollar >= 0 ? '#00c853' : '#ff3d3d';
+                        return (
+                          <span style={{ color, fontWeight: 600 }}>
+                            {pnlDollar >= 0 ? '+' : ''}${pnlDollar.toFixed(2)}
+                            <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.8 }}>
+                              ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+                            </span>
+                          </span>
+                        );
+                      })()}</td>
+                      <td>
+                        <button
+                          onClick={() => closePosition(trade._id)}
+                          disabled={closingId === trade._id}
+                          style={{
+                            padding: '6px 14px', borderRadius: 6,
+                            border: `1px solid ${confirmClose === trade._id ? '#f5a623' : '#ff3d3d'}`,
+                            background: confirmClose === trade._id ? '#2a1500' : 'transparent',
+                            color: confirmClose === trade._id ? '#f5a623' : '#ff3d3d',
+                            fontWeight: 600, cursor: closingId === trade._id ? 'not-allowed' : 'pointer',
+                            fontSize: 12, transition: 'all 0.2s'
+                          }}
+                        >
+                          {closingId === trade._id ? 'Closing...' : confirmClose === trade._id ? 'Confirm?' : 'Close'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        );
-      })()}
+        )}
+      </div>
+
+      {/* Open Position Charts — full width */}
+      {data?.openTrades?.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, marginBottom: 16 }}>
+          {data.openTrades.map((trade) => (
+            <PriceChart
+              key={trade._id}
+              symbol={trade.symbol}
+              entryPrice={trade.price}
+              market={trade.market}
+              type={trade.type}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Pre-Market Alerts */}
       {preMarketFlags.length > 0 && (
@@ -652,11 +755,22 @@ function Dashboard() {
             {/* Scan run history from DB */}
             {cryptoScanHistory.runs?.length > 0 && (
               <>
-                <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  Scan History (last 7 days · {cryptoScanHistory.totalRuns} runs)
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ color: '#aaa', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Scan History (last 7 days · {cryptoScanHistory.totalRuns} runs)
+                  </div>
+                  <button
+                    onClick={() => setScanHistoryExpanded(e => !e)}
+                    style={{
+                      background: 'none', border: '1px solid #2a2d3e', borderRadius: 6,
+                      color: '#5865f2', fontSize: 12, padding: '3px 10px', cursor: 'pointer'
+                    }}
+                  >
+                    {scanHistoryExpanded ? 'Collapse' : `Show all ${cryptoScanHistory.runs.length} runs`}
+                  </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {cryptoScanHistory.runs.map((run, i) => {
+                  {(scanHistoryExpanded ? cryptoScanHistory.runs : cryptoScanHistory.runs.slice(0, 3)).map((run, i) => {
                     const runTime = new Date(run.runAt);
                     const minsAgo = Math.round((Date.now() - runTime) / 60000);
                     const timeLabel = minsAgo < 60
@@ -898,166 +1012,69 @@ function Dashboard() {
         </div>
       )}
 
-      {/* All-Time Stats */}
-      <div className="section" style={{ paddingBottom: 0 }}>
-        <h3>All-Time Performance</h3>
-      </div>
-      <div className="stats-grid" style={{ marginTop: 8 }}>
-        <div className="card">
-          <h2>Total Trades</h2>
-          <div className="value">{stats.totalTrades || 0}</div>
-        </div>
-        <div className="card">
-          <h2>Win Rate</h2>
-          <div className="value" style={{ color: (parseFloat(stats.winRate) || 0) >= 50 ? '#00c853' : '#ff3d3d' }}>
-            {stats.winRate || 0}%
+      {/* All-Time Stats + Account Balance — 2-col */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16 }}>
+        <div>
+          <div className="section" style={{ paddingBottom: 0 }}>
+            <h3>All-Time Performance</h3>
+          </div>
+          <div className="stats-grid" style={{ marginTop: 8 }}>
+            <div className="card">
+              <h2>Total Trades</h2>
+              <div className="value">{stats.totalTrades || 0}</div>
+            </div>
+            <div className="card">
+              <h2>Win Rate</h2>
+              <div className="value" style={{ color: (parseFloat(stats.winRate) || 0) >= 50 ? '#00c853' : '#ff3d3d' }}>
+                {stats.winRate || 0}%
+              </div>
+            </div>
+            <div className="card">
+              <h2>Profit / Loss</h2>
+              <div className="value" style={{ color: (stats.totalProfitLoss || 0) > 0 ? '#00c853' : (stats.totalProfitLoss || 0) < 0 ? '#ff3d3d' : '#888' }}>
+                {(stats.totalProfitLoss || 0) > 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="card">
+              <h2>Open Positions</h2>
+              <div className="value">{stats.openPositions || 0}</div>
+            </div>
           </div>
         </div>
-        <div className="card">
-          <h2>Profit / Loss</h2>
-          <div className="value" style={{ color: (stats.totalProfitLoss || 0) > 0 ? '#00c853' : (stats.totalProfitLoss || 0) < 0 ? '#ff3d3d' : '#888' }}>
-            {(stats.totalProfitLoss || 0) > 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
-          </div>
-        </div>
-        <div className="card">
-          <h2>Open Positions</h2>
-          <div className="value">{stats.openPositions || 0}</div>
-        </div>
-      </div>
 
-      {/* Balance Section */}
-      <div className="section">
-        <h3>Account Balance</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
-          <div className="card">
-            <h2>Total Capital</h2>
-            <div className="value" style={{ color: '#5865f2' }}>${stats.totalCapital || 1000}</div>
-          </div>
-          <div className="card">
-            <h2>In Trades</h2>
-            <div className="value" style={{ color: '#f5a623' }}>${(stats.capitalInTrades || 0).toFixed(2)}</div>
-          </div>
-          <div className="card">
-            <h2>Available</h2>
-            <div className="value" style={{ color: '#00c853' }}>${(stats.availableCapital || 0).toFixed(2)}</div>
-          </div>
-        </div>
-        <div style={{ background: '#1a1d27', borderRadius: 8, overflow: 'hidden', height: 12 }}>
-          <div style={{
-            width: `${capitalPct}%`,
-            height: '100%',
-            background: 'linear-gradient(90deg, #5865f2, #f5a623)',
-            borderRadius: 8,
-            transition: 'width 0.5s ease'
-          }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12, color: '#666' }}>
-          <span>{capitalPct}% deployed in trades</span>
-          <span>{100 - capitalPct}% available</span>
-        </div>
-      </div>
-
-      {/* Open Positions */}
-      {data?.openTrades?.length > 0 && (
+        {/* Account Balance */}
         <div className="section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ margin: 0 }}>Open Positions</h3>
-            <button
-              onClick={closeAllPositions}
-              disabled={closingAll}
-              style={{
-                padding: '6px 14px', borderRadius: 6,
-                border: `1px solid ${confirmCloseAll ? '#f5a623' : '#ff3d3d'}`,
-                background: confirmCloseAll ? '#2a1500' : closingAll ? '#2a1a1a' : 'transparent',
-                color: confirmCloseAll ? '#f5a623' : '#ff3d3d',
-                fontWeight: 600, cursor: closingAll ? 'not-allowed' : 'pointer',
-                fontSize: 12, transition: 'all 0.2s'
-              }}
-            >
-              {closingAll ? 'Closing All...' : confirmCloseAll ? 'Confirm Close All?' : 'Close All Positions'}
-            </button>
+          <h3>Account Balance</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
+            <div className="card">
+              <h2>Total Capital</h2>
+              <div className="value" style={{ color: '#5865f2' }}>${stats.totalCapital || 1000}</div>
+            </div>
+            <div className="card">
+              <h2>In Trades</h2>
+              <div className="value" style={{ color: '#f5a623' }}>${(stats.capitalInTrades || 0).toFixed(2)}</div>
+            </div>
+            <div className="card">
+              <h2>Available</h2>
+              <div className="value" style={{ color: '#00c853' }}>${(stats.availableCapital || 0).toFixed(2)}</div>
+            </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Type</th>
-                <th>Market</th>
-                <th>Entry Price</th>
-                <th>Amount</th>
-                <th>Leverage</th>
-                <th>Opened</th>
-                <th>Unrealized P/L</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.openTrades.map((trade) => (
-                <tr key={trade._id}>
-                  <td><strong>{trade.symbol}</strong></td>
-                  <td>
-                    <span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span>
-                    <span style={{ fontSize: 10, color: trade.type === 'SHORT' ? '#ff6b35' : '#00c853', marginLeft: 6 }}>
-                      {trade.type === 'SHORT' ? '↓ profits when price falls' : '↑ profits when price rises'}
-                    </span>
-                  </td>
-                  <td style={{ color: '#888' }}>{trade.market}</td>
-                  <td>${trade.price?.toFixed(2)}</td>
-                  <td>${trade.amount?.toFixed(2)}</td>
-                  <td style={{ color: (trade.leverage || 1) > 1 ? '#f5a623' : '#555', fontWeight: (trade.leverage || 1) > 1 ? 700 : 400 }}>
-                    {trade.leverage || 1}x
-                  </td>
-                  <td style={{ color: '#888', fontSize: 12 }}>{formatDateTime(trade.executedAt)}</td>
-                  <td>{(() => {
-                    const cur = currentPrices[trade.symbol];
-                    if (!cur || !trade.price) return <span style={{ color: '#555' }}>—</span>;
-                    const isShort = trade.type === 'SHORT';
-                    const pnlPct = (cur - trade.price) / trade.price * 100 * (isShort ? -1 : 1);
-                    const pnlDollar = pnlPct / 100 * (trade.amount || 0) * (trade.leverage || 1);
-                    const color = pnlDollar >= 0 ? '#00c853' : '#ff3d3d';
-                    return (
-                      <span style={{ color, fontWeight: 600 }}>
-                        {pnlDollar >= 0 ? '+' : ''}${pnlDollar.toFixed(2)}
-                        <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.8 }}>
-                          ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
-                        </span>
-                      </span>
-                    );
-                  })()}</td>
-                  <td>
-                    <button
-                      onClick={() => closePosition(trade._id)}
-                      disabled={closingId === trade._id}
-                      style={{
-                        padding: '6px 14px', borderRadius: 6,
-                        border: `1px solid ${confirmClose === trade._id ? '#f5a623' : '#ff3d3d'}`,
-                        background: confirmClose === trade._id ? '#2a1500' : 'transparent',
-                        color: confirmClose === trade._id ? '#f5a623' : '#ff3d3d',
-                        fontWeight: 600, cursor: closingId === trade._id ? 'not-allowed' : 'pointer',
-                        fontSize: 12, transition: 'all 0.2s'
-                      }}
-                    >
-                      {closingId === trade._id ? 'Closing...' : confirmClose === trade._id ? 'Confirm?' : 'Close'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, marginTop: 20 }}>
-            {data.openTrades.map((trade) => (
-              <PriceChart
-                key={trade._id}
-                symbol={trade.symbol}
-                entryPrice={trade.price}
-                market={trade.market}
-                type={trade.type}
-              />
-            ))}
+          <div style={{ background: '#1a1d27', borderRadius: 8, overflow: 'hidden', height: 12 }}>
+            <div style={{
+              width: `${capitalPct}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, #5865f2, #f5a623)',
+              borderRadius: 8,
+              transition: 'width 0.5s ease'
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12, color: '#666' }}>
+            <span>{capitalPct}% deployed in trades</span>
+            <span>{100 - capitalPct}% available</span>
           </div>
         </div>
-      )}
+      </div>
+
 
       {/* Recent Signals */}
       <div className="section">
