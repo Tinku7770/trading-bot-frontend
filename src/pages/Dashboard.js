@@ -731,11 +731,16 @@ function Dashboard() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 20 }}>
                   {scannedCrypto.map(c => (
-                    <div key={c.symbol} className="card" style={{ padding: '12px 16px' }}>
+                    <div key={c.symbol} className="card" style={{ padding: '12px 16px', border: c.shortFadeCandidate ? '1px solid #ff6b35' : undefined }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <strong style={{ fontSize: 14 }}>{c.symbol}</strong>
                         <span style={{ background: '#0d1a2a', color: '#5865f2', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 700 }}>LIVE</span>
                       </div>
+                      {c.shortFadeCandidate && (
+                        <div style={{ background: '#2a1500', color: '#ff6b35', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, display: 'inline-block', marginTop: 4 }}>
+                          ⚡ SHORT FADE
+                        </div>
+                      )}
                       <div style={{ color: c.changePct >= 0 ? '#00c853' : '#ff3d3d', fontWeight: 700, fontSize: 18, marginTop: 6 }}>
                         {c.changePct >= 0 ? '+' : ''}{c.changePct.toFixed(2)}%
                       </div>
