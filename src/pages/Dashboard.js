@@ -688,7 +688,7 @@ function Dashboard() {
               <div>
                 <h3 style={{ margin: 0 }}>Crypto Scanner</h3>
                 <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
-                  Top movers on Binance.US · runs every 2h · 2%+ move · $200k+ volume
+                  Top movers on Binance.US · runs every 30m · 2%+ move · $200k+ volume
                 </p>
               </div>
               <span style={{
