@@ -103,11 +103,11 @@ export default function LiquidityHeatmap() {
 
   // Build a map of liquidation clusters keyed by price (approximate)
   const liqMap = {};
-  longLiquidations.forEach(l => { liqMap[l.price] = { ...liqMap[l.price], long: l.usdValue }; });
-  shortLiquidations.forEach(l => { liqMap[l.price] = { ...liqMap[l.price], short: l.usdValue }; });
+  longLiquidations.forEach(l => { liqMap[l.price] = { ...liqMap[l.price], long: l.volume }; });
+  shortLiquidations.forEach(l => { liqMap[l.price] = { ...liqMap[l.price], short: l.volume }; });
 
   // Normalize bar widths: max value = 100%
-  const maxValue = Math.max(...levels.map(l => l.totalUSD), 1);
+  const maxValue = Math.max(...levels.map(l => l.volume), 1);
 
   // Split levels into above/below price, sorted for display
   const aboveLevels = levels.filter(l => l.price > currentPrice).sort((a, b) => a.price - b.price);
@@ -144,7 +144,7 @@ export default function LiquidityHeatmap() {
           <div style={styles.summaryItem}>
             <span style={{ ...styles.summaryLabel, color: '#4ade80' }}>Top Support</span>
             <span style={styles.summaryValue}>
-              ${formatPrice(topSupport.price)} ({formatUSD(topSupport.totalUSD)})
+              ${formatPrice(topSupport.price)} ({formatUSD(topSupport.volume)})
             </span>
           </div>
         )}
@@ -152,7 +152,7 @@ export default function LiquidityHeatmap() {
           <div style={styles.summaryItem}>
             <span style={{ ...styles.summaryLabel, color: '#f87171' }}>Top Resistance</span>
             <span style={styles.summaryValue}>
-              ${formatPrice(topResistance.price)} ({formatUSD(topResistance.totalUSD)})
+              ${formatPrice(topResistance.price)} ({formatUSD(topResistance.volume)})
             </span>
           </div>
         )}
@@ -168,7 +168,7 @@ export default function LiquidityHeatmap() {
       <div style={styles.ladder}>
         {/* Resistance levels (above price) — top to bottom = high to low */}
         {aboveLevels.map((lvl, i) => {
-          const intensity = lvl.totalUSD / maxValue;
+          const intensity = lvl.volume / maxValue;
           const isTopResist = topResistance && Math.abs(lvl.price - topResistance.price) < 0.0001;
           const nearPrice   = Math.abs(lvl.price - currentPrice) / currentPrice < 0.005;
           const liqAtLevel  = longLiquidations.find(l => Math.abs(l.price - lvl.price) / currentPrice < 0.002);
@@ -195,7 +195,7 @@ export default function LiquidityHeatmap() {
 
         {/* Support levels (below price) — top to bottom = high to low */}
         {belowLevels.map((lvl, i) => {
-          const intensity = lvl.totalUSD / maxValue;
+          const intensity = lvl.volume / maxValue;
           const isTopSupport = topSupport && Math.abs(lvl.price - topSupport.price) < 0.0001;
           const nearPrice    = Math.abs(lvl.price - currentPrice) / currentPrice < 0.005;
           const liqAtLevel   = shortLiquidations.find(l => Math.abs(l.price - lvl.price) / currentPrice < 0.002);
@@ -233,7 +233,7 @@ export default function LiquidityHeatmap() {
 }
 
 function LevelRow({ lvl, intensity, maxValue, side, isKeyLevel, nearPrice, liquidation }) {
-  const barWidth = `${Math.max(2, (lvl.totalUSD / maxValue) * 100)}%`;
+  const barWidth = `${Math.max(2, (lvl.volume / maxValue) * 100)}%`;
   const color    = heatColor(intensity);
   const isAsk    = side === 'resistance';
 
@@ -249,12 +249,12 @@ function LevelRow({ lvl, intensity, maxValue, side, isKeyLevel, nearPrice, liqui
       <div style={styles.barContainer}>
         <div style={{ ...styles.bar, width: barWidth, background: color, opacity: isAsk ? 0.7 : 0.85 }} />
         {liquidation && (
-          <div style={{ ...styles.liqMarker, background: isAsk ? '#facc15' : '#a78bfa' }} title={`${isAsk ? 'Long' : 'Short'} liquidations: ${formatUSD(liquidation.usdValue)}`} />
+          <div style={{ ...styles.liqMarker, background: isAsk ? '#facc15' : '#a78bfa' }} title={`${isAsk ? 'Long' : 'Short'} liquidations: ${formatUSD(liquidation.volume)}`} />
         )}
       </div>
 
       {/* Value label */}
-      <span style={styles.valueCell}>{formatUSD(lvl.totalUSD)}</span>
+      <span style={styles.valueCell}>{formatUSD(lvl.volume)}</span>
     </div>
   );
 }
