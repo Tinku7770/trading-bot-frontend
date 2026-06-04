@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 import MarketStatus from '../components/MarketStatus';
+import LiquidityHeatmap from '../components/LiquidityHeatmap';
 
 const API = process.env.REACT_APP_API_URL;
 
@@ -1113,6 +1114,11 @@ function Dashboard() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Liquidity Heatmap */}
+      <div className="section">
+        <LiquidityHeatmap />
       </div>
 
       {/* Recent Trades */}
