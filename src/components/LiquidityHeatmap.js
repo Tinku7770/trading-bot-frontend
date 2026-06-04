@@ -2,60 +2,60 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_API_URL;
-
 const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'BNB/USDT'];
 
-// Heat gradient: black → navy → blue → cyan → yellow → white
-// Maps a 0-1 intensity to an RGB color
-function heatColor(intensity) {
+// Heat gradient: near-black → deep navy → blue → cyan → yellow → white
+function heatColor(t) {
   const stops = [
-    [0.00, [10,  10,  20 ]],
-    [0.20, [10,  20,  80 ]],
-    [0.40, [20,  60,  200]],
-    [0.60, [0,   200, 220]],
-    [0.80, [240, 220, 0  ]],
+    [0.00, [8,   10,  20 ]],
+    [0.15, [10,  18,  70 ]],
+    [0.35, [15,  50,  180]],
+    [0.55, [0,   180, 220]],
+    [0.75, [230, 200, 0  ]],
     [1.00, [255, 255, 255]],
   ];
   for (let i = 1; i < stops.length; i++) {
     const [t0, c0] = stops[i - 1];
     const [t1, c1] = stops[i];
-    if (intensity <= t1) {
-      const frac = (intensity - t0) / (t1 - t0);
-      const r = Math.round(c0[0] + frac * (c1[0] - c0[0]));
-      const g = Math.round(c0[1] + frac * (c1[1] - c0[1]));
-      const b = Math.round(c0[2] + frac * (c1[2] - c0[2]));
-      return `rgb(${r},${g},${b})`;
+    if (t <= t1) {
+      const f = (t - t0) / (t1 - t0);
+      return [
+        Math.round(c0[0] + f * (c1[0] - c0[0])),
+        Math.round(c0[1] + f * (c1[1] - c0[1])),
+        Math.round(c0[2] + f * (c1[2] - c0[2])),
+      ];
     }
   }
-  return 'rgb(255,255,255)';
+  return [255, 255, 255];
 }
 
-function formatPrice(p) {
-  if (p >= 1000) return p.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (p >= 1)    return p.toFixed(2);
+function fmtPrice(p) {
+  if (p >= 10000) return p.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (p >= 100)   return p.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  if (p >= 1)     return p.toFixed(2);
   return p.toFixed(4);
 }
 
-function formatUSD(v) {
-  if (v >= 1e6)  return `$${(v / 1e6).toFixed(1)}M`;
-  if (v >= 1e3)  return `$${(v / 1e3).toFixed(0)}K`;
+function fmtVol(v) {
+  if (!v && v !== 0) return '—';
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
   return `$${v.toFixed(0)}`;
 }
 
 export default function LiquidityHeatmap() {
-  const [symbol, setSymbol]     = useState('BTC/USDT');
-  const [data, setData]         = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(false);
+  const [symbol, setSymbol]   = useState('BTC/USDT');
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(false);
   const [countdown, setCountdown] = useState(120);
   const timerRef = useRef(null);
 
-  const fetchData = useCallback(async (sym) => {
+  const load = useCallback(async (sym) => {
     setLoading(true);
     setError(false);
     try {
-      const encoded = encodeURIComponent(sym);
-      const res = await axios.get(`${API}/market/liquidity/${encoded}`, { timeout: 15000 });
+      const res = await axios.get(`${API}/market/liquidity/${encodeURIComponent(sym)}`, { timeout: 15000 });
       setData(res.data);
       setCountdown(120);
     } catch {
@@ -65,207 +65,232 @@ export default function LiquidityHeatmap() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchData(symbol);
-  }, [symbol, fetchData]);
+  useEffect(() => { load(symbol); }, [symbol, load]);
 
-  // 2-minute auto-refresh with countdown
   useEffect(() => {
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setCountdown(c => {
-        if (c <= 1) { fetchData(symbol); return 120; }
+        if (c <= 1) { load(symbol); return 120; }
         return c - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [symbol, fetchData]);
+  }, [symbol, load]);
 
-  if (loading) return (
-    <div style={styles.card}>
-      <div style={styles.header}>
-        <span style={styles.title}>Liquidity Heatmap</span>
-      </div>
-      <div style={styles.loading}>Loading order book depth...</div>
-    </div>
-  );
+  const renderInner = () => {
+    if (loading) return <div style={s.center}>Loading order book…</div>;
+    if (error || !data) return <div style={{ ...s.center, color: '#ef4444' }}>Order book unavailable</div>;
 
-  if (error || !data) return (
-    <div style={styles.card}>
-      <div style={styles.header}>
-        <span style={styles.title}>Liquidity Heatmap</span>
-      </div>
-      <div style={styles.errorMsg}>Order book unavailable</div>
-    </div>
-  );
+    const { currentPrice, levels = [], support = [], resistance = [], longLiquidations = [], shortLiquidations = [], hasCoinglass } = data;
 
-  const { currentPrice, levels = [], support = [], resistance = [], longLiquidations = [], shortLiquidations = [], hasCoinglass } = data;
+    // Build lookup for liquidation clusters by price proximity (within 0.3%)
+    const liqLookup = (price) => {
+      const long  = longLiquidations.find(l  => Math.abs(l.price  - price) / currentPrice < 0.003);
+      const short = shortLiquidations.find(s => Math.abs(s.price  - price) / currentPrice < 0.003);
+      return { long, short };
+    };
 
-  // Build a map of liquidation clusters keyed by price (approximate)
-  const liqMap = {};
-  longLiquidations.forEach(l => { liqMap[l.price] = { ...liqMap[l.price], long: l.volume }; });
-  shortLiquidations.forEach(l => { liqMap[l.price] = { ...liqMap[l.price], short: l.volume }; });
+    // Key wall prices for highlighting
+    const topSupportPrice    = support[0]?.price;
+    const topResistPrice     = resistance[0]?.price;
 
-  // Normalize bar widths: max value = 100%
-  const maxValue = Math.max(...levels.map(l => l.volume), 1);
+    // Normalize: map volume to 0-1 intensity using sqrt scale (makes mid-range walls visible)
+    const maxVol = Math.max(...levels.map(l => l.volume || 0), 1);
+    const intensity = (vol) => Math.sqrt((vol || 0) / maxVol);
 
-  // Split levels into above/below price, sorted for display
-  const aboveLevels = levels.filter(l => l.price > currentPrice).sort((a, b) => a.price - b.price);
-  const belowLevels = levels.filter(l => l.price <= currentPrice).sort((a, b) => b.price - a.price);
+    // Sort all levels high → low for display
+    const sorted = [...levels].sort((a, b) => b.price - a.price);
 
-  // Support/resistance info
-  const topSupport    = support[0];
-  const topResistance = resistance[0];
+    // Split into above/below price
+    const above = sorted.filter(l => l.price > currentPrice);
+    const below = sorted.filter(l => l.price <= currentPrice);
+
+    const topSupp = support[0];
+    const topRes  = resistance[0];
+
+    return (
+      <>
+        {/* Summary pills */}
+        <div style={s.pills}>
+          <div style={s.pill}>
+            <span style={s.pillLabel}>Price</span>
+            <span style={s.pillVal}>${fmtPrice(currentPrice)}</span>
+          </div>
+          {topRes && (
+            <div style={{ ...s.pill, borderColor: '#ef444440' }}>
+              <span style={{ ...s.pillLabel, color: '#f87171' }}>Resistance</span>
+              <span style={s.pillVal}>${fmtPrice(topRes.price)} <span style={{ color: '#6b7280', fontSize: 10 }}>{fmtVol(topRes.volume)}</span></span>
+            </div>
+          )}
+          {topSupp && (
+            <div style={{ ...s.pill, borderColor: '#22c55e40' }}>
+              <span style={{ ...s.pillLabel, color: '#4ade80' }}>Support</span>
+              <span style={s.pillVal}>${fmtPrice(topSupp.price)} <span style={{ color: '#6b7280', fontSize: 10 }}>{fmtVol(topSupp.volume)}</span></span>
+            </div>
+          )}
+        </div>
+
+        {/* Grid */}
+        <div style={s.grid}>
+          {/* ASK rows — resistance (above price), high → low */}
+          {above.map((lvl, i) => {
+            const t     = intensity(lvl.volume);
+            const [r, g, b] = heatColor(t);
+            const isKey = topResistPrice && Math.abs(lvl.price - topResistPrice) / currentPrice < 0.001;
+            const near  = (lvl.price - currentPrice) / currentPrice < 0.005;
+            const { long: liq } = liqLookup(lvl.price);
+            return (
+              <GridRow
+                key={`a${i}`} lvl={lvl} r={r} g={g} b={b} t={t}
+                side="ask" isKey={isKey} near={near} liq={liq} liqColor="#facc15"
+              />
+            );
+          })}
+
+          {/* Current price divider */}
+          <div style={s.divider}>
+            <div style={s.divLine} />
+            <span style={s.divPrice}>${fmtPrice(currentPrice)}</span>
+            <div style={s.divLine} />
+          </div>
+
+          {/* BID rows — support (below price), high → low */}
+          {below.map((lvl, i) => {
+            const t     = intensity(lvl.volume);
+            const [r, g, b] = heatColor(t);
+            const isKey = topSupportPrice && Math.abs(lvl.price - topSupportPrice) / currentPrice < 0.001;
+            const near  = (currentPrice - lvl.price) / currentPrice < 0.005;
+            const { short: liq } = liqLookup(lvl.price);
+            return (
+              <GridRow
+                key={`b${i}`} lvl={lvl} r={r} g={g} b={b} t={t}
+                side="bid" isKey={isKey} near={near} liq={liq} liqColor="#a78bfa"
+              />
+            );
+          })}
+        </div>
+
+        {/* Color scale legend */}
+        <div style={s.legendRow}>
+          <div style={s.scaleBar} />
+          <div style={s.scaleLabels}>
+            <span>Low liquidity</span>
+            <span>High liquidity</span>
+          </div>
+        </div>
+
+        {hasCoinglass && (
+          <div style={s.liqLegend}>
+            <span style={{ color: '#facc15' }}>▐</span> Long liq cluster &nbsp;
+            <span style={{ color: '#a78bfa' }}>▐</span> Short liq cluster
+          </div>
+        )}
+      </>
+    );
+  };
 
   return (
-    <div style={styles.card}>
-      {/* Header */}
-      <div style={styles.header}>
-        <span style={styles.title}>Liquidity Heatmap</span>
-        <div style={styles.headerRight}>
-          <select
-            value={symbol}
-            onChange={e => setSymbol(e.target.value)}
-            style={styles.select}
-          >
-            {SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
+    <div style={s.card}>
+      <div style={s.header}>
+        <span style={s.title}>Liquidity Heatmap</span>
+        <div style={s.headerRight}>
+          <select value={symbol} onChange={e => setSymbol(e.target.value)} style={s.select}>
+            {SYMBOLS.map(sym => <option key={sym} value={sym}>{sym}</option>)}
           </select>
-          <span style={styles.countdown}>↺ {countdown}s</span>
+          <span style={s.cdown}>↺ {countdown}s</span>
         </div>
       </div>
-
-      {/* Key levels summary */}
-      <div style={styles.summary}>
-        <div style={styles.summaryItem}>
-          <span style={styles.summaryLabel}>Price</span>
-          <span style={styles.summaryValue}>${formatPrice(currentPrice)}</span>
-        </div>
-        {topSupport && (
-          <div style={styles.summaryItem}>
-            <span style={{ ...styles.summaryLabel, color: '#4ade80' }}>Top Support</span>
-            <span style={styles.summaryValue}>
-              ${formatPrice(topSupport.price)} ({formatUSD(topSupport.volume)})
-            </span>
-          </div>
-        )}
-        {topResistance && (
-          <div style={styles.summaryItem}>
-            <span style={{ ...styles.summaryLabel, color: '#f87171' }}>Top Resistance</span>
-            <span style={styles.summaryValue}>
-              ${formatPrice(topResistance.price)} ({formatUSD(topResistance.volume)})
-            </span>
-          </div>
-        )}
-        {hasCoinglass && (
-          <div style={styles.summaryItem}>
-            <span style={{ ...styles.summaryLabel, color: '#facc15' }}>Liq Clusters</span>
-            <span style={styles.summaryValue}>{longLiquidations.length + shortLiquidations.length} zones</span>
-          </div>
-        )}
-      </div>
-
-      {/* Heatmap price ladder */}
-      <div style={styles.ladder}>
-        {/* Resistance levels (above price) — top to bottom = high to low */}
-        {aboveLevels.map((lvl, i) => {
-          const intensity = lvl.volume / maxValue;
-          const isTopResist = topResistance && Math.abs(lvl.price - topResistance.price) < 0.0001;
-          const nearPrice   = Math.abs(lvl.price - currentPrice) / currentPrice < 0.005;
-          const liqAtLevel  = longLiquidations.find(l => Math.abs(l.price - lvl.price) / currentPrice < 0.002);
-          return (
-            <LevelRow
-              key={`r-${i}`}
-              lvl={lvl}
-              intensity={intensity}
-              maxValue={maxValue}
-              side="resistance"
-              isKeyLevel={isTopResist}
-              nearPrice={nearPrice}
-              liquidation={liqAtLevel}
-            />
-          );
-        })}
-
-        {/* Current price separator */}
-        <div style={styles.priceSeparator}>
-          <div style={styles.priceLineLeft} />
-          <span style={styles.priceLabel}>${formatPrice(currentPrice)}</span>
-          <div style={styles.priceLineRight} />
-        </div>
-
-        {/* Support levels (below price) — top to bottom = high to low */}
-        {belowLevels.map((lvl, i) => {
-          const intensity = lvl.volume / maxValue;
-          const isTopSupport = topSupport && Math.abs(lvl.price - topSupport.price) < 0.0001;
-          const nearPrice    = Math.abs(lvl.price - currentPrice) / currentPrice < 0.005;
-          const liqAtLevel   = shortLiquidations.find(l => Math.abs(l.price - lvl.price) / currentPrice < 0.002);
-          return (
-            <LevelRow
-              key={`s-${i}`}
-              lvl={lvl}
-              intensity={intensity}
-              maxValue={maxValue}
-              side="support"
-              isKeyLevel={isTopSupport}
-              nearPrice={nearPrice}
-              liquidation={liqAtLevel}
-            />
-          );
-        })}
-      </div>
-
-      {/* Coinglass liquidation legend */}
-      {hasCoinglass && (
-        <div style={styles.legend}>
-          <span style={{ color: '#facc15', fontSize: 11 }}>■</span>
-          <span style={styles.legendText}>Long liquidation cluster</span>
-          <span style={{ color: '#a78bfa', fontSize: 11, marginLeft: 10 }}>■</span>
-          <span style={styles.legendText}>Short liquidation cluster</span>
-        </div>
-      )}
-
-      <div style={styles.updatedAt}>
-        Updated {new Date(data.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-        {!hasCoinglass && <span style={{ color: '#6b7280', marginLeft: 8 }}>(No Coinglass key)</span>}
-      </div>
+      {renderInner()}
     </div>
   );
 }
 
-function LevelRow({ lvl, intensity, maxValue, side, isKeyLevel, nearPrice, liquidation }) {
-  const barWidth = `${Math.max(2, (lvl.volume / maxValue) * 100)}%`;
-  const color    = heatColor(intensity);
-  const isAsk    = side === 'resistance';
+function GridRow({ lvl, r, g, b, t, side, isKey, near, liq, liqColor }) {
+  const isAsk = side === 'ask';
+  const alpha = isAsk ? 0.75 : 0.88;
+  const bgColor = `rgba(${r},${g},${b},${alpha})`;
+
+  // Text color: white on dark cells, dark on very bright cells
+  const bright = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+  const textCol = bright > 0.65 ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.9)';
+
+  // Box shadow glow on key/bright levels
+  const glow = t > 0.7 ? `0 0 8px rgba(${r},${g},${b},0.6)` : 'none';
 
   return (
-    <div style={{ ...styles.row, borderLeft: isKeyLevel ? `2px solid ${isAsk ? '#f87171' : '#4ade80'}` : '2px solid transparent' }}>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      height: 22,
+      marginBottom: 1,
+      borderLeft: isKey ? `3px solid ${isAsk ? '#f87171' : '#4ade80'}` : '3px solid transparent',
+      position: 'relative',
+    }}>
       {/* Price label */}
-      <span style={{ ...styles.priceCell, color: isKeyLevel ? (isAsk ? '#f87171' : '#4ade80') : '#9ca3af' }}>
-        ${formatPrice(lvl.price)}
-        {nearPrice && <span style={styles.nearTag}> ⚠</span>}
+      <span style={{
+        width: 82,
+        fontSize: 10.5,
+        textAlign: 'right',
+        paddingRight: 6,
+        color: isKey ? (isAsk ? '#f87171' : '#4ade80') : '#9ca3af',
+        flexShrink: 0,
+        fontFamily: 'monospace',
+      }}>
+        ${fmtPrice(lvl.price)}
+        {near && <span style={{ color: '#f59e0b', marginLeft: 2 }}>!</span>}
       </span>
 
-      {/* Bar */}
-      <div style={styles.barContainer}>
-        <div style={{ ...styles.bar, width: barWidth, background: color, opacity: isAsk ? 0.7 : 0.85 }} />
-        {liquidation && (
-          <div style={{ ...styles.liqMarker, background: isAsk ? '#facc15' : '#a78bfa' }} title={`${isAsk ? 'Long' : 'Short'} liquidations: ${formatUSD(liquidation.volume)}`} />
-        )}
+      {/* Heat cell — full width */}
+      <div style={{
+        flex: 1,
+        height: '100%',
+        background: bgColor,
+        boxShadow: glow,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingRight: 6,
+        borderRadius: 2,
+        transition: 'background 0.4s',
+      }}>
+        <span style={{ fontSize: 10, color: textCol, fontFamily: 'monospace', fontWeight: t > 0.5 ? 700 : 400 }}>
+          {fmtVol(lvl.volume)}
+        </span>
       </div>
 
-      {/* Value label */}
-      <span style={styles.valueCell}>{formatUSD(lvl.volume)}</span>
+      {/* Liquidation cluster dot */}
+      {liq && (
+        <div style={{
+          position: 'absolute',
+          right: -8,
+          width: 5,
+          height: 16,
+          background: liqColor,
+          borderRadius: 2,
+          boxShadow: `0 0 4px ${liqColor}`,
+        }} title={`Liquidation cluster: ${fmtVol(liq.volume)}`} />
+      )}
     </div>
   );
 }
 
-const styles = {
+// Color scale bar using inline gradient
+const scaleGradient = (() => {
+  const stops = [0, 0.15, 0.35, 0.55, 0.75, 1].map(t => {
+    const [r, g, b] = heatColor(t);
+    return `rgb(${r},${g},${b}) ${(t * 100).toFixed(0)}%`;
+  });
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+})();
+
+const s = {
   card: {
-    background: '#111827',
+    background: '#0d0f1a',
     borderRadius: 12,
     border: '1px solid #1f2937',
-    padding: '16px',
-    fontFamily: 'monospace',
+    padding: '14px 16px',
+    fontFamily: '"Segoe UI", system-ui, sans-serif',
     color: '#e5e7eb',
   },
   header: {
@@ -275,9 +300,9 @@ const styles = {
     marginBottom: 12,
   },
   title: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 700,
-    color: '#f3f4f6',
+    color: '#f9fafb',
     letterSpacing: '0.02em',
   },
   headerRight: {
@@ -290,145 +315,96 @@ const styles = {
     border: '1px solid #374151',
     borderRadius: 6,
     color: '#e5e7eb',
-    padding: '4px 8px',
+    padding: '3px 8px',
     fontSize: 12,
     cursor: 'pointer',
     outline: 'none',
   },
-  countdown: {
+  cdown: {
     fontSize: 11,
-    color: '#6b7280',
+    color: '#4b5563',
   },
-  summary: {
+  pills: {
     display: 'flex',
+    gap: 10,
     flexWrap: 'wrap',
-    gap: '8px 20px',
-    marginBottom: 14,
-    paddingBottom: 10,
-    borderBottom: '1px solid #1f2937',
+    marginBottom: 12,
   },
-  summaryItem: {
+  pill: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
+    gap: 1,
+    background: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: 8,
+    padding: '5px 10px',
   },
-  summaryLabel: {
-    fontSize: 10,
+  pillLabel: {
+    fontSize: 9,
     color: '#6b7280',
     textTransform: 'uppercase',
-    letterSpacing: '0.05em',
+    letterSpacing: '0.06em',
   },
-  summaryValue: {
+  pillVal: {
     fontSize: 12,
-    color: '#e5e7eb',
-    fontWeight: 600,
-  },
-  ladder: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    maxHeight: 480,
-    overflowY: 'auto',
-  },
-  row: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '2px 4px',
-    borderRadius: 3,
-  },
-  priceCell: {
-    width: 90,
-    fontSize: 11,
-    textAlign: 'right',
-    flexShrink: 0,
-  },
-  nearTag: {
-    color: '#f59e0b',
     fontWeight: 700,
+    color: '#f3f4f6',
   },
-  barContainer: {
-    flex: 1,
-    height: 14,
-    background: '#0d0f1a',
-    borderRadius: 2,
-    position: 'relative',
-    overflow: 'visible',
+  grid: {
+    maxHeight: 520,
+    overflowY: 'auto',
+    paddingRight: 10,
   },
-  bar: {
-    height: '100%',
-    borderRadius: 2,
-    transition: 'width 0.3s ease',
-  },
-  liqMarker: {
-    position: 'absolute',
-    right: -3,
-    top: 1,
-    width: 6,
-    height: 12,
-    borderRadius: 2,
-  },
-  valueCell: {
-    width: 52,
-    fontSize: 10,
-    color: '#9ca3af',
-    textAlign: 'right',
-    flexShrink: 0,
-  },
-  priceSeparator: {
+  divider: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    margin: '6px 0',
+    margin: '5px 0 5px 85px',
   },
-  priceLineLeft: {
+  divLine: {
     flex: 1,
     height: 1,
-    background: 'rgba(255,255,255,0.35)',
+    background: 'rgba(255,255,255,0.3)',
   },
-  priceLineRight: {
-    flex: 1,
-    height: 1,
-    background: 'rgba(255,255,255,0.35)',
-  },
-  priceLabel: {
-    fontSize: 12,
+  divPrice: {
+    fontSize: 11,
     fontWeight: 700,
-    color: '#ffffff',
-    padding: '2px 8px',
+    color: '#fff',
     background: '#1f2937',
+    border: '1px solid rgba(255,255,255,0.15)',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.2)',
+    padding: '2px 8px',
     whiteSpace: 'nowrap',
+    fontFamily: 'monospace',
   },
-  legend: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 10,
-    paddingTop: 8,
+  legendRow: {
+    marginTop: 12,
+    paddingTop: 10,
     borderTop: '1px solid #1f2937',
+    paddingLeft: 85,
   },
-  legendText: {
-    fontSize: 10,
+  scaleBar: {
+    height: 8,
+    borderRadius: 4,
+    background: scaleGradient,
+    marginBottom: 3,
+  },
+  scaleLabels: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 9,
     color: '#6b7280',
   },
-  updatedAt: {
-    fontSize: 10,
-    color: '#4b5563',
+  liqLegend: {
     marginTop: 6,
-    textAlign: 'right',
+    fontSize: 10,
+    color: '#6b7280',
+    paddingLeft: 85,
   },
-  loading: {
+  center: {
     textAlign: 'center',
     color: '#6b7280',
     fontSize: 13,
-    padding: '40px 0',
-  },
-  errorMsg: {
-    textAlign: 'center',
-    color: '#ef4444',
-    fontSize: 13,
-    padding: '40px 0',
+    padding: '36px 0',
   },
 };
