@@ -83,6 +83,7 @@ function Settings() {
   const [connStatus, setConnStatus] = useState(null);
   const [testing, setTesting]       = useState(false);
   const [settings, setSettings] = useState({
+    totalCapital: 2000,
     maxTradeAmount: 1000,
     stopLossPercent: 1,
     takeProfitPercent: 1.5,
@@ -165,7 +166,9 @@ function Settings() {
     if ((settings.leverageMultiplier || 0) > 10) return 'Stock Leverage cannot exceed 10x';
     if ((settings.cryptoLeverageMultiplier || 0) < 1) return 'Crypto Leverage must be at least 1x';
     if ((settings.cryptoLeverageMultiplier || 0) > 10) return 'Crypto Leverage cannot exceed 10x';
+    if ((settings.totalCapital || 0) <= 0) return 'Total Account Capital must be greater than $0';
     if ((settings.maxTradeAmount || 0) <= 0) return 'Max Trade Amount must be greater than $0';
+    if ((settings.maxTradeAmount || 0) > (settings.totalCapital || Infinity)) return 'Max Trade Amount cannot exceed Total Account Capital';
     if ((settings.cryptoSymbols?.length || 0) + (settings.stockSymbols?.length || 0) === 0) return 'Add at least one symbol to trade';
     return null;
   }
@@ -206,7 +209,8 @@ function Settings() {
       const changes = [];
       if (originalSettings) {
         if (originalSettings.tradeMode !== settings.tradeMode) changes.push(`Trade Mode → ${settings.tradeMode}`);
-        if (originalSettings.maxTradeAmount !== settings.maxTradeAmount) changes.push(`Capital → $${settings.maxTradeAmount}`);
+        if (originalSettings.totalCapital !== settings.totalCapital) changes.push(`Account Capital → $${settings.totalCapital}`);
+        if (originalSettings.maxTradeAmount !== settings.maxTradeAmount) changes.push(`Max Trade Amount → $${settings.maxTradeAmount}`);
         if (originalSettings.stopLossPercent !== settings.stopLossPercent) changes.push(`Stop Loss → ${settings.stopLossPercent}%`);
         if (originalSettings.takeProfitPercent !== settings.takeProfitPercent) changes.push(`Take Profit → ${settings.takeProfitPercent}%`);
         if (originalSettings.maxDailyLossPercent !== settings.maxDailyLossPercent) changes.push(`Max Daily Loss → ${settings.maxDailyLossPercent}%`);
@@ -333,7 +337,21 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Total Trading Capital ($)</label>
+          <label>Total Account Capital ($)</label>
+          <input
+            type="number"
+            min="1"
+            value={settings.totalCapital ?? 2000}
+            onChange={e => numInput('totalCapital', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Your total paper/live account size. Used for daily/weekly loss limit calculations.
+            e.g. {settings.maxDailyLossPercent || 5}% of ${(settings.totalCapital || 2000).toLocaleString()} = bot stops after a <strong style={{ color: '#ff3d3d' }}>-${((settings.totalCapital || 2000) * (settings.maxDailyLossPercent || 5) / 100).toFixed(0)}</strong> daily loss.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Max Trade Amount — per trade ($)</label>
           <input
             type="number"
             min="1"
@@ -341,7 +359,7 @@ function Settings() {
             onChange={e => numInput('maxTradeAmount', e.target.value)}
           />
           <div style={{ marginTop: 8, background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>Position size scales with AI confidence — higher conviction = more capital deployed:</div>
+            <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>Position size scales with AI confidence — higher conviction = larger trade:</div>
             {[
               { label: '90%+ confidence', pct: 1.00, color: '#00c853' },
               { label: '80–89% confidence', pct: 0.75, color: '#69f0ae' },
@@ -351,10 +369,14 @@ function Settings() {
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                 <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
                 <span style={{ color, fontWeight: 700, fontSize: 13 }}>
-                  ${((settings.maxTradeAmount || 0) * pct).toFixed(0)} ({(pct * 100).toFixed(0)}%)
+                  ${((settings.maxTradeAmount || 0) * pct).toFixed(0)}
                 </span>
               </div>
             ))}
+            <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
+              Max exposure ({settings.maxConcurrentPositions ?? 3} positions × ${(settings.maxTradeAmount || 0).toFixed(0)}): <strong style={{ color: '#c9d1d9' }}>${((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3)).toFixed(0)}</strong>
+              {' '}({(((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
+            </div>
           </div>
         </div>
 
@@ -1003,7 +1025,7 @@ function Settings() {
           {settings.winRatePauseEnabled && (
             <p>14. <strong style={{ color: '#a855f7' }}>Win rate auto-pause</strong>: bot pauses 1 hour if today's win rate drops below {settings.minWinRate}% after 5+ trades. Sends Telegram alert.</p>
           )}
-          <p>{settings.winRatePauseEnabled ? '15.' : '14.'} <strong style={{ color: '#c9d1d9' }}>Max daily loss</strong>: bot stops if total daily loss (realized + unrealized) exceeds {settings.maxDailyLossPercent}% of capital (${((settings.maxTradeAmount || 0) * (settings.maxDailyLossPercent || 0) / 100).toFixed(0)})</p>
+          <p>{settings.winRatePauseEnabled ? '15.' : '14.'} <strong style={{ color: '#c9d1d9' }}>Max daily loss</strong>: bot stops if total daily loss (realized + unrealized) exceeds {settings.maxDailyLossPercent}% of capital (${((settings.totalCapital || settings.maxTradeAmount || 0) * (settings.maxDailyLossPercent || 0) / 100).toFixed(0)})</p>
           <p>{settings.winRatePauseEnabled ? '16.' : '15.'} Daily report sent at <strong style={{ color: '#c9d1d9' }}>1 AM UTC</strong> (6 PM California time) via Telegram</p>
           <p>{settings.winRatePauseEnabled ? '17.' : '16.'} Stale positions older than 7 days auto-closed every Sunday at 2 AM UTC</p>
         </div>
