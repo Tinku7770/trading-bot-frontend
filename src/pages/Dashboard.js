@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 import MarketStatus from '../components/MarketStatus';
@@ -14,6 +15,12 @@ function formatCountdown(ms) {
   const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
   const s = (totalSec % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
+}
+
+function formatDuration(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 function formatDateTime(dateStr) {
@@ -334,6 +341,46 @@ function Dashboard() {
 
   return (
     <div>
+      {/* Sticky summary bar — #4 */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: '#0d0f1a', borderBottom: '1px solid #2a2d3e',
+        padding: '8px 16px', display: 'flex', alignItems: 'center',
+        gap: 20, flexWrap: 'wrap', fontSize: 13
+      }}>
+        <span style={{ color: botStatus ? '#00c853' : '#ff3d3d', fontWeight: 700 }}>
+          {botStatus ? '● RUNNING' : '● STOPPED'}
+        </span>
+        <span style={{ color: '#555' }}>|</span>
+        <span style={{ color: '#888' }}>{tradeMode === 'paper' ? 'Paper' : 'Live'}</span>
+        <span style={{ color: '#555' }}>|</span>
+        <span>
+          Today:{' '}
+          <span style={{ fontWeight: 700, color: (data?.todayStats?.pl || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+            {(data?.todayStats?.pl || 0) >= 0 ? '+' : ''}${(data?.todayStats?.pl || 0).toFixed(2)}
+          </span>
+        </span>
+        <span style={{ color: '#555' }}>|</span>
+        <span style={{ color: '#aaa' }}>
+          <span style={{ color: (stats.openPositions || 0) > 0 ? '#f5a623' : '#555', fontWeight: 600 }}>
+            {stats.openPositions || 0}
+          </span> open
+        </span>
+        <span style={{ color: '#555' }}>|</span>
+        <span style={{ color: '#aaa' }}>
+          <span style={{ color: '#00c853', fontWeight: 600 }}>${(stats.availableCapital || 0).toFixed(0)}</span> free
+        </span>
+        <span style={{ color: '#555' }}>|</span>
+        <span style={{ color: '#aaa' }}>
+          All-time: <span style={{ fontWeight: 700, color: (stats.totalProfitLoss || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+            {(stats.totalProfitLoss || 0) >= 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
+          </span>
+        </span>
+        <span style={{ marginLeft: 'auto', color: '#888', fontVariantNumeric: 'tabular-nums' }}>
+          Next run: <span style={{ color: botStatus ? '#00c853' : '#555', fontWeight: 600 }}>{botStatus ? countdown : '--:--'}</span>
+        </span>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Dashboard</h1>
         <button
@@ -467,9 +514,11 @@ function Dashboard() {
 
       {/* Today's Performance + Open Positions — 2-col */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, alignItems: 'start' }}>
-        {/* Today's Performance */}
+        {/* Today's Performance — #3 sparkline */}
         {(() => {
           const ts = data?.todayStats || { pl: 0, trades: 0, wins: 0, winRate: 0 };
+          const sparkData = data?.todaySparkline || [];
+          const plColor = (ts.pl || 0) > 0 ? '#00c853' : (ts.pl || 0) < 0 ? '#ff3d3d' : '#888';
           return (
             <div className="section">
               <h3>Today's Performance</h3>
@@ -477,11 +526,27 @@ function Dashboard() {
                 <p style={{ color: '#555', fontSize: 13, marginBottom: 12 }}>No trades closed today — bot is watching the market.</p>
               )}
               <div className="stats-grid">
-                <div className="card">
+                <div className="card" style={{ gridColumn: sparkData.length > 1 ? 'span 2' : undefined }}>
                   <h2>Today's P/L</h2>
-                  <div className="value" style={{ color: (ts.pl || 0) > 0 ? '#00c853' : (ts.pl || 0) < 0 ? '#ff3d3d' : '#888' }}>
+                  <div className="value" style={{ color: plColor }}>
                     {(ts.pl || 0) > 0 ? '+' : ''}${(ts.pl || 0).toFixed(2)}
                   </div>
+                  {sparkData.length > 1 && (
+                    <div style={{ marginTop: 8 }}>
+                      <ResponsiveContainer width="100%" height={60}>
+                        <LineChart data={sparkData}>
+                          <ReferenceLine y={0} stroke="#333" strokeDasharray="3 3" />
+                          <XAxis dataKey="time" hide />
+                          <YAxis hide />
+                          <Tooltip
+                            contentStyle={{ background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 6, fontSize: 11 }}
+                            formatter={(v) => [`${v >= 0 ? '+' : ''}$${v.toFixed(2)}`, 'Cumulative P/L']}
+                          />
+                          <Line type="monotone" dataKey="pl" stroke={plColor} strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
                 <div className="card">
                   <h2>Trades Today</h2>
@@ -531,6 +596,8 @@ function Dashboard() {
                     <th>Entry</th>
                     <th>Amount</th>
                     <th>Lev</th>
+                    <th>Time Held</th>
+                    <th>SL Distance</th>
                     <th>Unrealized P/L</th>
                     <th>Action</th>
                   </tr>
@@ -558,6 +625,36 @@ function Dashboard() {
                       <td style={{ color: (trade.leverage || 1) > 1 ? '#f5a623' : '#555', fontWeight: (trade.leverage || 1) > 1 ? 700 : 400 }}>
                         {trade.leverage || 1}x
                       </td>
+                      {/* Time in trade — #2 */}
+                      <td>{(() => {
+                        const maxMs = trade.market === 'crypto' ? 16 * 3600000 : 48 * 3600000;
+                        const heldMs = Date.now() - new Date(trade.executedAt).getTime();
+                        const pct = Math.min(100, heldMs / maxMs * 100);
+                        const color = pct < 50 ? '#00c853' : pct < 80 ? '#f5a623' : '#ff3d3d';
+                        const maxLabel = trade.market === 'crypto' ? '16h' : '48h';
+                        return (
+                          <span style={{ color, fontWeight: 600, fontSize: 12 }}>
+                            {formatDuration(heldMs)}
+                            <span style={{ color: '#555', fontWeight: 400 }}> / {maxLabel}</span>
+                          </span>
+                        );
+                      })()}</td>
+                      {/* SL distance — #1 */}
+                      <td>{(() => {
+                        const cur = currentPrices[trade.symbol];
+                        if (!cur || !trade.price) return <span style={{ color: '#555' }}>—</span>;
+                        const isShort = trade.type === 'SHORT';
+                        const slPrice = isShort ? trade.price * 1.02 : trade.price * 0.98;
+                        const distPct = isShort
+                          ? (slPrice - cur) / trade.price * 100
+                          : (cur - slPrice) / trade.price * 100;
+                        const color = distPct > 1 ? '#00c853' : distPct > 0.5 ? '#f5a623' : '#ff3d3d';
+                        return (
+                          <span style={{ color, fontWeight: 600, fontSize: 12 }}>
+                            {distPct > 0 ? `${distPct.toFixed(2)}%` : <span style={{ color: '#ff3d3d' }}>STOP HIT</span>}
+                          </span>
+                        );
+                      })()}</td>
                       <td>{(() => {
                         const cur = currentPrices[trade.symbol];
                         if (!cur || !trade.price) return <span style={{ color: '#555' }}>—</span>;
@@ -1059,16 +1156,38 @@ function Dashboard() {
               </div>
             </div>
             <div className="card">
-              <h2>Profit / Loss</h2>
-              <div className="value" style={{ color: (stats.totalProfitLoss || 0) > 0 ? '#00c853' : (stats.totalProfitLoss || 0) < 0 ? '#ff3d3d' : '#888' }}>
-                {(stats.totalProfitLoss || 0) > 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
-              </div>
-            </div>
-            <div className="card">
               <h2>Open Positions</h2>
               <div className="value">{stats.openPositions || 0}</div>
             </div>
           </div>
+          {/* All-time cumulative P/L chart — #6 */}
+          {(data?.plHistory?.length > 1) && (() => {
+            const plData = data.plHistory;
+            const final = plData[plData.length - 1]?.pl || 0;
+            const lineColor = final >= 0 ? '#00c853' : '#ff3d3d';
+            return (
+              <div className="card" style={{ marginTop: 8, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <h2 style={{ margin: 0 }}>Cumulative P/L</h2>
+                  <span style={{ fontWeight: 700, color: lineColor, fontSize: 18 }}>
+                    {final >= 0 ? '+' : ''}${final.toFixed(2)}
+                  </span>
+                </div>
+                <ResponsiveContainer width="100%" height={120}>
+                  <LineChart data={plData}>
+                    <ReferenceLine y={0} stroke="#333" strokeDasharray="3 3" />
+                    <XAxis dataKey="date" hide />
+                    <YAxis hide domain={['auto', 'auto']} />
+                    <Tooltip
+                      contentStyle={{ background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 6, fontSize: 11 }}
+                      formatter={(v) => [`${v >= 0 ? '+' : ''}$${v.toFixed(2)}`, 'Cumulative P/L']}
+                    />
+                    <Line type="monotone" dataKey="pl" stroke={lineColor} strokeWidth={2} dot={false} activeDot={{ r: 3, fill: lineColor }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Account Balance */}
@@ -1118,23 +1237,45 @@ function Dashboard() {
               <th>Decision</th>
               <th>Confidence</th>
               <th>Sentiment</th>
+              <th>Result</th>
               <th>Time</th>
             </tr>
           </thead>
           <tbody>
             {recentSignals.length === 0 ? (
-              <tr><td colSpan={5} style={{ color: '#666', textAlign: 'center' }}>No signals yet — start the bot</td></tr>
-            ) : recentSignals.map((s) => (
-              <tr key={s._id}>
-                <td><strong>{s.symbol}</strong></td>
-                <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>
-                <td>{s.confidence}%</td>
-                <td style={{ color: s.newsSentiment === 'positive' ? '#00c853' : s.newsSentiment === 'negative' ? '#ff3d3d' : '#888' }}>
-                  {s.newsSentiment || '—'}
-                </td>
-                <td style={{ color: '#666', fontSize: 12 }}>{formatDateTime(s.createdAt)}</td>
-              </tr>
-            ))}
+              <tr><td colSpan={6} style={{ color: '#666', textAlign: 'center' }}>No signals yet — start the bot</td></tr>
+            ) : recentSignals.map((s) => {
+              const isActionable = s.decision === 'BUY' || s.decision === 'SHORT';
+              const traded = isActionable && recentTrades.some(t =>
+                t.symbol === s.symbol &&
+                Math.abs(new Date(t.executedAt) - new Date(s.createdAt)) < 10 * 60 * 1000
+              );
+              return (
+                <tr key={s._id}>
+                  <td><strong>{s.symbol}</strong></td>
+                  <td><span className={`badge ${s.decision?.toLowerCase()}`}>{s.decision}</span></td>
+                  <td>{s.confidence}%</td>
+                  <td style={{ color: s.newsSentiment === 'positive' ? '#00c853' : s.newsSentiment === 'negative' ? '#ff3d3d' : '#888' }}>
+                    {s.newsSentiment || '—'}
+                  </td>
+                  <td>
+                    {isActionable ? (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                        background: traded ? '#0d2a0d' : '#1a1d27',
+                        color: traded ? '#00c853' : '#555',
+                        border: `1px solid ${traded ? '#00c853' : '#2a2d3e'}`
+                      }}>
+                        {traded ? 'Traded' : 'Skipped'}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#444', fontSize: 11 }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ color: '#666', fontSize: 12 }}>{formatDateTime(s.createdAt)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
