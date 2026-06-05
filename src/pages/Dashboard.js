@@ -163,10 +163,17 @@ function Dashboard() {
     }
   }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stable 30s interval — dep on length so it only restarts when positions open/close
+  // Crypto prices: refresh every 10s (fast moving)
   useEffect(() => {
     if (!data?.openTrades?.length) return;
-    const interval = setInterval(() => fetchCurrentPrices(openTradesRef.current), 30000);
+    const interval = setInterval(() => fetchCryptoPrices(openTradesRef.current), 10000);
+    return () => clearInterval(interval);
+  }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stock prices: refresh every 30s (slower moving, lighter endpoint)
+  useEffect(() => {
+    if (!data?.openTrades?.length) return;
+    const interval = setInterval(() => fetchStockPrices(openTradesRef.current), 30000);
     return () => clearInterval(interval);
   }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -184,41 +191,39 @@ function Dashboard() {
     }
   }
 
-  async function fetchCurrentPrices(openTrades) {
-    if (!openTrades || openTrades.length === 0) return;
-    const results = {};
-    const cryptoTrades = openTrades.filter(t => t.market === 'crypto');
-    const stockTrades  = openTrades.filter(t => t.market !== 'crypto');
-
-    // One Binance call for all open crypto positions
-    if (cryptoTrades.length > 0) {
-      try {
-        const tickers = JSON.stringify(cryptoTrades.map(t => t.symbol.replace('/', '')));
-        const res = await axios.get(
-          `${API}/market/crypto-prices?tickers=${encodeURIComponent(tickers)}`
-        );
-        res.data.forEach(item => {
-          const trade = cryptoTrades.find(t => t.symbol.replace('/', '') === item.symbol);
-          if (trade) results[trade.symbol] = parseFloat(item.price);
-        });
-      } catch (err) {
-        console.error('Failed to batch-fetch crypto prices:', err);
-      }
+  async function fetchCryptoPrices(openTrades) {
+    const cryptoTrades = (openTrades || []).filter(t => t.market === 'crypto');
+    if (!cryptoTrades.length) return;
+    try {
+      const tickers = JSON.stringify(cryptoTrades.map(t => t.symbol.replace('/', '')));
+      const res = await axios.get(`${API}/market/crypto-prices?tickers=${encodeURIComponent(tickers)}`);
+      const results = {};
+      res.data.forEach(item => {
+        const trade = cryptoTrades.find(t => t.symbol.replace('/', '') === item.symbol);
+        if (trade) results[trade.symbol] = parseFloat(item.price);
+      });
+      if (Object.keys(results).length) setCurrentPrices(prev => ({ ...prev, ...results }));
+    } catch (err) {
+      console.error('Failed to batch-fetch crypto prices:', err);
     }
+  }
 
-    // Stock prices from chart endpoint (no free batch alternative)
-    await Promise.all(stockTrades.map(async trade => {
-      try {
-        const encoded = encodeURIComponent(trade.symbol);
-        const res = await axios.get(`${API}/dashboard/chart/${encoded}`);
-        const points = res.data || [];
-        if (points.length > 0) results[trade.symbol] = points[points.length - 1].price;
-      } catch (err) {
-        console.error(`Failed to fetch price for ${trade.symbol}:`, err);
-      }
-    }));
+  async function fetchStockPrices(openTrades) {
+    const stockTrades = (openTrades || []).filter(t => t.market !== 'crypto');
+    if (!stockTrades.length) return;
+    try {
+      const tickers = JSON.stringify(stockTrades.map(t => t.symbol));
+      const res = await axios.get(`${API}/market/stock-prices?tickers=${encodeURIComponent(tickers)}`);
+      const results = {};
+      (res.data || []).forEach(item => { results[item.symbol] = item.price; });
+      if (Object.keys(results).length) setCurrentPrices(prev => ({ ...prev, ...results }));
+    } catch (err) {
+      console.error('Failed to fetch stock prices:', err);
+    }
+  }
 
-    setCurrentPrices(prev => ({ ...prev, ...results }));
+  async function fetchCurrentPrices(openTrades) {
+    await Promise.all([fetchCryptoPrices(openTrades), fetchStockPrices(openTrades)]);
   }
 
   async function toggleBot() {
