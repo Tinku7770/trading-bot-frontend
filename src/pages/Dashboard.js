@@ -32,6 +32,7 @@ function Dashboard() {
   const [toggling, setToggling]   = useState(false);
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
+  const [selectedTradeId, setSelectedTradeId] = useState(null);
   const [confirmClose, setConfirmClose] = useState(null);
   const [confirmCloseAll, setConfirmCloseAll] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -147,6 +148,13 @@ function Dashboard() {
   useEffect(() => {
     openTradesRef.current = data?.openTrades || [];
   }, [data?.openTrades]);
+
+  // Auto-select first open trade so chart is always visible
+  useEffect(() => {
+    if (data?.openTrades?.length > 0 && !selectedTradeId) {
+      setSelectedTradeId(data.openTrades[0]._id);
+    }
+  }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stable 30s interval — dep on length so it only restarts when positions open/close
   useEffect(() => {
@@ -500,7 +508,7 @@ function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ margin: 0 }}>Open Positions</h3>
               <button
-                onClick={closeAllPositions}
+                onClick={(e) => { e.stopPropagation(); closeAllPositions(); }}
                 disabled={closingAll}
                 style={{
                   padding: '6px 14px', borderRadius: 6,
@@ -529,8 +537,21 @@ function Dashboard() {
                 </thead>
                 <tbody>
                   {data.openTrades.map((trade) => (
-                    <tr key={trade._id}>
-                      <td><strong>{trade.symbol}</strong></td>
+                    <tr
+                      key={trade._id}
+                      onClick={() => setSelectedTradeId(trade._id)}
+                      style={{
+                        cursor: 'pointer',
+                        background: selectedTradeId === trade._id ? '#1a1d3a' : undefined,
+                        transition: 'background 0.15s'
+                      }}
+                    >
+                      <td>
+                        <strong>{trade.symbol}</strong>
+                        {selectedTradeId === trade._id && (
+                          <span style={{ marginLeft: 6, fontSize: 8, color: '#5865f2' }}>●</span>
+                        )}
+                      </td>
                       <td><span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span></td>
                       <td>${trade.price?.toFixed(2)}</td>
                       <td>${trade.amount?.toFixed(2)}</td>
@@ -555,7 +576,7 @@ function Dashboard() {
                       })()}</td>
                       <td>
                         <button
-                          onClick={() => closePosition(trade._id)}
+                          onClick={(e) => { e.stopPropagation(); closePosition(trade._id); }}
                           disabled={closingId === trade._id}
                           style={{
                             padding: '6px 14px', borderRadius: 6,
@@ -578,10 +599,12 @@ function Dashboard() {
         )}
       </div>
 
-      {/* Open Position Charts — full width */}
-      {data?.openTrades?.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, marginBottom: 16 }}>
-          {data.openTrades.map((trade) => (
+      {/* Open Position Chart — shows when a row is clicked */}
+      {selectedTradeId && (() => {
+        const trade = data?.openTrades?.find(t => t._id === selectedTradeId);
+        if (!trade) return null;
+        return (
+          <div style={{ marginBottom: 16 }}>
             <PriceChart
               key={trade._id}
               symbol={trade.symbol}
@@ -589,9 +612,9 @@ function Dashboard() {
               market={trade.market}
               type={trade.type}
             />
-          ))}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* Pre-Market Alerts */}
       {preMarketFlags.length > 0 && (
