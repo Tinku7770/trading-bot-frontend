@@ -199,6 +199,26 @@ tr:hover td {
 
 .save-btn:hover { opacity: 0.85; }
 
+/* Live price pulse dot */
+@keyframes price-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.25; transform: scale(0.7); }
+}
+.price-pulse-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00c853;
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: price-pulse 1.2s ease-in-out infinite;
+}
+
+/* P/L arrow */
+.pl-arrow-up   { color: #00c853; font-size: 12px; margin-right: 3px; }
+.pl-arrow-down { color: #ff3d3d; font-size: 12px; margin-right: 3px; }
+
 /* Responsive */
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }

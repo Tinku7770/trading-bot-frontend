@@ -48,6 +48,7 @@ function Dashboard() {
   const [countdown, setCountdown] = useState('');
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
+  const [priceUpdatedAt, setPriceUpdatedAt] = useState({});
   const [scannedStocks, setScannedStocks]       = useState([]);
   const [scannedCrypto, setScannedCrypto]       = useState([]);
   const [preMarketFlags, setPreMarketFlags]     = useState([]);
@@ -204,7 +205,15 @@ function Dashboard() {
         const trade = cryptoTrades.find(t => t.symbol.replace('/', '') === item.symbol);
         if (trade) results[trade.symbol] = parseFloat(item.price);
       });
-      if (Object.keys(results).length) setCurrentPrices(prev => ({ ...prev, ...results }));
+      if (Object.keys(results).length) {
+        const ts = Date.now();
+        setCurrentPrices(prev => ({ ...prev, ...results }));
+        setPriceUpdatedAt(prev => {
+          const next = { ...prev };
+          Object.keys(results).forEach(sym => { next[sym] = ts; });
+          return next;
+        });
+      }
     } catch (err) {
       console.error('Failed to batch-fetch crypto prices:', err);
     }
@@ -218,7 +227,15 @@ function Dashboard() {
       const res = await axios.get(`${API}/market/stock-prices?tickers=${encodeURIComponent(tickers)}`);
       const results = {};
       (res.data || []).forEach(item => { results[item.symbol] = item.price; });
-      if (Object.keys(results).length) setCurrentPrices(prev => ({ ...prev, ...results }));
+      if (Object.keys(results).length) {
+        const ts = Date.now();
+        setCurrentPrices(prev => ({ ...prev, ...results }));
+        setPriceUpdatedAt(prev => {
+          const next = { ...prev };
+          Object.keys(results).forEach(sym => { next[sym] = ts; });
+          return next;
+        });
+      }
     } catch (err) {
       console.error('Failed to fetch stock prices:', err);
     }
@@ -669,8 +686,13 @@ function Dashboard() {
                         const pnlPct = (cur - trade.price) / trade.price * 100 * (isShort ? -1 : 1);
                         const pnlDollar = pnlPct / 100 * (trade.amount || 0) * (trade.leverage || 1);
                         const color = pnlDollar >= 0 ? '#00c853' : '#ff3d3d';
+                        const justUpdated = priceUpdatedAt[trade.symbol] && Date.now() - priceUpdatedAt[trade.symbol] < 15000;
                         return (
                           <span style={{ color, fontWeight: 600 }}>
+                            {justUpdated && <span className="price-pulse-dot" />}
+                            <span className={pnlDollar >= 0 ? 'pl-arrow-up' : 'pl-arrow-down'}>
+                              {pnlDollar >= 0 ? '↑' : '↓'}
+                            </span>
                             {pnlDollar >= 0 ? '+' : ''}${pnlDollar.toFixed(2)}
                             <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.8 }}>
                               ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
@@ -1309,6 +1331,61 @@ function Dashboard() {
           })()}
         </div>
 
+        {/* Max Drawdown + Best/Worst Trade — #10 */}
+        <div className="section">
+          <h3>Risk & Extremes</h3>
+          <div className="stats-grid" style={{ marginBottom: 16 }}>
+            <div className="card">
+              <h2>Max Drawdown</h2>
+              <div className="value" style={{ color: (data?.maxDrawdown || 0) > 0 ? '#ff3d3d' : '#888' }}>
+                -${(data?.maxDrawdown || 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="card">
+              <h2>Profit Factor</h2>
+              {(() => {
+                const wins = recentTrades.filter(t => t.status === 'closed' && (t.profitLoss || 0) > 0);
+                const losses = recentTrades.filter(t => t.status === 'closed' && (t.profitLoss || 0) < 0);
+                const grossWin = wins.reduce((s, t) => s + t.profitLoss, 0);
+                const grossLoss = Math.abs(losses.reduce((s, t) => s + t.profitLoss, 0));
+                const pf = grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : grossWin > 0 ? '∞' : '—';
+                const pfNum = parseFloat(pf);
+                return (
+                  <div className="value" style={{ color: pfNum >= 1.5 ? '#00c853' : pfNum >= 1 ? '#f5a623' : '#ff3d3d' }}>
+                    {pf}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data?.bestTrade && (
+              <div style={{ background: '#0d2a0d', border: '1px solid #00c853', borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 11, color: '#00c853', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Best Trade</div>
+                  <div style={{ fontWeight: 700, marginTop: 2 }}>{data.bestTrade.symbol} <span style={{ color: '#888', fontWeight: 400, fontSize: 12 }}>{data.bestTrade.type}</span></div>
+                  <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{formatDateTime(data.bestTrade.closedAt)}</div>
+                </div>
+                <div style={{ color: '#00c853', fontWeight: 800, fontSize: 20 }}>
+                  +${(data.bestTrade.profitLoss || 0).toFixed(2)}
+                </div>
+              </div>
+            )}
+            {data?.worstTrade && (
+              <div style={{ background: '#2a1a1a', border: '1px solid #ff3d3d', borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 11, color: '#ff3d3d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Worst Trade</div>
+                  <div style={{ fontWeight: 700, marginTop: 2 }}>{data.worstTrade.symbol} <span style={{ color: '#888', fontWeight: 400, fontSize: 12 }}>{data.worstTrade.type}</span></div>
+                  <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{formatDateTime(data.worstTrade.closedAt)}</div>
+                </div>
+                <div style={{ color: '#ff3d3d', fontWeight: 800, fontSize: 20 }}>
+                  ${(data.worstTrade.profitLoss || 0).toFixed(2)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Account Balance */}
         <div className="section">
           <h3>Account Balance</h3>
@@ -1554,7 +1631,14 @@ function Dashboard() {
                 </td>
                 <td><span className={`badge ${t.status}`}>{t.status}</span></td>
                 <td style={{ color: t.status === 'open' ? '#888' : (t.profitLoss || 0) > 0 ? '#00c853' : (t.profitLoss || 0) < 0 ? '#ff3d3d' : '#888' }}>
-                  {t.status === 'open' ? '—' : `${(t.profitLoss || 0) > 0 ? '+' : ''}$${(t.profitLoss || 0).toFixed(2)}`}
+                  {t.status === 'open' ? '—' : (
+                    <>
+                      <span className={(t.profitLoss || 0) >= 0 ? 'pl-arrow-up' : 'pl-arrow-down'}>
+                        {(t.profitLoss || 0) >= 0 ? '↑' : '↓'}
+                      </span>
+                      {(t.profitLoss || 0) > 0 ? '+' : ''}${(t.profitLoss || 0).toFixed(2)}
+                    </>
+                  )}
                 </td>
                 <td style={{ color: '#666', fontSize: 12, maxWidth: 160 }}>
                   {t.closeReason || '—'}
