@@ -55,6 +55,8 @@ function Dashboard() {
   const [scannerPerf, setScannerPerf]           = useState(null);
   const [cryptoScanHistory, setCryptoScanHistory] = useState(null);
   const [scanHistoryExpanded, setScanHistoryExpanded] = useState(false);
+  const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
+  const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
 
@@ -1344,91 +1346,108 @@ function Dashboard() {
       {/* P/L by Symbol + Active Cooldowns — 2-col */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 16 }}>
 
-        {/* P/L by Symbol — #4 */}
+        {/* P/L by Symbol — collapsible */}
         {data?.plBySymbol?.length > 0 && (
           <div className="section" style={{ margin: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div
+              onClick={() => setPlBySymbolExpanded(e => !e)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+            >
               <h3 style={{ margin: 0 }}>P/L by Symbol</h3>
-              <span style={{ fontSize: 12, color: '#888' }}>{data.plBySymbol.length} symbols traded</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: '#888' }}>{data.plBySymbol.length} symbols</span>
+                <span style={{ color: '#5865f2', fontSize: 14 }}>{plBySymbolExpanded ? '▲' : '▼'}</span>
+              </div>
             </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Symbol</th>
-                  <th>Trades</th>
-                  <th>Win %</th>
-                  <th>Total P/L</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.plBySymbol.map(s => (
-                  <tr key={s.symbol}>
-                    <td><strong>{s.symbol}</strong></td>
-                    <td style={{ color: '#888' }}>{s.trades}</td>
-                    <td style={{ color: s.winRate >= 50 ? '#00c853' : s.winRate >= 35 ? '#f5a623' : '#ff3d3d' }}>
-                      {s.winRate}%
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: 700, color: s.totalPL > 0 ? '#00c853' : s.totalPL < 0 ? '#ff3d3d' : '#888' }}>
-                        {s.totalPL > 0 ? '+' : ''}${s.totalPL.toFixed(2)}
-                      </span>
-                      <div style={{
-                        height: 3, borderRadius: 2, marginTop: 4,
-                        width: `${Math.min(100, Math.abs(s.totalPL) / Math.max(...data.plBySymbol.map(x => Math.abs(x.totalPL))) * 100)}%`,
-                        background: s.totalPL >= 0 ? '#00c853' : '#ff3d3d',
-                        opacity: 0.6
-                      }} />
-                    </td>
+            {plBySymbolExpanded && (
+              <table style={{ marginTop: 12 }}>
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Trades</th>
+                    <th>Win %</th>
+                    <th>Total P/L</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.plBySymbol.map(s => (
+                    <tr key={s.symbol}>
+                      <td><strong>{s.symbol}</strong></td>
+                      <td style={{ color: '#888' }}>{s.trades}</td>
+                      <td style={{ color: s.winRate >= 50 ? '#00c853' : s.winRate >= 35 ? '#f5a623' : '#ff3d3d' }}>
+                        {s.winRate}%
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, color: s.totalPL > 0 ? '#00c853' : s.totalPL < 0 ? '#ff3d3d' : '#888' }}>
+                          {s.totalPL > 0 ? '+' : ''}${s.totalPL.toFixed(2)}
+                        </span>
+                        <div style={{
+                          height: 3, borderRadius: 2, marginTop: 4,
+                          width: `${Math.min(100, Math.abs(s.totalPL) / Math.max(...data.plBySymbol.map(x => Math.abs(x.totalPL))) * 100)}%`,
+                          background: s.totalPL >= 0 ? '#00c853' : '#ff3d3d', opacity: 0.6
+                        }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
-        {/* Active Cooldowns — #8 */}
+        {/* Active Cooldowns — collapsible */}
         <div className="section" style={{ margin: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div
+            onClick={() => setCooldownsExpanded(e => !e)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+          >
             <h3 style={{ margin: 0 }}>Active Cooldowns</h3>
-            <span style={{
-              fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-              background: (data?.activeCooldowns?.length || 0) > 0 ? '#2a1500' : '#1a1d27',
-              color: (data?.activeCooldowns?.length || 0) > 0 ? '#f5a623' : '#555',
-              border: `1px solid ${(data?.activeCooldowns?.length || 0) > 0 ? '#f5a623' : '#2a2d3e'}`
-            }}>
-              {data?.activeCooldowns?.length || 0} locked
-            </span>
-          </div>
-          {!data?.activeCooldowns?.length ? (
-            <div style={{ color: '#444', fontSize: 13, padding: '12px 0', fontStyle: 'italic' }}>
-              No cooldowns active — bot can trade all symbols
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                background: (data?.activeCooldowns?.length || 0) > 0 ? '#2a1500' : '#1a1d27',
+                color: (data?.activeCooldowns?.length || 0) > 0 ? '#f5a623' : '#555',
+                border: `1px solid ${(data?.activeCooldowns?.length || 0) > 0 ? '#f5a623' : '#2a2d3e'}`
+              }}>
+                {data?.activeCooldowns?.length || 0} locked
+              </span>
+              <span style={{ color: '#5865f2', fontSize: 14 }}>{cooldownsExpanded ? '▲' : '▼'}</span>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {data.activeCooldowns.map(cd => {
-                const msLeft = cd.expiresAt - Date.now();
-                const hLeft = Math.floor(msLeft / 3600000);
-                const mLeft = Math.floor((msLeft % 3600000) / 60000);
-                const urgency = msLeft < 30 * 60000 ? '#ff3d3d' : msLeft < 60 * 60000 ? '#f5a623' : '#888';
-                return (
-                  <div key={cd.symbol} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    background: '#1a1d27', borderRadius: 8, padding: '10px 14px',
-                    borderLeft: `3px solid ${urgency}`
-                  }}>
-                    <div>
-                      <strong style={{ fontSize: 14 }}>{cd.symbol}</strong>
-                      <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>manually closed — re-entry blocked</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ color: urgency, fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
-                        {hLeft > 0 ? `${hLeft}h ` : ''}{mLeft}m
+          </div>
+          {cooldownsExpanded && (
+            <div style={{ marginTop: 12 }}>
+              {!data?.activeCooldowns?.length ? (
+                <div style={{ color: '#444', fontSize: 13, padding: '8px 0', fontStyle: 'italic' }}>
+                  No cooldowns active — bot can trade all symbols
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {data.activeCooldowns.map(cd => {
+                    const msLeft = cd.expiresAt - Date.now();
+                    const hLeft = Math.floor(msLeft / 3600000);
+                    const mLeft = Math.floor((msLeft % 3600000) / 60000);
+                    const urgency = msLeft < 30 * 60000 ? '#ff3d3d' : msLeft < 60 * 60000 ? '#f5a623' : '#888';
+                    return (
+                      <div key={cd.symbol} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        background: '#1a1d27', borderRadius: 8, padding: '10px 14px',
+                        borderLeft: `3px solid ${urgency}`
+                      }}>
+                        <div>
+                          <strong style={{ fontSize: 14 }}>{cd.symbol}</strong>
+                          <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>re-entry blocked</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: urgency, fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+                            {hLeft > 0 ? `${hLeft}h ` : ''}{mLeft}m
+                          </div>
+                          <div style={{ fontSize: 10, color: '#555' }}>remaining</div>
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10, color: '#555' }}>remaining</div>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
