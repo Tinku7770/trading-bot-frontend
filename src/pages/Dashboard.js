@@ -1640,8 +1640,22 @@ function Dashboard() {
                     </>
                   )}
                 </td>
-                <td style={{ color: '#666', fontSize: 12, maxWidth: 160 }}>
-                  {t.closeReason || '—'}
+                <td style={{ fontSize: 12, maxWidth: 200 }}>
+                  {t.closeReason ? (
+                    <>
+                      {t.closeReason.includes('candle') && (
+                        <span style={{
+                          display: 'inline-block',
+                          background: '#1f1800', color: '#f5c518',
+                          border: '1px solid #f5c518',
+                          borderRadius: 8, padding: '1px 6px',
+                          fontSize: 10, fontWeight: 700,
+                          marginRight: 5, verticalAlign: 'middle'
+                        }}>⚡ CANDLE</span>
+                      )}
+                      <span style={{ color: '#666' }}>{t.closeReason}</span>
+                    </>
+                  ) : '—'}
                 </td>
               </tr>
             ))}

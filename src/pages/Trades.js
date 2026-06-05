@@ -304,6 +304,16 @@ function Trades() {
                       {t.closeReason && (
                         <div style={{ borderTop: '1px solid #2a2d3e', paddingTop: 12, marginTop: 10 }}>
                           <span style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginRight: 8 }}>Close Reason</span>
+                          {t.closeReason.includes('candle') && (
+                            <span style={{
+                              display: 'inline-block',
+                              background: '#1f1800', color: '#f5c518',
+                              border: '1px solid #f5c518',
+                              borderRadius: 8, padding: '1px 7px',
+                              fontSize: 10, fontWeight: 700,
+                              marginRight: 6, verticalAlign: 'middle'
+                            }}>⚡ CANDLE</span>
+                          )}
                           <span style={{
                             fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 20,
                             background: t.closeReason?.toLowerCase().includes('stop') ? '#2a1a1a' : t.closeReason?.toLowerCase().includes('profit') ? '#0d2a1a' : '#1a1d27',
