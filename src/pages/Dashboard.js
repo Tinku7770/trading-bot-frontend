@@ -701,6 +701,118 @@ function Dashboard() {
         )}
       </div>
 
+      {/* Risk Gauge + Win/Loss Streak — 2-col */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 16 }}>
+
+        {/* Risk Gauge — #1 */}
+        {(() => {
+          const limitPct = data?.maxDailyLossPercent || 5;
+          const capital = stats.totalCapital || 2000;
+          const limitDollar = capital * limitPct / 100;
+          const todayPL = data?.todayStats?.pl || 0;
+          const usedDollar = Math.abs(Math.min(0, todayPL));
+          const usedPct = Math.min(100, limitDollar > 0 ? usedDollar / limitDollar * 100 : 0);
+          const gaugeColor = usedPct < 50 ? '#00c853' : usedPct < 80 ? '#f5a623' : '#ff3d3d';
+          const remaining = Math.max(0, limitDollar - usedDollar);
+          return (
+            <div className="section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0 }}>Daily Risk Gauge</h3>
+                <span style={{
+                  fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                  background: gaugeColor + '22', color: gaugeColor, border: `1px solid ${gaugeColor}`
+                }}>
+                  {usedPct.toFixed(1)}% used
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888', marginBottom: 6 }}>
+                <span>Lost today: <strong style={{ color: usedDollar > 0 ? '#ff3d3d' : '#555' }}>${usedDollar.toFixed(2)}</strong></span>
+                <span>Limit: <strong style={{ color: '#aaa' }}>${limitDollar.toFixed(2)} ({limitPct}%)</strong></span>
+              </div>
+              <div style={{ background: '#1a1d27', borderRadius: 8, overflow: 'hidden', height: 14, position: 'relative' }}>
+                <div style={{
+                  width: `${usedPct}%`, height: '100%',
+                  background: `linear-gradient(90deg, #00c853, ${gaugeColor})`,
+                  borderRadius: 8, transition: 'width 0.6s ease'
+                }} />
+                {[25, 50, 75].map(tick => (
+                  <div key={tick} style={{
+                    position: 'absolute', top: 0, left: `${tick}%`,
+                    width: 1, height: '100%', background: '#0d0f1a', opacity: 0.6
+                  }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12 }}>
+                <span style={{ color: '#555' }}>$0</span>
+                <span style={{ color: remaining > 0 ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+                  {remaining > 0 ? `$${remaining.toFixed(2)} remaining` : 'DAILY LIMIT HIT'}
+                </span>
+                <span style={{ color: '#555' }}>${limitDollar.toFixed(2)}</span>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Win/Loss Streak + Last 5 — #2 */}
+        {(() => {
+          const closed = recentTrades.filter(t => t.status === 'closed')
+            .sort((a, b) => new Date(b.closedAt) - new Date(a.closedAt));
+          const last5 = closed.slice(0, 5);
+          let streak = 0, streakType = null;
+          for (const t of closed) {
+            const isWin = (t.profitLoss || 0) > 0;
+            if (streakType === null) streakType = isWin ? 'win' : 'loss';
+            if (isWin === (streakType === 'win')) streak++;
+            else break;
+          }
+          const streakColor = streakType === 'win' ? '#00c853' : streakType === 'loss' ? '#ff3d3d' : '#555';
+          return (
+            <div className="section">
+              <h3 style={{ marginBottom: 16 }}>Streak & Recent Form</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+                <div style={{
+                  background: streakColor + '18', border: `1px solid ${streakColor}`,
+                  borderRadius: 10, padding: '10px 20px', textAlign: 'center', minWidth: 90
+                }}>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: streakColor, lineHeight: 1 }}>{streak}</div>
+                  <div style={{ fontSize: 11, color: streakColor, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    {streakType === 'win' ? 'Win Streak' : streakType === 'loss' ? 'Loss Streak' : 'No Trades'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Last {last5.length} closed trades</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {last5.length === 0
+                      ? <span style={{ color: '#444', fontSize: 13 }}>No closed trades yet</span>
+                      : last5.map((t, i) => {
+                          const w = (t.profitLoss || 0) > 0;
+                          return (
+                            <div key={i} title={`${t.symbol} ${w ? '+' : ''}$${(t.profitLoss || 0).toFixed(2)}`} style={{
+                              width: 32, height: 32, borderRadius: '50%',
+                              background: w ? '#0d2a0d' : '#2a1a1a',
+                              border: `2px solid ${w ? '#00c853' : '#ff3d3d'}`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 13, fontWeight: 700, color: w ? '#00c853' : '#ff3d3d',
+                              cursor: 'default'
+                            }}>
+                              {w ? 'W' : 'L'}
+                            </div>
+                          );
+                        })
+                    }
+                  </div>
+                  {last5.length > 0 && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>
+                      {last5[0].symbol} — {(last5[0].profitLoss || 0) >= 0 ? '+' : ''}${(last5[0].profitLoss || 0).toFixed(2)} (most recent)
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Open Position Chart — shows when a row is clicked */}
       {selectedTradeId && (() => {
         const trade = data?.openTrades?.find(t => t._id === selectedTradeId);
@@ -1228,6 +1340,99 @@ function Dashboard() {
         </div>
       </div>
 
+
+      {/* P/L by Symbol + Active Cooldowns — 2-col */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 16 }}>
+
+        {/* P/L by Symbol — #4 */}
+        {data?.plBySymbol?.length > 0 && (
+          <div className="section" style={{ margin: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>P/L by Symbol</h3>
+              <span style={{ fontSize: 12, color: '#888' }}>{data.plBySymbol.length} symbols traded</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Trades</th>
+                  <th>Win %</th>
+                  <th>Total P/L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.plBySymbol.map(s => (
+                  <tr key={s.symbol}>
+                    <td><strong>{s.symbol}</strong></td>
+                    <td style={{ color: '#888' }}>{s.trades}</td>
+                    <td style={{ color: s.winRate >= 50 ? '#00c853' : s.winRate >= 35 ? '#f5a623' : '#ff3d3d' }}>
+                      {s.winRate}%
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 700, color: s.totalPL > 0 ? '#00c853' : s.totalPL < 0 ? '#ff3d3d' : '#888' }}>
+                        {s.totalPL > 0 ? '+' : ''}${s.totalPL.toFixed(2)}
+                      </span>
+                      <div style={{
+                        height: 3, borderRadius: 2, marginTop: 4,
+                        width: `${Math.min(100, Math.abs(s.totalPL) / Math.max(...data.plBySymbol.map(x => Math.abs(x.totalPL))) * 100)}%`,
+                        background: s.totalPL >= 0 ? '#00c853' : '#ff3d3d',
+                        opacity: 0.6
+                      }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Active Cooldowns — #8 */}
+        <div className="section" style={{ margin: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Active Cooldowns</h3>
+            <span style={{
+              fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+              background: (data?.activeCooldowns?.length || 0) > 0 ? '#2a1500' : '#1a1d27',
+              color: (data?.activeCooldowns?.length || 0) > 0 ? '#f5a623' : '#555',
+              border: `1px solid ${(data?.activeCooldowns?.length || 0) > 0 ? '#f5a623' : '#2a2d3e'}`
+            }}>
+              {data?.activeCooldowns?.length || 0} locked
+            </span>
+          </div>
+          {!data?.activeCooldowns?.length ? (
+            <div style={{ color: '#444', fontSize: 13, padding: '12px 0', fontStyle: 'italic' }}>
+              No cooldowns active — bot can trade all symbols
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.activeCooldowns.map(cd => {
+                const msLeft = cd.expiresAt - Date.now();
+                const hLeft = Math.floor(msLeft / 3600000);
+                const mLeft = Math.floor((msLeft % 3600000) / 60000);
+                const urgency = msLeft < 30 * 60000 ? '#ff3d3d' : msLeft < 60 * 60000 ? '#f5a623' : '#888';
+                return (
+                  <div key={cd.symbol} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: '#1a1d27', borderRadius: 8, padding: '10px 14px',
+                    borderLeft: `3px solid ${urgency}`
+                  }}>
+                    <div>
+                      <strong style={{ fontSize: 14 }}>{cd.symbol}</strong>
+                      <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>manually closed — re-entry blocked</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: urgency, fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+                        {hLeft > 0 ? `${hLeft}h ` : ''}{mLeft}m
+                      </div>
+                      <div style={{ fontSize: 10, color: '#555' }}>remaining</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Recent Signals */}
       <div className="section">
