@@ -40,8 +40,8 @@ function Dashboard() {
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
   const [selectedTradeId, setSelectedTradeId] = useState(null);
-  const [confirmClose, setConfirmClose] = useState(null);
-  const [confirmCloseAll, setConfirmCloseAll] = useState(false);
+  const [closeModal, setCloseModal] = useState(null);
+  const [closeAllModal, setCloseAllModal] = useState(false);
   const [actionError, setActionError] = useState('');
   const [refreshing, setRefreshing]   = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
@@ -263,18 +263,19 @@ function Dashboard() {
     }
   }
 
-  async function closePosition(tradeId) {
-    if (confirmClose !== tradeId) {
-      setConfirmClose(tradeId);
-      setConfirmCloseAll(false);
-      setTimeout(() => setConfirmClose(c => c === tradeId ? null : c), 8000);
-      return;
-    }
-    setConfirmClose(null);
+  function closePosition(tradeId) {
+    const trade = data?.openTrades?.find(t => t._id === tradeId);
+    if (!trade) return;
+    setCloseModal(trade);
+  }
+
+  async function executeClose() {
+    const trade = closeModal;
+    setCloseModal(null);
     setActionError('');
     try {
-      setClosingId(tradeId);
-      await axios.post(`${API}/bot/close-position/${tradeId}`);
+      setClosingId(trade._id);
+      await axios.post(`${API}/bot/close-position/${trade._id}`);
       await fetchDashboard();
     } catch {
       setActionError('Failed to close position');
@@ -283,14 +284,12 @@ function Dashboard() {
     }
   }
 
-  async function closeAllPositions() {
-    if (!confirmCloseAll) {
-      setConfirmCloseAll(true);
-      setConfirmClose(null);
-      setTimeout(() => setConfirmCloseAll(false), 8000);
-      return;
-    }
-    setConfirmCloseAll(false);
+  function closeAllPositions() {
+    setCloseAllModal(true);
+  }
+
+  async function executeCloseAll() {
+    setCloseAllModal(false);
     setActionError('');
     try {
       setClosingAll(true);
@@ -601,14 +600,14 @@ function Dashboard() {
                 disabled={closingAll}
                 style={{
                   padding: '6px 14px', borderRadius: 6,
-                  border: `1px solid ${confirmCloseAll ? '#f5a623' : '#ff3d3d'}`,
-                  background: confirmCloseAll ? '#2a1500' : closingAll ? '#2a1a1a' : 'transparent',
-                  color: confirmCloseAll ? '#f5a623' : '#ff3d3d',
+                  border: '1px solid #ff3d3d',
+                  background: closingAll ? '#2a1a1a' : 'transparent',
+                  color: '#ff3d3d',
                   fontWeight: 600, cursor: closingAll ? 'not-allowed' : 'pointer',
                   fontSize: 12, transition: 'all 0.2s'
                 }}
               >
-                {closingAll ? 'Closing All...' : confirmCloseAll ? 'Confirm Close All?' : 'Close All Positions'}
+                {closingAll ? 'Closing All...' : 'Close All Positions'}
               </button>
             </div>
             <div style={{ overflowX: 'auto' }}>
@@ -706,14 +705,14 @@ function Dashboard() {
                           disabled={closingId === trade._id}
                           style={{
                             padding: '6px 14px', borderRadius: 6,
-                            border: `1px solid ${confirmClose === trade._id ? '#f5a623' : '#ff3d3d'}`,
-                            background: confirmClose === trade._id ? '#2a1500' : 'transparent',
-                            color: confirmClose === trade._id ? '#f5a623' : '#ff3d3d',
+                            border: '1px solid #ff3d3d',
+                            background: 'transparent',
+                            color: '#ff3d3d',
                             fontWeight: 600, cursor: closingId === trade._id ? 'not-allowed' : 'pointer',
                             fontSize: 12, transition: 'all 0.2s'
                           }}
                         >
-                          {closingId === trade._id ? 'Closing...' : confirmClose === trade._id ? 'Confirm?' : 'Close'}
+                          {closingId === trade._id ? 'Closing...' : 'Close'}
                         </button>
                       </td>
                     </tr>
@@ -1590,6 +1589,192 @@ function Dashboard() {
       <div className="section">
         <LiquidityHeatmap />
       </div>
+
+      {/* Close Position Modal */}
+      {closeModal && (() => {
+        const trade = closeModal;
+        const cur = currentPrices[trade.symbol];
+        const isShort = trade.type === 'SHORT';
+        const pnlDollar = cur && trade.price
+          ? (cur - trade.price) / trade.price * (isShort ? -1 : 1) * (trade.amount || 0) * (trade.leverage || 1)
+          : null;
+        const heldMs = Date.now() - new Date(trade.executedAt).getTime();
+        return (
+          <div
+            onClick={() => setCloseModal(null)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1000,
+              background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 12,
+                padding: '28px 32px', minWidth: 340, maxWidth: 440, width: '90%'
+              }}
+            >
+              <h3 style={{ margin: '0 0 20px', fontSize: 18, color: '#fff' }}>Close Position?</h3>
+              {tradeMode === 'live' && (
+                <div style={{
+                  background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8,
+                  padding: '10px 14px', marginBottom: 20, fontSize: 13, color: '#f5a623'
+                }}>
+                  ⚠️ Live mode — this will submit a real market order to your broker.
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#888', fontSize: 13 }}>Symbol</span>
+                  <strong style={{ fontSize: 15 }}>{trade.symbol}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#888', fontSize: 13 }}>Direction</span>
+                  <span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#888', fontSize: 13 }}>Entry Price</span>
+                  <span style={{ color: '#aaa' }}>${trade.price?.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#888', fontSize: 13 }}>Amount</span>
+                  <span style={{ color: '#aaa' }}>${trade.amount?.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#888', fontSize: 13 }}>Time Held</span>
+                  <span style={{ color: '#aaa' }}>{formatDuration(heldMs)}</span>
+                </div>
+                {pnlDollar !== null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888', fontSize: 13 }}>Unrealized P/L</span>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: pnlDollar >= 0 ? '#00c853' : '#ff3d3d' }}>
+                      {pnlDollar >= 0 ? '+' : ''}${pnlDollar.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => setCloseModal(null)}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8,
+                    border: '1px solid #2a2d3e', background: 'transparent',
+                    color: '#888', fontWeight: 600, cursor: 'pointer', fontSize: 14
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeClose}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8,
+                    border: '1px solid #ff3d3d', background: '#2a1a1a',
+                    color: '#ff3d3d', fontWeight: 700, cursor: 'pointer', fontSize: 14
+                  }}
+                >
+                  Yes, Close Position
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Close All Modal */}
+      {closeAllModal && (() => {
+        const trades = data?.openTrades || [];
+        const totalPnl = trades.reduce((sum, trade) => {
+          const cur = currentPrices[trade.symbol];
+          if (!cur || !trade.price) return sum;
+          const isShort = trade.type === 'SHORT';
+          return sum + (cur - trade.price) / trade.price * (isShort ? -1 : 1) * (trade.amount || 0) * (trade.leverage || 1);
+        }, 0);
+        return (
+          <div
+            onClick={() => setCloseAllModal(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1000,
+              background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 12,
+                padding: '28px 32px', minWidth: 360, maxWidth: 480, width: '90%'
+              }}
+            >
+              <h3 style={{ margin: '0 0 20px', fontSize: 18, color: '#fff' }}>Close All Positions?</h3>
+              {tradeMode === 'live' && (
+                <div style={{
+                  background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8,
+                  padding: '10px 14px', marginBottom: 20, fontSize: 13, color: '#f5a623'
+                }}>
+                  ⚠️ Live mode — this will submit real market orders for all {trades.length} position{trades.length !== 1 ? 's' : ''}.
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16, maxHeight: 220, overflowY: 'auto' }}>
+                {trades.map(trade => {
+                  const cur = currentPrices[trade.symbol];
+                  const isShort = trade.type === 'SHORT';
+                  const pnlDollar = cur && trade.price
+                    ? (cur - trade.price) / trade.price * (isShort ? -1 : 1) * (trade.amount || 0) * (trade.leverage || 1)
+                    : null;
+                  return (
+                    <div key={trade._id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      background: '#0d0f1a', borderRadius: 8, padding: '8px 14px'
+                    }}>
+                      <div>
+                        <strong style={{ fontSize: 14 }}>{trade.symbol}</strong>
+                        <span style={{ marginLeft: 8, fontSize: 11, color: '#888' }}>{trade.type}</span>
+                      </div>
+                      {pnlDollar !== null ? (
+                        <span style={{ fontWeight: 700, color: pnlDollar >= 0 ? '#00c853' : '#ff3d3d', fontSize: 13 }}>
+                          {pnlDollar >= 0 ? '+' : ''}${pnlDollar.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#555', fontSize: 12 }}>—</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', padding: '10px 14px',
+                background: '#0d0f1a', borderRadius: 8, marginBottom: 24
+              }}>
+                <span style={{ color: '#888', fontSize: 13 }}>Total Unrealized P/L</span>
+                <span style={{ fontWeight: 700, fontSize: 15, color: totalPnl >= 0 ? '#00c853' : '#ff3d3d' }}>
+                  {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => setCloseAllModal(false)}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8,
+                    border: '1px solid #2a2d3e', background: 'transparent',
+                    color: '#888', fontWeight: 600, cursor: 'pointer', fontSize: 14
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeCloseAll}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8,
+                    border: '1px solid #ff3d3d', background: '#2a1a1a',
+                    color: '#ff3d3d', fontWeight: 700, cursor: 'pointer', fontSize: 14
+                  }}
+                >
+                  Yes, Close All
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Recent Trades */}
       <div className="section">
