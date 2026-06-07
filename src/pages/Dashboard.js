@@ -30,6 +30,42 @@ function formatDateTime(dateStr) {
   });
 }
 
+function getMarketInfo(now) {
+  const etDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etDate.getDay();
+  const h = etDate.getHours();
+  const m = etDate.getMinutes();
+  const s = etDate.getSeconds();
+  const totalMins = h * 60 + m;
+  const openMins = 9 * 60 + 30;
+  const closeMins = 16 * 60;
+  const isWeekday = day >= 1 && day <= 5;
+  const isOpen = isWeekday && totalMins >= openMins && totalMins < closeMins;
+  if (isOpen) {
+    return { isOpen: true, ms: (closeMins - totalMins) * 60000 - s * 1000, sessionPct: Math.min(100, (totalMins - openMins) / 390 * 100) };
+  }
+  let minsToOpen;
+  if (isWeekday && totalMins < openMins) {
+    minsToOpen = openMins - totalMins;
+  } else {
+    let addDays = 1;
+    while (((day + addDays) % 7) < 1 || ((day + addDays) % 7) > 5) addDays++;
+    minsToOpen = (24 * 60 - totalMins) + (addDays - 1) * 24 * 60 + openMins;
+  }
+  return { isOpen: false, ms: Math.max(0, minsToOpen * 60000 - s * 1000), sessionPct: 0 };
+}
+
+function formatMarketCountdown(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const ss = s.toString().padStart(2, '0');
+  const mm = m.toString().padStart(2, '0');
+  if (h > 0) return `${h}h ${mm}m ${ss}s`;
+  return `${mm}m ${ss}s`;
+}
+
 function Dashboard() {
   const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades } = useApp();
   const [data, setData]           = useState(null);
@@ -58,11 +94,17 @@ function Dashboard() {
   const [scanHistoryExpanded, setScanHistoryExpanded] = useState(false);
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
 
   useEffect(() => {
     return () => { if (runNowTimerRef.current) clearTimeout(runNowTimerRef.current); };
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -399,8 +441,18 @@ function Dashboard() {
             {(stats.totalProfitLoss || 0) >= 0 ? '+' : ''}${(stats.totalProfitLoss || 0).toFixed(2)}
           </span>
         </span>
-        <span style={{ marginLeft: 'auto', color: '#888', fontVariantNumeric: 'tabular-nums' }}>
-          Next run: <span style={{ color: botStatus ? '#00c853' : '#555', fontWeight: 600 }}>{botStatus ? countdown : '--:--'}</span>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ color: '#aaa', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+            {currentTime.toLocaleString('en-US', {
+              timeZone: 'America/Los_Angeles',
+              weekday: 'short', month: 'short', day: 'numeric',
+              hour: '2-digit', minute: '2-digit', second: '2-digit'
+            })} <span style={{ color: '#555', fontSize: 11 }}>PT</span>
+          </span>
+          <span style={{ color: '#555' }}>|</span>
+          <span style={{ color: '#888', fontVariantNumeric: 'tabular-nums' }}>
+            Next run: <span style={{ color: botStatus ? '#00c853' : '#555', fontWeight: 600 }}>{botStatus ? countdown : '--:--'}</span>
+          </span>
         </span>
       </div>
 
@@ -494,6 +546,92 @@ function Dashboard() {
       </div>
 
       <MarketStatus />
+
+      {/* Market Session Clock + Close Reminder */}
+      {(() => {
+        const mkt = getMarketInfo(currentTime);
+        const countdown = formatMarketCountdown(mkt.ms);
+        const isUrgent = mkt.isOpen && mkt.ms < 30 * 60 * 1000;
+        const isWarning = mkt.isOpen && mkt.ms < 10 * 60 * 1000;
+        const color = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#00c853') : '#555';
+        const borderColor = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#1a3a1a') : '#1a1d27';
+        return (
+          <div style={{
+            background: '#0d0f1a', border: `1px solid ${borderColor}`,
+            borderRadius: 10, padding: '14px 20px', marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap'
+          }}>
+            {/* PT Clock */}
+            <div>
+              <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>California (PT)</div>
+              <div style={{ color: '#aaa', fontWeight: 600, fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>
+                {currentTime.toLocaleString('en-US', {
+                  timeZone: 'America/Los_Angeles',
+                  weekday: 'long', month: 'short', day: 'numeric', year: 'numeric'
+                })}
+              </div>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: 22, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
+                {currentTime.toLocaleString('en-US', {
+                  timeZone: 'America/Los_Angeles',
+                  hour: '2-digit', minute: '2-digit', second: '2-digit'
+                })}
+              </div>
+            </div>
+
+            <div style={{ width: 1, height: 50, background: '#2a2d3e', flexShrink: 0 }} />
+
+            {/* Market Status + Countdown */}
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ color, fontWeight: 700, fontSize: 14 }}>
+                  {mkt.isOpen ? '● MARKET OPEN' : '○ MARKET CLOSED'}
+                </span>
+                <span style={{ color: '#444', fontSize: 11 }}>NYSE / NASDAQ</span>
+                {isWarning && (
+                  <span style={{
+                    background: '#2a0000', border: '1px solid #ff3d3d', borderRadius: 20,
+                    color: '#ff3d3d', fontSize: 10, fontWeight: 700, padding: '2px 8px'
+                  }}>⚠ CLOSING SOON</span>
+                )}
+                {isUrgent && !isWarning && (
+                  <span style={{
+                    background: '#2a1500', border: '1px solid #f5a623', borderRadius: 20,
+                    color: '#f5a623', fontSize: 10, fontWeight: 700, padding: '2px 8px'
+                  }}>30 MIN WARNING</span>
+                )}
+              </div>
+              {mkt.isOpen ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
+                    <span style={{ color: '#888', fontSize: 12 }}>Closes in</span>
+                    <span style={{ color, fontWeight: 800, fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>
+                      {countdown}
+                    </span>
+                    <span style={{ color: '#555', fontSize: 11 }}>(1:00 PM PT)</span>
+                  </div>
+                  <div style={{ background: '#1a1d27', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${mkt.sessionPct}%`, height: '100%',
+                      background: `linear-gradient(90deg, #00c853, ${color})`,
+                      transition: 'width 1s linear'
+                    }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 10, color: '#444' }}>
+                    <span>6:30 AM PT open</span>
+                    <span>{mkt.sessionPct.toFixed(0)}% of session elapsed</span>
+                    <span>1:00 PM PT close</span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: '#888', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+                  Opens in <strong style={{ color: '#aaa', fontWeight: 700 }}>{countdown}</strong>
+                  <div style={{ color: '#555', fontSize: 11, marginTop: 3 }}>Mon – Fri · 6:30 AM – 1:00 PM PT</div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* High Leverage Warning */}
       {(data?.leverageMultiplier ?? 1) > 3 && data?.tradeMode === 'live' && (
