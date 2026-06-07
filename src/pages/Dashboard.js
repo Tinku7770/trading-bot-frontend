@@ -565,6 +565,45 @@ function Dashboard() {
               </span>
             </p>
           </div>
+          {/* Uptime / downtime */}
+          <div style={{ marginTop: 8 }}>
+            {botStatus && data?.botStartedAt && (() => {
+              const ms = currentTime - new Date(data.botStartedAt);
+              const d = Math.floor(ms / 86400000);
+              const h = Math.floor((ms % 86400000) / 3600000);
+              const m = Math.floor((ms % 3600000) / 60000);
+              const dur = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+              const since = new Date(data.botStartedAt).toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+              });
+              return (
+                <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+                  <span style={{ color: '#00c853', fontWeight: 700 }}>↑ Running</span>
+                  {' '}since <span style={{ color: '#aaa' }}>{since} PT</span>
+                  <span style={{ color: '#555', marginLeft: 6 }}>({dur})</span>
+                </p>
+              );
+            })()}
+            {!botStatus && data?.botStoppedAt && (() => {
+              const ms = currentTime - new Date(data.botStoppedAt);
+              const d = Math.floor(ms / 86400000);
+              const h = Math.floor((ms % 86400000) / 3600000);
+              const m = Math.floor((ms % 3600000) / 60000);
+              const ago = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+              const stoppedAt = new Date(data.botStoppedAt).toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+              });
+              return (
+                <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+                  <span style={{ color: '#ff3d3d', fontWeight: 700 }}>↓ Stopped</span>
+                  {' '}at <span style={{ color: '#aaa' }}>{stoppedAt} PT</span>
+                  <span style={{ color: '#555', marginLeft: 6 }}>({ago} ago)</span>
+                </p>
+              );
+            })()}
+          </div>
         </div>
         <button
           className={`toggle-btn ${botStatus ? 'stop' : 'start'}`}
