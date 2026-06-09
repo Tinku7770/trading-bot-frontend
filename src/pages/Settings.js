@@ -92,6 +92,11 @@ function Settings() {
     shortingEnabled: false,
     leverageMultiplier: 1,
     cryptoLeverageMultiplier: 1,
+    cryptoMaxTradeAmount: 100,
+    cryptoTakeProfitPercent: 0.8,
+    cryptoStopLossPercent: 0.5,
+    cryptoTrailingStopPercent: 0.5,
+    cryptoTrailingActivationPercent: 0.3,
     trailingStopEnabled: false,
     trailingStopPercent: 2,
     trailingStopActivationPercent: 2,
@@ -218,6 +223,11 @@ function Settings() {
         if (originalSettings.cryptoMinConfidence !== settings.cryptoMinConfidence) changes.push(`Crypto Min Confidence → ${settings.cryptoMinConfidence}%`);
         if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Stock Leverage → ${settings.leverageMultiplier}x`);
         if (originalSettings.cryptoLeverageMultiplier !== settings.cryptoLeverageMultiplier) changes.push(`Crypto Leverage → ${settings.cryptoLeverageMultiplier}x`);
+        if (originalSettings.cryptoMaxTradeAmount !== settings.cryptoMaxTradeAmount) changes.push(`Crypto Max Trade → $${settings.cryptoMaxTradeAmount}`);
+        if (originalSettings.cryptoTakeProfitPercent !== settings.cryptoTakeProfitPercent) changes.push(`Crypto Take Profit → ${settings.cryptoTakeProfitPercent}%`);
+        if (originalSettings.cryptoStopLossPercent !== settings.cryptoStopLossPercent) changes.push(`Crypto Stop Loss → ${settings.cryptoStopLossPercent}%`);
+        if (originalSettings.cryptoTrailingStopPercent !== settings.cryptoTrailingStopPercent) changes.push(`Crypto Trailing Distance → ${settings.cryptoTrailingStopPercent}%`);
+        if (originalSettings.cryptoTrailingActivationPercent !== settings.cryptoTrailingActivationPercent) changes.push(`Crypto Trailing Activation → ${settings.cryptoTrailingActivationPercent}%`);
         if (originalSettings.shortingEnabled !== settings.shortingEnabled) changes.push(`Shorting → ${settings.shortingEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.trailingStopEnabled !== settings.trailingStopEnabled) changes.push(`Trailing Stop → ${settings.trailingStopEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.trailingStopPercent !== settings.trailingStopPercent) changes.push(`Trailing Distance → ${settings.trailingStopPercent}%`);
@@ -350,8 +360,13 @@ function Settings() {
           </p>
         </div>
 
+        {/* ── STOCKS ── */}
+        <div style={{ margin: '20px 0 8px', borderBottom: '1px solid #2a2d3e', paddingBottom: 6 }}>
+          <span style={{ color: '#5865f2', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>Stocks — {settings.leverageMultiplier || 1}x Leverage</span>
+        </div>
+
         <div className="form-group">
-          <label>Max Trade Amount — per trade ($)</label>
+          <label>Max Trade Amount — Stocks ($)</label>
           <input
             type="number"
             min="1"
@@ -359,7 +374,7 @@ function Settings() {
             onChange={e => numInput('maxTradeAmount', e.target.value)}
           />
           <div style={{ marginTop: 8, background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>Position size scales with AI confidence — higher conviction = larger trade:</div>
+            <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>Position size scales with AI confidence:</div>
             {[
               { label: '90%+ confidence', pct: 1.00, color: '#00c853' },
               { label: '80–89% confidence', pct: 0.75, color: '#69f0ae' },
@@ -370,18 +385,24 @@ function Settings() {
                 <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
                 <span style={{ color, fontWeight: 700, fontSize: 13 }}>
                   ${((settings.maxTradeAmount || 0) * pct).toFixed(0)}
+                  {(settings.leverageMultiplier || 1) > 1 && (
+                    <span style={{ color: '#f5a623', fontSize: 11, marginLeft: 4 }}>
+                      → ${((settings.maxTradeAmount || 0) * pct * (settings.leverageMultiplier || 1)).toFixed(0)} exposure
+                    </span>
+                  )}
                 </span>
               </div>
             ))}
             <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
-              Max exposure ({settings.maxConcurrentPositions ?? 3} positions × ${(settings.maxTradeAmount || 0).toFixed(0)}): <strong style={{ color: '#c9d1d9' }}>${((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3)).toFixed(0)}</strong>
-              {' '}({(((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
+              Max stock exposure ({settings.maxConcurrentPositions ?? 3} positions × ${(settings.maxTradeAmount || 0).toFixed(0)} × {settings.leverageMultiplier || 1}x):{' '}
+              <strong style={{ color: '#c9d1d9' }}>${((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.leverageMultiplier || 1)).toFixed(0)}</strong>
+              {' '}({(((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.leverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
             </div>
           </div>
         </div>
 
         <div className="form-group">
-          <label>Stop Loss (%)</label>
+          <label>Stop Loss — Stocks (%)</label>
           <input
             type="number"
             min="0.1"
@@ -389,10 +410,13 @@ function Settings() {
             value={settings.stopLossPercent}
             onChange={e => numInput('stopLossPercent', e.target.value)}
           />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            With {settings.leverageMultiplier || 1}x leverage: {settings.stopLossPercent}% move = <strong style={{ color: '#ff3d3d' }}>{((settings.stopLossPercent || 0) * (settings.leverageMultiplier || 1)).toFixed(1)}% loss</strong> on trade amount (${((settings.maxTradeAmount || 0) * (settings.stopLossPercent || 0) / 100 * (settings.leverageMultiplier || 1)).toFixed(2)} max loss per trade)
+          </p>
         </div>
 
         <div className="form-group">
-          <label>Take Profit (%)</label>
+          <label>Take Profit — Stocks (%)</label>
           <input
             type="number"
             min="0.1"
@@ -400,6 +424,78 @@ function Settings() {
             value={settings.takeProfitPercent}
             onChange={e => numInput('takeProfitPercent', e.target.value)}
           />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            With {settings.leverageMultiplier || 1}x leverage: {settings.takeProfitPercent}% move = <strong style={{ color: '#00c853' }}>{((settings.takeProfitPercent || 0) * (settings.leverageMultiplier || 1)).toFixed(1)}% gain</strong> on trade amount (${((settings.maxTradeAmount || 0) * (settings.takeProfitPercent || 0) / 100 * (settings.leverageMultiplier || 1)).toFixed(2)} max gain per trade)
+          </p>
+        </div>
+
+        {/* ── CRYPTO ── */}
+        <div style={{ margin: '20px 0 8px', borderBottom: '1px solid #2a2d3e', paddingBottom: 6 }}>
+          <span style={{ color: '#f5a623', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>Crypto — {settings.cryptoLeverageMultiplier || 1}x Leverage</span>
+        </div>
+
+        <div className="form-group">
+          <label>Max Trade Amount — Crypto ($)</label>
+          <input
+            type="number"
+            min="1"
+            value={settings.cryptoMaxTradeAmount ?? 100}
+            onChange={e => numInput('cryptoMaxTradeAmount', e.target.value)}
+          />
+          <div style={{ marginTop: 8, background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ color: '#888', fontSize: 11, marginBottom: 8 }}>Position size scales with AI confidence:</div>
+            {[
+              { label: '90%+ confidence', pct: 1.00, color: '#00c853' },
+              { label: '80–89% confidence', pct: 0.75, color: '#69f0ae' },
+              { label: '70–79% confidence', pct: 0.50, color: '#f5a623' },
+              { label: '60–69% confidence', pct: 0.25, color: '#ff7043' },
+            ].map(({ label, pct, color }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
+                <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+                  ${((settings.cryptoMaxTradeAmount || 0) * pct).toFixed(0)}
+                  {(settings.cryptoLeverageMultiplier || 1) > 1 && (
+                    <span style={{ color: '#f5a623', fontSize: 11, marginLeft: 4 }}>
+                      → ${((settings.cryptoMaxTradeAmount || 0) * pct * (settings.cryptoLeverageMultiplier || 1)).toFixed(0)} exposure
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+            <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
+              Max crypto exposure ({settings.maxConcurrentPositions ?? 3} positions × ${(settings.cryptoMaxTradeAmount || 0).toFixed(0)} × {settings.cryptoLeverageMultiplier || 1}x):{' '}
+              <strong style={{ color: '#c9d1d9' }}>${((settings.cryptoMaxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.cryptoLeverageMultiplier || 1)).toFixed(0)}</strong>
+              {' '}({(((settings.cryptoMaxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.cryptoLeverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
+            </div>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Stop Loss — Crypto (%)</label>
+          <input
+            type="number"
+            min="0.1"
+            step="0.1"
+            value={settings.cryptoStopLossPercent ?? 0.5}
+            onChange={e => numInput('cryptoStopLossPercent', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            With {settings.cryptoLeverageMultiplier || 1}x leverage: {settings.cryptoStopLossPercent ?? 0.5}% move = <strong style={{ color: '#ff3d3d' }}>{((settings.cryptoStopLossPercent || 0.5) * (settings.cryptoLeverageMultiplier || 1)).toFixed(1)}% loss</strong> on trade amount (${((settings.cryptoMaxTradeAmount || 0) * (settings.cryptoStopLossPercent || 0.5) / 100 * (settings.cryptoLeverageMultiplier || 1)).toFixed(2)} max loss per trade)
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Take Profit — Crypto (%)</label>
+          <input
+            type="number"
+            min="0.1"
+            step="0.1"
+            value={settings.cryptoTakeProfitPercent ?? 0.8}
+            onChange={e => numInput('cryptoTakeProfitPercent', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            With {settings.cryptoLeverageMultiplier || 1}x leverage: {settings.cryptoTakeProfitPercent ?? 0.8}% move = <strong style={{ color: '#00c853' }}>{((settings.cryptoTakeProfitPercent || 0.8) * (settings.cryptoLeverageMultiplier || 1)).toFixed(1)}% gain</strong> on trade amount (${((settings.cryptoMaxTradeAmount || 0) * (settings.cryptoTakeProfitPercent || 0.8) / 100 * (settings.cryptoLeverageMultiplier || 1)).toFixed(2)} max gain per trade)
+          </p>
         </div>
 
         <div className="form-group">
@@ -448,35 +544,68 @@ function Settings() {
 
         {settings.trailingStopEnabled && (
           <div className="form-group">
-            <label>Trailing Stop Distance (%)</label>
+            <label>Trailing Stop Distance — Stocks (%)</label>
             <input
               type="number"
-              min="0.5"
+              min="0.1"
               max="10"
-              step="0.5"
-              value={settings.trailingStopPercent || 2}
+              step="0.1"
+              value={settings.trailingStopPercent || 1}
               onChange={e => numInput('trailingStopPercent', e.target.value)}
             />
             <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-              e.g. 2% — if TSLA peaks at $420, stop sits at $411.60. If price drops to $411.60 → closes trade.
+              e.g. 1% — if NVDA peaks at $500, stop sits at $495. If price drops to $495 → closes trade and locks profit.
             </p>
           </div>
         )}
 
         {settings.trailingStopEnabled && (
           <div className="form-group">
-            <label>Trailing Stop Activation Threshold (%)</label>
+            <label>Trailing Activation — Stocks (%)</label>
             <input
               type="number"
-              min="0.5"
+              min="0.1"
               max="10"
-              step="0.5"
-              value={settings.trailingStopActivationPercent ?? 2}
+              step="0.1"
+              value={settings.trailingStopActivationPercent ?? 0.5}
               onChange={e => numInput('trailingStopActivationPercent', e.target.value)}
             />
             <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-              Trailing stop only kicks in after the trade gains this much. Prevents early exits on normal noise.
-              e.g. 2% = trailing stop ignores the trade until it's up 2%, then starts protecting profits.
+              Trailing stop kicks in after trade gains this much. e.g. 0.5% = protects profits once trade is up 0.5%.
+            </p>
+          </div>
+        )}
+
+        {settings.trailingStopEnabled && (
+          <div className="form-group">
+            <label>Trailing Stop Distance — Crypto (%)</label>
+            <input
+              type="number"
+              min="0.1"
+              max="10"
+              step="0.1"
+              value={settings.cryptoTrailingStopPercent ?? 0.5}
+              onChange={e => numInput('cryptoTrailingStopPercent', e.target.value)}
+            />
+            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              Tighter than stocks — crypto moves fast. e.g. 0.5% = if SOL peaks at $150, stop at $149.25. Locks profit quickly.
+            </p>
+          </div>
+        )}
+
+        {settings.trailingStopEnabled && (
+          <div className="form-group">
+            <label>Trailing Activation — Crypto (%)</label>
+            <input
+              type="number"
+              min="0.1"
+              max="10"
+              step="0.1"
+              value={settings.cryptoTrailingActivationPercent ?? 0.3}
+              onChange={e => numInput('cryptoTrailingActivationPercent', e.target.value)}
+            />
+            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              Trailing stop kicks in after crypto trade gains this much. e.g. 0.3% = starts protecting profit almost immediately.
             </p>
           </div>
         )}
