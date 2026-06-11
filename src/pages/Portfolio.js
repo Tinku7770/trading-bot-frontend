@@ -255,9 +255,30 @@ function FundingPanel() {
             </>
           )}
 
-          <button onClick={fetchKrakenMethods} style={btn('#7b68ee')} disabled={loadingKraken}>
-            {loadingKraken ? 'Loading…' : '+ Get Deposit Info'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+            <a
+              href="https://www.kraken.com/u/funding/deposit"
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...btn('#7b68ee'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              + Deposit
+            </a>
+            <a
+              href="https://www.kraken.com/u/funding/withdraw"
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              Withdraw
+            </a>
+            <button onClick={fetchKrakenMethods} style={{ ...btn('#2a2d3e'), marginTop: 0 }} disabled={loadingKraken}>
+              {loadingKraken ? 'Loading…' : 'Show Methods'}
+            </button>
+          </div>
+          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
+            Opens Kraken funding page in new tab
+          </div>
 
           {krakenMethods?.error && (
             <div>
