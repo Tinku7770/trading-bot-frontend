@@ -93,8 +93,8 @@ function FundingPanel() {
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>📈 Alpaca — Stocks</div>
               {loadingBal ? (
                 <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
-              ) : alpaca?.error ? (
-                <div style={errBox}>⚠ {alpaca.error}</div>
+              ) : !alpaca || alpaca?.error ? (
+                <div style={errBox}>⚠ {alpaca?.error || 'Could not load Alpaca balance'}</div>
               ) : (
                 <>
                   <div style={label}>Portfolio Value</div>
@@ -148,8 +148,8 @@ function FundingPanel() {
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🪙 Binance.US — Crypto Long</div>
           {loadingBal ? (
             <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
-          ) : binance?.error ? (
-            <div style={errBox}>⚠ {binance.error}</div>
+          ) : !binance || binance?.error ? (
+            <div style={errBox}>⚠ {binance?.error || 'Could not load Binance balance'}</div>
           ) : (
             <>
               <div style={label}>USDT Balance</div>
@@ -191,8 +191,8 @@ function FundingPanel() {
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>⚡ Kraken — Crypto Shorts</div>
           {loadingBal ? (
             <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
-          ) : kraken?.error ? (
-            <div style={errBox}>⚠ {kraken.error}</div>
+          ) : !kraken || kraken?.error ? (
+            <div style={errBox}>⚠ {kraken?.error || 'Could not load Kraken balance'}</div>
           ) : (
             <>
               <div style={label}>USD Balance</div>
