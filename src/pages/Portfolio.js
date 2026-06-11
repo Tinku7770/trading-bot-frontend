@@ -188,51 +188,27 @@ function FundingPanel() {
             </>
           )}
 
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ color: '#888', fontSize: 12 }}>Network:</span>
-              {['TRC20', 'ERC20', 'BEP20'].map(n => (
-                <button key={n} onClick={() => setNetwork(n)} style={{
-                  padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                  background: network === n ? '#f0b90b' : '#2a2d3e',
-                  color: network === n ? '#000' : '#888', border: 'none'
-                }}>{n}</button>
-              ))}
-            </div>
-            <button onClick={fetchBinanceAddress} style={btn('#f0b90b')} disabled={loadingAddr}>
-              <span style={{ color: '#000' }}>{loadingAddr ? 'Loading…' : '+ Get Deposit Address'}</span>
-            </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+            <a
+              href="https://www.binance.us/deposit"
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...btn('#f0b90b'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              <span style={{ color: '#000' }}>+ Deposit</span>
+            </a>
+            <a
+              href="https://www.binance.us/withdraw"
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              Withdraw
+            </a>
           </div>
-
-          {binanceAddr?.error && (
-            <div>
-              <div style={errBox}>⚠ {binanceAddr.error}</div>
-              {binanceAddr.networkClosed && (
-                <div style={{ color: '#f5a623', fontSize: 12, marginTop: 6 }}>
-                  {network} deposits are closed on Binance.US right now.{' '}
-                  <span
-                    style={{ textDecoration: 'underline', cursor: 'pointer' }}
-                    onClick={() => { const n = network === 'TRC20' ? 'ERC20' : network === 'ERC20' ? 'BEP20' : 'TRC20'; setNetwork(n); fetchBinanceAddress(n); }}
-                  >
-                    Try {network === 'TRC20' ? 'ERC20' : network === 'ERC20' ? 'BEP20' : 'TRC20'} instead →
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-          {binanceAddr?.address && (
-            <div>
-              <div style={addrBox}>{binanceAddr.address}</div>
-              {binanceAddr.tag && (
-                <div style={{ ...addrBox, marginTop: 6 }}>
-                  <span style={{ color: '#f5a623' }}>Memo/Tag: </span>{binanceAddr.tag}
-                </div>
-              )}
-              <button onClick={() => copyAddress(binanceAddr.address)} style={{ ...btn('#2a2d3e'), marginTop: 8 }}>
-                {copied ? '✓ Copied!' : 'Copy Address'}
-              </button>
-            </div>
-          )}
+          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
+            Opens Binance.US funding page in new tab
+          </div>
         </div>
 
         {/* Kraken */}
