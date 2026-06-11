@@ -31,12 +31,17 @@ function FundingPanel() {
     return () => clearInterval(t);
   }, [loadBalances]);
 
-  function fetchBinanceAddress() {
+  function fetchBinanceAddress(net) {
+    const selectedNetwork = net || network;
     setLoadingAddr(true);
     setBinanceAddr(null);
-    axios.get(`${API}/funding/binance/deposit-address?network=${network}`)
+    axios.get(`${API}/funding/binance/deposit-address?network=${selectedNetwork}`)
       .then(r => setBinanceAddr(r.data))
-      .catch(e => setBinanceAddr({ error: e.response?.data?.error || 'Failed to fetch address' }))
+      .catch(e => {
+        const msg = e.response?.data?.error || 'Failed to fetch address';
+        const closed = msg.toLowerCase().includes('closed') || msg.toLowerCase().includes('suspend');
+        setBinanceAddr({ error: msg, networkClosed: closed });
+      })
       .finally(() => setLoadingAddr(false));
   }
 
@@ -45,7 +50,11 @@ function FundingPanel() {
     setKrakenMethods(null);
     axios.get(`${API}/funding/kraken/deposit-methods`)
       .then(r => setKrakenMethods(r.data))
-      .catch(e => setKrakenMethods({ error: e.response?.data?.error || 'Failed to fetch methods' }))
+      .catch(e => {
+        const msg = e.response?.data?.error || 'Failed to fetch methods';
+        const permDenied = msg.toLowerCase().includes('permission');
+        setKrakenMethods({ error: msg, permDenied });
+      })
       .finally(() => setLoadingKraken(false));
   }
 
@@ -195,7 +204,22 @@ function FundingPanel() {
             </button>
           </div>
 
-          {binanceAddr?.error && <div style={errBox}>⚠ {binanceAddr.error}</div>}
+          {binanceAddr?.error && (
+            <div>
+              <div style={errBox}>⚠ {binanceAddr.error}</div>
+              {binanceAddr.networkClosed && (
+                <div style={{ color: '#f5a623', fontSize: 12, marginTop: 6 }}>
+                  {network} deposits are closed on Binance.US right now.{' '}
+                  <span
+                    style={{ textDecoration: 'underline', cursor: 'pointer' }}
+                    onClick={() => { const n = network === 'TRC20' ? 'ERC20' : network === 'ERC20' ? 'BEP20' : 'TRC20'; setNetwork(n); fetchBinanceAddress(n); }}
+                  >
+                    Try {network === 'TRC20' ? 'ERC20' : network === 'ERC20' ? 'BEP20' : 'TRC20'} instead →
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
           {binanceAddr?.address && (
             <div>
               <div style={addrBox}>{binanceAddr.address}</div>
@@ -235,7 +259,22 @@ function FundingPanel() {
             {loadingKraken ? 'Loading…' : '+ Get Deposit Info'}
           </button>
 
-          {krakenMethods?.error && <div style={errBox}>⚠ {krakenMethods.error}</div>}
+          {krakenMethods?.error && (
+            <div>
+              <div style={errBox}>⚠ {krakenMethods.error}</div>
+              {krakenMethods.permDenied && (
+                <div style={{ background: '#1a1200', border: '1px solid #f5a623', borderRadius: 6, padding: '10px 12px', marginTop: 8, fontSize: 12, color: '#f5a623' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>Fix: Enable API Key Permission</div>
+                  <div style={{ color: '#aaa', lineHeight: 1.6 }}>
+                    1. Go to <strong style={{ color: '#f5a623' }}>kraken.com</strong> → Security → API<br/>
+                    2. Find your API key → click <strong style={{ color: '#f5a623' }}>Edit</strong><br/>
+                    3. Enable <strong style={{ color: '#f5a623' }}>Query Funds</strong> permission<br/>
+                    4. Save and try again
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {krakenMethods?.methods && krakenMethods.methods.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>Deposit Methods:</div>
