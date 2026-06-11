@@ -190,7 +190,7 @@ function FundingPanel() {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <a
-              href="https://www.binance.us/deposit"
+              href="https://www.binance.us/en/asset/deposit"
               target="_blank"
               rel="noreferrer"
               style={{ ...btn('#f0b90b'), display: 'inline-block', textDecoration: 'none' }}
@@ -198,7 +198,7 @@ function FundingPanel() {
               <span style={{ color: '#000' }}>+ Deposit</span>
             </a>
             <a
-              href="https://www.binance.us/withdraw"
+              href="https://www.binance.us/en/asset/withdraw"
               target="_blank"
               rel="noreferrer"
               style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
