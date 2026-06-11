@@ -22,11 +22,17 @@ function Portfolio() {
     { label: 'All Time', days: 0  },
   ];
 
-  // Trades for charts and symbol breakdown (100-trade limit is fine for visuals)
+  // Fetch open and closed trades separately so analytics always have full closed trade history
   useEffect(() => {
     function loadTrades() {
-      axios.get(`${API}/trades`)
-        .then(res => { setTrades(res.data); setLoading(false); })
+      Promise.all([
+        axios.get(`${API}/trades?status=open`),
+        axios.get(`${API}/trades?status=closed`)
+      ])
+        .then(([openRes, closedRes]) => {
+          setTrades([...openRes.data, ...closedRes.data]);
+          setLoading(false);
+        })
         .catch(() => { setLoading(false); setError(true); });
     }
     loadTrades();
