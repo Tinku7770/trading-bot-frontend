@@ -27,12 +27,17 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
   }, [symbol, market]);
 
   const fetchLivePrice = useCallback(async () => {
-    if (market !== 'crypto') return;
     try {
-      const ticker = symbol.replace('/', '');
-      const res = await axios.get(`${API}/market/crypto-prices?tickers=${encodeURIComponent(JSON.stringify([ticker]))}`);
-      const entry = (res.data || []).find(d => d.symbol === ticker);
-      if (entry) setCurrentPrice(parseFloat(entry.price));
+      if (market === 'crypto') {
+        const ticker = symbol.replace('/', '');
+        const res = await axios.get(`${API}/market/crypto-prices?tickers=${encodeURIComponent(JSON.stringify([ticker]))}`);
+        const entry = (res.data || []).find(d => d.symbol === ticker);
+        if (entry) setCurrentPrice(parseFloat(entry.price));
+      } else {
+        const res = await axios.get(`${API}/market/stock-prices?tickers=${encodeURIComponent(JSON.stringify([symbol]))}`);
+        const entry = (res.data || []).find(d => d.symbol === symbol);
+        if (entry) setCurrentPrice(parseFloat(entry.price));
+      }
     } catch (err) {
       console.error(`Failed to fetch live price for ${symbol}:`, err);
     }
@@ -45,9 +50,8 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
   }, [fetchChart]);
 
   useEffect(() => {
-    if (market !== 'crypto') return;
     fetchLivePrice();
-    const interval = setInterval(fetchLivePrice, 10000);
+    const interval = setInterval(fetchLivePrice, market === 'crypto' ? 10000 : 15000);
     return () => clearInterval(interval);
   }, [fetchLivePrice, market]);
 

@@ -12,6 +12,8 @@ function Portfolio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [dateRange, setDateRange] = useState(0);
+  const [showAllOpen, setShowAllOpen] = useState(false);
+  const MAX_OPEN_SHOWN = 20;
 
   const RANGES = [
     { label: 'Today',    days: 1  },
@@ -193,7 +195,7 @@ function Portfolio() {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16 }}>
-            {openTrades.map((trade) => (
+            {(showAllOpen ? openTrades : openTrades.slice(0, MAX_OPEN_SHOWN)).map((trade) => (
               <PriceChart
                 key={trade._id}
                 symbol={trade.symbol}
@@ -203,6 +205,20 @@ function Portfolio() {
               />
             ))}
           </div>
+          {openTrades.length > MAX_OPEN_SHOWN && (
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button
+                onClick={() => setShowAllOpen(v => !v)}
+                style={{
+                  padding: '8px 24px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', background: '#1a1d27', color: '#888',
+                  border: '1px solid #2a2d3e'
+                }}
+              >
+                {showAllOpen ? 'Show less' : `Show ${openTrades.length - MAX_OPEN_SHOWN} more positions`}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
