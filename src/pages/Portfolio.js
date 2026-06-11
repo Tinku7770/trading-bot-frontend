@@ -1,10 +1,264 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import PriceChart from '../components/PriceChart';
 
 const API = process.env.REACT_APP_API_URL;
 const COLORS = ['#5865f2', '#00c853', '#ff3d3d', '#ffd600', '#40a9ff'];
+
+// ─── Funding Panel ────────────────────────────────────────────────────────────
+function FundingPanel() {
+  const [balances, setBalances]           = useState(null);
+  const [loadingBal, setLoadingBal]       = useState(true);
+  const [binanceAddr, setBinanceAddr]     = useState(null);
+  const [loadingAddr, setLoadingAddr]     = useState(false);
+  const [krakenMethods, setKrakenMethods] = useState(null);
+  const [loadingKraken, setLoadingKraken] = useState(false);
+  const [copied, setCopied]               = useState(false);
+  const [network, setNetwork]             = useState('TRC20');
+
+  const loadBalances = useCallback(() => {
+    setLoadingBal(true);
+    axios.get(`${API}/funding/balances`)
+      .then(r => setBalances(r.data))
+      .catch(() => setBalances({ error: true }))
+      .finally(() => setLoadingBal(false));
+  }, []);
+
+  useEffect(() => {
+    loadBalances();
+    const t = setInterval(loadBalances, 60000);
+    return () => clearInterval(t);
+  }, [loadBalances]);
+
+  function fetchBinanceAddress() {
+    setLoadingAddr(true);
+    setBinanceAddr(null);
+    axios.get(`${API}/funding/binance/deposit-address?network=${network}`)
+      .then(r => setBinanceAddr(r.data))
+      .catch(e => setBinanceAddr({ error: e.response?.data?.error || 'Failed to fetch address' }))
+      .finally(() => setLoadingAddr(false));
+  }
+
+  function fetchKrakenMethods() {
+    setLoadingKraken(true);
+    setKrakenMethods(null);
+    axios.get(`${API}/funding/kraken/deposit-methods`)
+      .then(r => setKrakenMethods(r.data))
+      .catch(e => setKrakenMethods({ error: e.response?.data?.error || 'Failed to fetch methods' }))
+      .finally(() => setLoadingKraken(false));
+  }
+
+  function copyAddress(addr) {
+    navigator.clipboard.writeText(addr).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const card = {
+    background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 10,
+    padding: '20px 24px', marginBottom: 0
+  };
+  const label = { color: '#888', fontSize: 12, marginBottom: 4 };
+  const value = { fontWeight: 700, fontSize: 22, marginTop: 2 };
+  const btn   = (color = '#5865f2') => ({
+    padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', background: color, color: '#fff', border: 'none', marginTop: 12
+  });
+  const errBox = { color: '#ff3d3d', fontSize: 12, marginTop: 8 };
+  const addrBox = {
+    background: '#0e1018', border: '1px solid #2a2d3e', borderRadius: 6,
+    padding: '10px 14px', fontSize: 12, color: '#aaa', wordBreak: 'break-all',
+    marginTop: 10, fontFamily: 'monospace'
+  };
+
+  const alpaca = balances?.alpaca;
+  const binance = balances?.binance;
+  const kraken  = balances?.kraken;
+
+  const totalPortfolio = [
+    alpaca?.equity    || 0,
+    binance?.usdt     || 0,
+    kraken?.usd       || 0
+  ].reduce((a, b) => a + b, 0);
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: 20 }}>💼 Exchange Balances & Funding</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {!loadingBal && !balances?.error && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ color: '#888', fontSize: 12 }}>Total Portfolio</div>
+              <div style={{ color: '#00c853', fontWeight: 700, fontSize: 22 }}>${totalPortfolio.toFixed(2)}</div>
+            </div>
+          )}
+          <button onClick={loadBalances} style={{ ...btn('#2a2d3e'), marginTop: 0 }}>
+            {loadingBal ? 'Loading…' : '↻ Refresh'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+
+        {/* Alpaca */}
+        <div style={{ ...card, borderTop: '3px solid #5865f2' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>📈 Alpaca — Stocks</div>
+              {loadingBal ? (
+                <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
+              ) : alpaca?.error ? (
+                <div style={errBox}>⚠ {alpaca.error}</div>
+              ) : (
+                <>
+                  <div style={label}>Portfolio Value</div>
+                  <div style={{ ...value, color: '#5865f2' }}>${(alpaca.portfolioValue || 0).toFixed(2)}</div>
+                  <div style={{ display: 'flex', gap: 24, marginTop: 10 }}>
+                    <div>
+                      <div style={label}>Cash</div>
+                      <div style={{ fontWeight: 600, color: '#fff' }}>${(alpaca.cash || 0).toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div style={label}>Buying Power</div>
+                      <div style={{ fontWeight: 600, color: '#fff' }}>${(alpaca.buyingPower || 0).toFixed(2)}</div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            {alpaca && !alpaca.error && (
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+                background: alpaca.mode === 'live' ? '#00c85322' : '#f5a62322',
+                color: alpaca.mode === 'live' ? '#00c853' : '#f5a623'
+              }}>
+                {alpaca.mode === 'live' ? 'LIVE' : 'PAPER'}
+              </span>
+            )}
+          </div>
+          <a
+            href="https://app.alpaca.markets/account/funding"
+            target="_blank"
+            rel="noreferrer"
+            style={{ ...btn('#5865f2'), display: 'inline-block', textDecoration: 'none', marginRight: 8 }}
+          >
+            + Deposit
+          </a>
+          <a
+            href="https://app.alpaca.markets/account/funding"
+            target="_blank"
+            rel="noreferrer"
+            style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
+          >
+            Withdraw
+          </a>
+          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
+            Opens Alpaca funding page in new tab
+          </div>
+        </div>
+
+        {/* Binance.US */}
+        <div style={{ ...card, borderTop: '3px solid #f0b90b' }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🪙 Binance.US — Crypto Long</div>
+          {loadingBal ? (
+            <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
+          ) : binance?.error ? (
+            <div style={errBox}>⚠ {binance.error}</div>
+          ) : (
+            <>
+              <div style={label}>USDT Balance</div>
+              <div style={{ ...value, color: '#f0b90b' }}>${(binance.usdt || 0).toFixed(2)}</div>
+              {(binance.balances || []).filter(b => b.asset !== 'USDT').slice(0, 4).map(b => (
+                <div key={b.asset} style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12, color: '#888' }}>
+                  <span>{b.asset}</span>
+                  <span>{(b.free + b.locked).toFixed(4)}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ color: '#888', fontSize: 12 }}>Network:</span>
+              {['TRC20', 'ERC20', 'BEP20'].map(n => (
+                <button key={n} onClick={() => setNetwork(n)} style={{
+                  padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  background: network === n ? '#f0b90b' : '#2a2d3e',
+                  color: network === n ? '#000' : '#888', border: 'none'
+                }}>{n}</button>
+              ))}
+            </div>
+            <button onClick={fetchBinanceAddress} style={btn('#f0b90b')} disabled={loadingAddr}>
+              <span style={{ color: '#000' }}>{loadingAddr ? 'Loading…' : '+ Get Deposit Address'}</span>
+            </button>
+          </div>
+
+          {binanceAddr?.error && <div style={errBox}>⚠ {binanceAddr.error}</div>}
+          {binanceAddr?.address && (
+            <div>
+              <div style={addrBox}>{binanceAddr.address}</div>
+              {binanceAddr.tag && (
+                <div style={{ ...addrBox, marginTop: 6 }}>
+                  <span style={{ color: '#f5a623' }}>Memo/Tag: </span>{binanceAddr.tag}
+                </div>
+              )}
+              <button onClick={() => copyAddress(binanceAddr.address)} style={{ ...btn('#2a2d3e'), marginTop: 8 }}>
+                {copied ? '✓ Copied!' : 'Copy Address'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Kraken */}
+        <div style={{ ...card, borderTop: '3px solid #7b68ee' }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>⚡ Kraken — Crypto Shorts</div>
+          {loadingBal ? (
+            <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
+          ) : kraken?.error ? (
+            <div style={errBox}>⚠ {kraken.error}</div>
+          ) : (
+            <>
+              <div style={label}>USD Balance</div>
+              <div style={{ ...value, color: '#7b68ee' }}>${(kraken.usd || 0).toFixed(2)}</div>
+              {(kraken.balances || []).filter(b => b.asset !== 'ZUSD' && b.asset !== 'USD').slice(0, 4).map(b => (
+                <div key={b.asset} style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12, color: '#888' }}>
+                  <span>{b.asset}</span>
+                  <span>{b.amount}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          <button onClick={fetchKrakenMethods} style={btn('#7b68ee')} disabled={loadingKraken}>
+            {loadingKraken ? 'Loading…' : '+ Get Deposit Info'}
+          </button>
+
+          {krakenMethods?.error && <div style={errBox}>⚠ {krakenMethods.error}</div>}
+          {krakenMethods?.methods && krakenMethods.methods.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>Deposit Methods:</div>
+              {krakenMethods.methods.map((m, i) => (
+                <div key={i} style={{ ...addrBox, marginTop: 6 }}>
+                  <div style={{ color: '#7b68ee', fontWeight: 600 }}>{m.method}</div>
+                  {m.limit && <div style={{ color: '#888', marginTop: 2 }}>Limit: {m.limit}</div>}
+                  {m['gen-address'] && (
+                    <div style={{ color: '#00c853', marginTop: 2, fontSize: 11 }}>
+                      ✓ Can generate deposit address
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function Portfolio() {
   const [trades, setTrades] = useState([]);
@@ -128,6 +382,8 @@ function Portfolio() {
   return (
     <div>
       <h1 className="page-title">Portfolio</h1>
+
+      <FundingPanel />
 
       {/* Date Range Filter */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
