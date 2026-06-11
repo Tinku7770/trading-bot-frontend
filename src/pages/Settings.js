@@ -114,7 +114,8 @@ function Settings() {
     maxHoldHours: 48,
     aiModel: 'claude-haiku-4-5-20251001',
     cryptoSymbols: [],
-    stockSymbols: []
+    stockSymbols: [],
+    blockedSymbols: []
   });
   const [saved, setSaved] = useState(false);
   const [savedFields, setSavedFields] = useState(null);
@@ -980,6 +981,18 @@ function Settings() {
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
             Type a symbol and press Enter to add. Click × to remove.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label style={{ color: '#ff3d3d' }}>Blocked Symbols</label>
+          <SymbolTags
+            symbols={settings.blockedSymbols || []}
+            onChange={val => updateSettings({ blockedSymbols: val })}
+            placeholder="Type symbol + Enter (e.g. ZEC/USDT)"
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Permanently banned from trading — scanner and AI both skip these. Use for coins/stocks that consistently lose money.
           </p>
         </div>
 
