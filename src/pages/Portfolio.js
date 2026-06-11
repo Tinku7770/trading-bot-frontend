@@ -10,12 +10,8 @@ const COLORS = ['#5865f2', '#00c853', '#ff3d3d', '#ffd600', '#40a9ff'];
 function FundingPanel() {
   const [balances, setBalances]           = useState(null);
   const [loadingBal, setLoadingBal]       = useState(true);
-  const [binanceAddr, setBinanceAddr]     = useState(null);
-  const [loadingAddr, setLoadingAddr]     = useState(false);
   const [krakenMethods, setKrakenMethods] = useState(null);
   const [loadingKraken, setLoadingKraken] = useState(false);
-  const [copied, setCopied]               = useState(false);
-  const [network, setNetwork]             = useState('TRC20');
 
   const loadBalances = useCallback(() => {
     setLoadingBal(true);
@@ -31,20 +27,6 @@ function FundingPanel() {
     return () => clearInterval(t);
   }, [loadBalances]);
 
-  function fetchBinanceAddress(net) {
-    const selectedNetwork = net || network;
-    setLoadingAddr(true);
-    setBinanceAddr(null);
-    axios.get(`${API}/funding/binance/deposit-address?network=${selectedNetwork}`)
-      .then(r => setBinanceAddr(r.data))
-      .catch(e => {
-        const msg = e.response?.data?.error || 'Failed to fetch address';
-        const closed = msg.toLowerCase().includes('closed') || msg.toLowerCase().includes('suspend');
-        setBinanceAddr({ error: msg, networkClosed: closed });
-      })
-      .finally(() => setLoadingAddr(false));
-  }
-
   function fetchKrakenMethods() {
     setLoadingKraken(true);
     setKrakenMethods(null);
@@ -56,13 +38,6 @@ function FundingPanel() {
         setKrakenMethods({ error: msg, permDenied });
       })
       .finally(() => setLoadingKraken(false));
-  }
-
-  function copyAddress(addr) {
-    navigator.clipboard.writeText(addr).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   }
 
   const card = {
