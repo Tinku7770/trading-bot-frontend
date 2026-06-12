@@ -110,6 +110,7 @@ function Settings() {
     cryptoEnabled: true,
     krakenEnabled: false,
     minConfidence: 60,
+    shortExtraConfidence: 5,
     maxConcurrentPositions: 3,
     maxHoldHours: 48,
     aiModel: 'claude-haiku-4-5-20251001',
@@ -168,6 +169,7 @@ function Settings() {
     if ((settings.maxDailyLossPercent || 0) <= 0) return 'Max Daily Loss must be greater than 0%';
     if ((settings.minConfidence || 0) < 50 || (settings.minConfidence || 0) > 90) return 'Stock Min Confidence must be between 50% and 90%';
     if ((settings.cryptoMinConfidence || 0) < 50 || (settings.cryptoMinConfidence || 0) > 90) return 'Crypto Min Confidence must be between 50% and 90%';
+    if ((settings.shortExtraConfidence ?? 5) < 0 || (settings.shortExtraConfidence ?? 5) > 20) return 'Short Extra Confidence must be between 0% and 20%';
     if ((settings.leverageMultiplier || 0) < 1) return 'Stock Leverage must be at least 1x';
     if ((settings.leverageMultiplier || 0) > 10) return 'Stock Leverage cannot exceed 10x';
     if ((settings.cryptoLeverageMultiplier || 0) < 1) return 'Crypto Leverage must be at least 1x';
@@ -222,6 +224,7 @@ function Settings() {
         if (originalSettings.maxDailyLossPercent !== settings.maxDailyLossPercent) changes.push(`Max Daily Loss → ${settings.maxDailyLossPercent}%`);
         if (originalSettings.minConfidence !== settings.minConfidence) changes.push(`Stock Min Confidence → ${settings.minConfidence}%`);
         if (originalSettings.cryptoMinConfidence !== settings.cryptoMinConfidence) changes.push(`Crypto Min Confidence → ${settings.cryptoMinConfidence}%`);
+        if (originalSettings.shortExtraConfidence !== settings.shortExtraConfidence) changes.push(`Short Extra Confidence → +${settings.shortExtraConfidence}%`);
         if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Stock Leverage → ${settings.leverageMultiplier}x`);
         if (originalSettings.cryptoLeverageMultiplier !== settings.cryptoLeverageMultiplier) changes.push(`Crypto Leverage → ${settings.cryptoLeverageMultiplier}x`);
         if (originalSettings.cryptoMaxTradeAmount !== settings.cryptoMaxTradeAmount) changes.push(`Crypto Max Trade → $${settings.cryptoMaxTradeAmount}`);
@@ -839,6 +842,21 @@ function Settings() {
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
             Crypto only. Higher than stocks because crypto is more volatile and spot-only (no shorting). Recommended: 72–75%. Scanner picks use 58% regardless.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Short Extra Confidence (%)</label>
+          <input
+            type="number"
+            min="0"
+            max="20"
+            step="1"
+            value={settings.shortExtraConfidence ?? 5}
+            onChange={e => numInput('shortExtraConfidence', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            SHORTs must exceed the base confidence by this extra %. Example: stocks base = 68%, short extra = 5% → shorts need 73%+, longs need 68%+. Set to 0 to treat longs and shorts equally. Recommended: 4–6%.
           </p>
         </div>
 
