@@ -13,6 +13,16 @@ function FundingPanel() {
   const [krakenMethods, setKrakenMethods] = useState(null);
   const [loadingKraken, setLoadingKraken] = useState(false);
 
+  // Deposit tracking — stored in localStorage so it persists across refreshes
+  const [deposits, setDeposits] = useState(() => {
+    try {
+      const s = localStorage.getItem('tbot_deposits');
+      return s ? JSON.parse(s) : { alpaca: '', binance: '', kraken: '' };
+    } catch { return { alpaca: '', binance: '', kraken: '' }; }
+  });
+  const [editDeposit, setEditDeposit] = useState(null); // 'alpaca' | 'binance' | 'kraken' | null
+  const [depositInput, setDepositInput] = useState('');
+
   const loadBalances = useCallback(() => {
     setLoadingBal(true);
     axios.get(`${API}/funding/balances`)
@@ -40,6 +50,72 @@ function FundingPanel() {
       .finally(() => setLoadingKraken(false));
   }
 
+  function saveDeposit(exchange, raw) {
+    const num = parseFloat(raw);
+    const next = { ...deposits, [exchange]: isNaN(num) || num <= 0 ? '' : num };
+    setDeposits(next);
+    localStorage.setItem('tbot_deposits', JSON.stringify(next));
+    setEditDeposit(null);
+  }
+
+  // Renders the deposited / current / profit row for an exchange card
+  function ProfitRow({ balance, exchange }) {
+    const dep = deposits[exchange];
+    if (dep === '' || dep == null) return null;
+    const profit = balance - parseFloat(dep);
+    const pct    = parseFloat(dep) > 0 ? (profit / parseFloat(dep) * 100).toFixed(1) : '0.0';
+    const col    = profit >= 0 ? '#00c853' : '#ff3d3d';
+    return (
+      <div style={{ background: '#0e1018', borderRadius: 6, padding: '8px 12px', marginTop: 10, fontSize: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', marginBottom: 3 }}>
+          <span>Deposited</span><span>${parseFloat(dep).toFixed(2)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', marginBottom: 3 }}>
+          <span>Current</span><span>${balance.toFixed(2)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: col, borderTop: '1px solid #2a2d3e', paddingTop: 6, marginTop: 4 }}>
+          <span>Profit / Loss</span>
+          <span>{profit >= 0 ? '+' : ''}${profit.toFixed(2)} ({profit >= 0 ? '+' : ''}{pct}%)</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Renders the "Track deposit" / edit input for an exchange card
+  function DepositTracker({ exchange }) {
+    if (editDeposit === exchange) {
+      return (
+        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          <input
+            type="number"
+            value={depositInput}
+            onChange={e => setDepositInput(e.target.value)}
+            placeholder="Amount you deposited ($)"
+            style={{ flex: 1, padding: '6px 10px', borderRadius: 6, background: '#0e1018', border: '1px solid #5865f2', color: '#fff', fontSize: 12 }}
+            onKeyDown={e => e.key === 'Enter' && saveDeposit(exchange, depositInput)}
+            autoFocus
+          />
+          <button
+            onClick={() => saveDeposit(exchange, depositInput)}
+            style={{ padding: '6px 12px', borderRadius: 6, background: '#5865f2', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}
+          >Save</button>
+          <button
+            onClick={() => setEditDeposit(null)}
+            style={{ padding: '6px 10px', borderRadius: 6, background: '#2a2d3e', color: '#888', border: 'none', fontSize: 12, cursor: 'pointer' }}
+          >✕</button>
+        </div>
+      );
+    }
+    return (
+      <button
+        onClick={() => { setEditDeposit(exchange); setDepositInput(deposits[exchange]?.toString() || ''); }}
+        style={{ marginTop: 8, padding: '4px 10px', borderRadius: 4, background: 'transparent', border: '1px solid #2a2d3e', color: '#666', fontSize: 11, cursor: 'pointer' }}
+      >
+        {deposits[exchange] !== '' ? '✏ Edit deposit' : '+ Track deposit'}
+      </button>
+    );
+  }
+
   const card = {
     background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 10,
     padding: '20px 24px', marginBottom: 0
@@ -57,14 +133,14 @@ function FundingPanel() {
     marginTop: 10, fontFamily: 'monospace'
   };
 
-  const alpaca = balances?.alpaca;
+  const alpaca  = balances?.alpaca;
   const binance = balances?.binance;
   const kraken  = balances?.kraken;
 
   const totalPortfolio = [
-    alpaca?.equity    || 0,
-    binance?.usdt     || 0,
-    kraken?.usd       || 0
+    alpaca?.equity || 0,
+    binance?.usdt  || 0,
+    kraken?.usd    || 0
   ].reduce((a, b) => a + b, 0);
 
   return (
@@ -122,25 +198,32 @@ function FundingPanel() {
               </span>
             )}
           </div>
-          <a
-            href="https://app.alpaca.markets/account/funding"
-            target="_blank"
-            rel="noreferrer"
-            style={{ ...btn('#5865f2'), display: 'inline-block', textDecoration: 'none', marginRight: 8 }}
-          >
-            + Deposit
-          </a>
-          <a
-            href="https://app.alpaca.markets/account/funding"
-            target="_blank"
-            rel="noreferrer"
-            style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
-          >
-            Withdraw
-          </a>
-          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
-            Opens Alpaca funding page in new tab
+
+          {/* Profit tracker */}
+          {!loadingBal && alpaca && !alpaca.error && (
+            <>
+              <ProfitRow balance={alpaca.portfolioValue || 0} exchange="alpaca" />
+              <DepositTracker exchange="alpaca" />
+            </>
+          )}
+
+          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+            <a
+              href="https://app.alpaca.markets/account/funding"
+              target="_blank" rel="noreferrer"
+              style={{ ...btn('#5865f2'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              + Deposit
+            </a>
+            <a
+              href="https://app.alpaca.markets/account/funding"
+              target="_blank" rel="noreferrer"
+              style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              Withdraw
+            </a>
           </div>
+          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>Opens Alpaca funding page in new tab</div>
         </div>
 
         {/* Binance.US */}
@@ -163,27 +246,31 @@ function FundingPanel() {
             </>
           )}
 
+          {/* Profit tracker */}
+          {!loadingBal && binance && !binance.error && (
+            <>
+              <ProfitRow balance={binance.usdt || 0} exchange="binance" />
+              <DepositTracker exchange="binance" />
+            </>
+          )}
+
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <a
               href="https://www.binance.us"
-              target="_blank"
-              rel="noreferrer"
+              target="_blank" rel="noreferrer"
               style={{ ...btn('#f0b90b'), display: 'inline-block', textDecoration: 'none' }}
             >
               <span style={{ color: '#000' }}>+ Deposit</span>
             </a>
             <a
               href="https://www.binance.us"
-              target="_blank"
-              rel="noreferrer"
+              target="_blank" rel="noreferrer"
               style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
             >
               Withdraw
             </a>
           </div>
-          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
-            Opens Binance.US funding page in new tab
-          </div>
+          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>Opens Binance.US funding page in new tab</div>
         </div>
 
         {/* Kraken */}
@@ -206,19 +293,25 @@ function FundingPanel() {
             </>
           )}
 
+          {/* Profit tracker */}
+          {!loadingBal && kraken && !kraken.error && (
+            <>
+              <ProfitRow balance={kraken.usd || 0} exchange="kraken" />
+              <DepositTracker exchange="kraken" />
+            </>
+          )}
+
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <a
               href="https://www.kraken.com/u/funding/deposit"
-              target="_blank"
-              rel="noreferrer"
+              target="_blank" rel="noreferrer"
               style={{ ...btn('#7b68ee'), display: 'inline-block', textDecoration: 'none' }}
             >
               + Deposit
             </a>
             <a
               href="https://www.kraken.com/u/funding/withdraw"
-              target="_blank"
-              rel="noreferrer"
+              target="_blank" rel="noreferrer"
               style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
             >
               Withdraw
@@ -227,9 +320,7 @@ function FundingPanel() {
               {loadingKraken ? 'Loading…' : 'Show Methods'}
             </button>
           </div>
-          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
-            Opens Kraken funding page in new tab
-          </div>
+          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>Opens Kraken funding page in new tab</div>
 
           {krakenMethods?.error && (
             <div>
@@ -255,9 +346,7 @@ function FundingPanel() {
                   <div style={{ color: '#7b68ee', fontWeight: 600 }}>{m.method}</div>
                   {m.limit && <div style={{ color: '#888', marginTop: 2 }}>Limit: {m.limit}</div>}
                   {m['gen-address'] && (
-                    <div style={{ color: '#00c853', marginTop: 2, fontSize: 11 }}>
-                      ✓ Can generate deposit address
-                    </div>
+                    <div style={{ color: '#00c853', marginTop: 2, fontSize: 11 }}>✓ Can generate deposit address</div>
                   )}
                 </div>
               ))}
@@ -266,6 +355,120 @@ function FundingPanel() {
         </div>
 
       </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Live Trading Performance ─────────────────────────────────────────────────
+function LivePerformanceSection() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    axios.get(`${API}/trades/stats/periods`)
+      .then(r => setData(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const periods = [
+    { key: 'day',   title: 'Today',      sub: 'Last 24 hours',  good: 'Good Day!',   bad: 'Bad Day'   },
+    { key: 'week',  title: 'This Week',  sub: 'Last 7 days',    good: 'Good Week!',  bad: 'Bad Week'  },
+    { key: 'month', title: 'This Month', sub: 'Last 30 days',   good: 'Good Month!', bad: 'Bad Month' },
+    { key: 'year',  title: 'This Year',  sub: 'Last 365 days',  good: 'Good Year!',  bad: 'Bad Year'  },
+  ];
+
+  const plColor = v => v >= 0 ? '#00c853' : '#ff3d3d';
+  const plStr   = v => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <h2 style={{ margin: 0, fontSize: 20, marginBottom: 4 }}>📊 Live Trading Performance</h2>
+      <div style={{ color: '#666', fontSize: 13, marginBottom: 20 }}>
+        How your bot is performing with real money — day, week, month, year
+      </div>
+
+      {loading ? (
+        <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
+      ) : !data ? (
+        <div style={{ color: '#ff3d3d', fontSize: 13 }}>Could not load performance data</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          {periods.map(({ key, title, sub, good, bad }) => {
+            const p   = data[key] || {};
+            const pl  = p.totalProfitLoss || 0;
+            const col = plColor(pl);
+            const verdict = p.totalTrades === 0
+              ? '⚪ No trades yet'
+              : pl > 0  ? `✅ ${good}`
+              : pl < 0  ? `❌ ${bad}`
+              : '🟡 Breakeven';
+
+            return (
+              <div
+                key={key}
+                style={{
+                  background: '#1a1d27',
+                  border: `1px solid ${pl > 0 ? '#00c85333' : pl < 0 ? '#ff3d3d33' : '#2a2d3e'}`,
+                  borderTop: `3px solid ${p.totalTrades === 0 ? '#2a2d3e' : col}`,
+                  borderRadius: 10,
+                  padding: '18px 20px'
+                }}
+              >
+                <div style={{ color: '#888', fontSize: 12, marginBottom: 2 }}>{title}</div>
+                <div style={{ color: '#555', fontSize: 11, marginBottom: 14 }}>{sub}</div>
+
+                <div style={{ fontWeight: 700, fontSize: 28, color: p.totalTrades === 0 ? '#444' : col }}>
+                  {p.totalTrades === 0 ? '$0.00' : plStr(pl)}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: p.totalTrades === 0 ? '#555' : col, marginTop: 4 }}>
+                  {verdict}
+                </div>
+
+                <div style={{ marginTop: 14, borderTop: '1px solid #2a2d3e', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888' }}>
+                    <span>Trades</span>
+                    <span style={{ color: '#fff' }}>{p.totalTrades || 0}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888' }}>
+                    <span>Win Rate</span>
+                    <span style={{ color: (p.winRate || 0) >= 50 ? '#00c853' : p.totalTrades ? '#ff3d3d' : '#555', fontWeight: 600 }}>
+                      {p.totalTrades ? `${p.winRate}%` : '—'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888' }}>
+                    <span>Wins / Losses</span>
+                    <span>
+                      <span style={{ color: '#00c853' }}>{p.winningTrades || 0}</span>
+                      <span style={{ color: '#555' }}> / </span>
+                      <span style={{ color: '#ff3d3d' }}>{p.losingTrades || 0}</span>
+                    </span>
+                  </div>
+                  {(p.winningTrades || 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888' }}>
+                      <span>Avg Win</span>
+                      <span style={{ color: '#00c853' }}>+${(p.avgWin || 0).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {(p.losingTrades || 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888' }}>
+                      <span>Avg Loss</span>
+                      <span style={{ color: '#ff3d3d' }}>${(p.avgLoss || 0).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -287,7 +490,6 @@ function Portfolio() {
     { label: 'All Time', days: 0  },
   ];
 
-  // Fetch open and closed trades separately so analytics always have full closed trade history
   useEffect(() => {
     function loadTrades() {
       Promise.all([
@@ -305,7 +507,6 @@ function Portfolio() {
     return () => clearInterval(interval);
   }, []);
 
-  // Stats re-fetched from backend whenever date range changes — accurate across all trades
   useEffect(() => {
     const params = dateRange > 0 ? `?days=${dateRange}` : '';
     axios.get(`${API}/trades/stats${params}`)
@@ -313,19 +514,15 @@ function Portfolio() {
       .catch(() => {});
   }, [dateRange]);
 
-  // Date filter cutoff
   const cutoff = dateRange > 0 ? new Date(Date.now() - dateRange * 24 * 60 * 60 * 1000) : null;
 
-  // Open trades always shown unfiltered (current positions)
   const openTrades = trades.filter(t => t.status === 'open');
   const capitalAtRisk = openTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
 
-  // All closed trades filtered by selected date range
   const filteredClosed = trades
     .filter(t => t.status === 'closed' && t.closedAt && (!cutoff || new Date(t.closedAt) >= cutoff))
     .sort((a, b) => new Date(a.closedAt) - new Date(b.closedAt));
 
-  // Always use backend stats — accurate across all trades, not just the 100-trade fetch limit
   const viewTotalTrades = stats.totalTrades || 0;
   const viewWinRate     = stats.winRate || 0;
   const viewTotalPL     = stats.totalProfitLoss || 0;
@@ -334,7 +531,6 @@ function Portfolio() {
   const viewAvgWin      = stats.avgWin || 0;
   const viewAvgLoss     = stats.avgLoss || 0;
 
-  // Cumulative P/L chart from filtered trades
   const plChartData = filteredClosed.reduce((acc, t, i) => {
     const prev = acc[i - 1]?.cumulative || 0;
     acc.push({
@@ -346,7 +542,6 @@ function Portfolio() {
     return acc;
   }, []);
 
-  // Pie chart and market breakdown from filtered closed trades
   const cryptoClosed = filteredClosed.filter(t => t.market === 'crypto');
   const stockClosed  = filteredClosed.filter(t => t.market === 'stock');
   const cryptoPL = cryptoClosed.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
@@ -361,7 +556,6 @@ function Portfolio() {
         ...(stockClosed.length  > 0 ? [{ name: 'Stocks', value: stockClosed.length  }] : []),
       ];
 
-  // Per-symbol breakdown from filtered closed trades
   const bySymbol = {};
   filteredClosed.forEach(t => {
     if (!bySymbol[t.symbol]) bySymbol[t.symbol] = { pl: 0, wins: 0, losses: 0 };
@@ -395,6 +589,8 @@ function Portfolio() {
       <h1 className="page-title">Portfolio</h1>
 
       <FundingPanel />
+
+      <LivePerformanceSection />
 
       {/* Date Range Filter */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
@@ -568,8 +764,7 @@ function Portfolio() {
             <PieChart>
               <Pie
                 data={pieData}
-                cx="50%"
-                cy="50%"
+                cx="50%" cy="50%"
                 outerRadius={90}
                 dataKey="value"
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
