@@ -106,6 +106,7 @@ function Settings() {
     maxWeeklyLossPercent: 10,
     winRatePauseEnabled: false,
     minWinRate: 40,
+    minWinRateTrades: 10,
     scaleOutEnabled: false,
     cryptoEnabled: true,
     krakenEnabled: false,
@@ -242,6 +243,7 @@ function Settings() {
         if (originalSettings.maxWeeklyLossPercent !== settings.maxWeeklyLossPercent) changes.push(`Max Weekly Loss → ${settings.maxWeeklyLossPercent}%`);
         if (originalSettings.winRatePauseEnabled !== settings.winRatePauseEnabled) changes.push(`Win Rate Pause → ${settings.winRatePauseEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
+        if (originalSettings.minWinRateTrades !== settings.minWinRateTrades) changes.push(`Min Trades for Pause → ${settings.minWinRateTrades}`);
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.krakenEnabled !== settings.krakenEnabled) changes.push(`Kraken Margin Shorts → ${settings.krakenEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
@@ -642,7 +644,24 @@ function Settings() {
               onChange={e => numInput('minWinRate', e.target.value)}
             />
             <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-              Recommended: 40%. Bot pauses if win rate falls below this after at least 5 trades today.
+              Recommended: 40%. Bot pauses if win rate falls below this after reaching the minimum trades count below.
+            </p>
+          </div>
+        )}
+
+        {settings.winRatePauseEnabled && (
+          <div className="form-group">
+            <label>Minimum Trades Before Win Rate Pause</label>
+            <input
+              type="number"
+              min="3"
+              max="30"
+              step="1"
+              value={settings.minWinRateTrades ?? 10}
+              onChange={e => numInput('minWinRateTrades', e.target.value)}
+            />
+            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+              Bot won't pause until at least this many trades close today. Recommended: 8–10. Lower = pauses sooner on bad streaks; higher = needs more evidence.
             </p>
           </div>
         )}
@@ -1183,7 +1202,7 @@ function Settings() {
           <p>12. <strong style={{ color: '#c9d1d9' }}>Pre-market scanner</strong> runs 5:25–6:30 AM PT, flags high-volume movers before open. Sends Telegram alert.</p>
           <p>13. <strong style={{ color: '#c9d1d9' }}>Daily stock scanner</strong> runs at market open — finds top movers by volume and % change, adds them to the watchlist for the day</p>
           {settings.winRatePauseEnabled && (
-            <p>14. <strong style={{ color: '#a855f7' }}>Win rate auto-pause</strong>: bot pauses 1 hour if today's win rate drops below {settings.minWinRate}% after 5+ trades. Sends Telegram alert.</p>
+            <p>14. <strong style={{ color: '#a855f7' }}>Win rate auto-pause</strong>: bot pauses 1 hour if today's win rate drops below {settings.minWinRate}% after {settings.minWinRateTrades ?? 10}+ trades. Sends Telegram alert.</p>
           )}
           <p>{settings.winRatePauseEnabled ? '15.' : '14.'} <strong style={{ color: '#c9d1d9' }}>Max daily loss</strong>: bot stops if total daily loss (realized + unrealized) exceeds {settings.maxDailyLossPercent}% of capital (${((settings.totalCapital || settings.maxTradeAmount || 0) * (settings.maxDailyLossPercent || 0) / 100).toFixed(0)})</p>
           <p>{settings.winRatePauseEnabled ? '16.' : '15.'} Daily report sent at <strong style={{ color: '#c9d1d9' }}>1 AM UTC</strong> (6 PM California time) via Telegram</p>
