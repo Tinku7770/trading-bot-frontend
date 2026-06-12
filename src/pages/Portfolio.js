@@ -360,6 +360,133 @@ function FundingPanel() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Position Reconciliation Panel ───────────────────────────────────────────
+function ReconcilePanel() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    axios.get(`${API}/reconcile`)
+      .then(r => { setData(r.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5 * 60 * 1000); // refresh every 5 min
+    return () => clearInterval(t);
+  }, [load]);
+
+  const card = { background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 10, padding: '16px 20px' };
+
+  function ExchangeBlock({ label, info, color }) {
+    if (!info) return null;
+    const isOk       = info.status === 'ok';
+    const isError    = info.status === 'error';
+    const isSkipped  = info.status === 'skipped';
+    const mismatches = (info.ghostTrades?.length || 0) + (info.unknownPositions?.length || 0);
+
+    return (
+      <div style={{ ...card, borderTop: `3px solid ${isOk ? '#00c853' : isError ? '#555' : '#ff3d3d'}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color }}>{label}</div>
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+            background: isOk ? '#00c85322' : isError ? '#2a2d3e' : isSkipped ? '#2a2d3e' : '#ff3d3d22',
+            color: isOk ? '#00c853' : isError ? '#555' : isSkipped ? '#555' : '#ff3d3d'
+          }}>
+            {isOk ? '✓ Matched' : isError ? 'Unavailable' : isSkipped ? 'Not in use' : `⚠ ${mismatches} mismatch${mismatches > 1 ? 'es' : ''}`}
+          </span>
+        </div>
+
+        {info.mode && <div style={{ color: '#555', fontSize: 11, marginBottom: 8 }}>Mode: {info.mode?.toUpperCase()}</div>}
+
+        {isError && <div style={{ color: '#666', fontSize: 12 }}>{info.error}</div>}
+
+        {isOk && (
+          <div style={{ color: '#555', fontSize: 12 }}>
+            {info.dbTrades?.length > 0
+              ? `${info.dbTrades.length} position${info.dbTrades.length > 1 ? 's' : ''} matched`
+              : 'No open positions'}
+          </div>
+        )}
+
+        {info.ghostTrades?.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ color: '#ff3d3d', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Ghost Trades (in bot DB, not in broker):</div>
+            {info.ghostTrades.map((g, i) => (
+              <div key={i} style={{ color: '#ff3d3d', fontSize: 12, background: '#2a1a1a', borderRadius: 4, padding: '4px 8px', marginBottom: 3 }}>
+                {g.symbol} ({g.type})
+              </div>
+            ))}
+          </div>
+        )}
+
+        {info.unknownPositions?.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ color: '#f5a623', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Unknown Positions (in broker, not tracked):</div>
+            {info.unknownPositions.map((p, i) => (
+              <div key={i} style={{ color: '#f5a623', fontSize: 12, background: '#1a1400', borderRadius: 4, padding: '4px 8px', marginBottom: 3 }}>
+                {p.symbol || p.pair} ({p.side || p.type})
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const allOk = data && data.alpaca?.status !== 'mismatch' && data.kraken?.status !== 'mismatch';
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20 }}>🔄 Position Reconciliation</h2>
+          <div style={{ color: '#555', fontSize: 12, marginTop: 4 }}>
+            Compares bot's open trades in DB against actual broker positions
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {!loading && data && (
+            <div style={{
+              fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
+              background: allOk ? '#00c85322' : '#ff3d3d22',
+              color: allOk ? '#00c853' : '#ff3d3d'
+            }}>
+              {allOk ? '✓ All Positions Matched' : '⚠ Mismatches Found'}
+            </div>
+          )}
+          <button
+            onClick={load}
+            style={{ padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#2a2d3e', color: '#888', border: 'none' }}
+          >
+            {loading ? 'Checking…' : '↻ Refresh'}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ color: '#666', fontSize: 13 }}>Checking positions…</div>
+      ) : !data ? (
+        <div style={{ color: '#ff3d3d', fontSize: 13 }}>Could not load reconciliation data</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          <ExchangeBlock label="📈 Alpaca (Stocks)"     info={data.alpaca}  color="#5865f2" />
+          <ExchangeBlock label="⚡ Kraken (Crypto)"     info={data.kraken}  color="#7b68ee" />
+        </div>
+      )}
+
+      {data?.checkedAt && (
+        <div style={{ color: '#333', fontSize: 11, marginTop: 10 }}>
+          Last checked: {new Date(data.checkedAt).toLocaleTimeString()}
+        </div>
+      )}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── Live Trading Performance ─────────────────────────────────────────────────
 function LivePerformanceSection() {
   const [data, setData]       = useState(null);
@@ -589,6 +716,8 @@ function Portfolio() {
       <h1 className="page-title">Portfolio</h1>
 
       <FundingPanel />
+
+      <ReconcilePanel />
 
       <LivePerformanceSection />
 

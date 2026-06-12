@@ -39,6 +39,7 @@ function Performance() {
   const [dateRange, setDateRange] = useState(0);
   const [confBreakdown, setConfBreakdown] = useState(null);
   const [equityCurve, setEquityCurve] = useState(null);
+  const [dirBreakdown, setDirBreakdown] = useState(null);
 
   const RANGES = [
     { label: 'Today',    days: 1  },
@@ -57,6 +58,9 @@ function Performance() {
       .catch(() => {});
     axios.get(`${API}/trades/equity-curve`)
       .then(res => setEquityCurve(res.data))
+      .catch(() => {});
+    axios.get(`${API}/trades/direction-breakdown${params}`)
+      .then(res => setDirBreakdown(res.data))
       .catch(() => {});
   }, [dateRange]);
 
@@ -344,6 +348,81 @@ function Performance() {
               );
             })()}
           </div>
+        </div>
+      )}
+
+      {/* Long vs Short Breakdown */}
+      {dirBreakdown && (dirBreakdown.long.trades > 0 || dirBreakdown.short.trades > 0) && (
+        <div className="section">
+          <h3>Long vs Short Performance</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+            {[
+              { label: 'LONG (BUY)', data: dirBreakdown.long,  color: '#00c853', border: '#00c85344' },
+              { label: 'SHORT',      data: dirBreakdown.short, color: '#ff3d3d', border: '#ff3d3d44' }
+            ].map(({ label, data, color, border }) => (
+              <div key={label} style={{ background: '#1a1d27', border: `1px solid ${border}`, borderTop: `3px solid ${color}`, borderRadius: 10, padding: '18px 20px' }}>
+                <div style={{ color, fontWeight: 700, fontSize: 15, marginBottom: 14 }}>{label}</div>
+                <div style={{ fontWeight: 700, fontSize: 26, color: plColor(data.totalPL), marginBottom: 12 }}>{fmt(data.totalPL)}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#888' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Trades</span><span style={{ color: '#fff' }}>{data.trades} ({data.wins}W / {data.losses}L)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Win Rate</span>
+                    <span style={{ color: data.winRate >= 50 ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+                      {data.trades > 0 ? `${data.winRate}%` : '—'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Avg Win</span><span style={{ color: '#00c853' }}>{data.avgWin > 0 ? fmt(data.avgWin) : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Avg Loss</span><span style={{ color: '#ff3d3d' }}>{data.avgLoss < 0 ? fmt(data.avgLoss) : '—'}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {dirBreakdown.bySymbol.length > 0 && (
+            <>
+              <h4 style={{ color: '#888', fontWeight: 600, marginBottom: 10 }}>Per-Symbol Direction Breakdown</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th style={{ color: '#00c853' }}>Long Trades</th>
+                    <th style={{ color: '#00c853' }}>Long WR</th>
+                    <th style={{ color: '#00c853' }}>Long P/L</th>
+                    <th style={{ color: '#ff3d3d' }}>Short Trades</th>
+                    <th style={{ color: '#ff3d3d' }}>Short WR</th>
+                    <th style={{ color: '#ff3d3d' }}>Short P/L</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dirBreakdown.bySymbol.map(s => (
+                    <tr key={s.symbol}>
+                      <td><strong>{s.symbol}</strong></td>
+                      <td style={{ color: '#888' }}>{s.long.trades > 0 ? `${s.long.trades} (${s.long.wins}W)` : '—'}</td>
+                      <td style={{ color: s.long.trades > 0 ? (s.long.winRate >= 50 ? '#00c853' : '#ff3d3d') : '#555' }}>
+                        {s.long.trades > 0 ? `${s.long.winRate}%` : '—'}
+                      </td>
+                      <td style={{ color: s.long.trades > 0 ? plColor(s.long.totalPL) : '#555', fontWeight: s.long.trades > 0 ? 600 : 400 }}>
+                        {s.long.trades > 0 ? fmt(s.long.totalPL) : '—'}
+                      </td>
+                      <td style={{ color: '#888' }}>{s.short.trades > 0 ? `${s.short.trades} (${s.short.wins}W)` : '—'}</td>
+                      <td style={{ color: s.short.trades > 0 ? (s.short.winRate >= 50 ? '#00c853' : '#ff3d3d') : '#555' }}>
+                        {s.short.trades > 0 ? `${s.short.winRate}%` : '—'}
+                      </td>
+                      <td style={{ color: s.short.trades > 0 ? plColor(s.short.totalPL) : '#555', fontWeight: s.short.trades > 0 ? 600 : 400 }}>
+                        {s.short.trades > 0 ? fmt(s.short.totalPL) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
         </div>
       )}
 
