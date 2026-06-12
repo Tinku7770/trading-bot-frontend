@@ -472,7 +472,8 @@ function ReconcilePanel() {
         <div style={{ color: '#ff3d3d', fontSize: 13 }}>Could not load reconciliation data</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          <ExchangeBlock label="📈 Alpaca (Stocks)"     info={data.alpaca}  color="#5865f2" />
+          <ExchangeBlock label="📈 Alpaca (Stocks)"      info={data.alpaca}  color="#5865f2" />
+          <ExchangeBlock label="🪙 Binance.US (Crypto)" info={data.binance} color="#f0b90b" />
           <ExchangeBlock label="⚡ Kraken (Crypto)"     info={data.kraken}  color="#7b68ee" />
         </div>
       )}
