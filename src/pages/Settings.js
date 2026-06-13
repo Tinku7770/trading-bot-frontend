@@ -117,7 +117,8 @@ function Settings() {
     aiModel: 'claude-haiku-4-5-20251001',
     cryptoSymbols: [],
     stockSymbols: [],
-    blockedSymbols: []
+    blockedSymbols: [],
+    spyRegimeThreshold: 78
   });
   const [saved, setSaved] = useState(false);
   const [savedFields, setSavedFields] = useState(null);
@@ -252,6 +253,7 @@ function Settings() {
         if (originalSettings.cryptoMaxHoldHours !== settings.cryptoMaxHoldHours) changes.push(`Crypto Core Max Hold → ${settings.cryptoMaxHoldHours}h`);
         if (originalSettings.cryptoScannerMaxHoldHours !== settings.cryptoScannerMaxHoldHours) changes.push(`Crypto Scanner Max Hold → ${settings.cryptoScannerMaxHoldHours}h`);
         if (originalSettings.aiModel !== settings.aiModel) changes.push(`AI Model → ${settings.aiModel}`);
+        if (originalSettings.spyRegimeThreshold !== settings.spyRegimeThreshold) changes.push(`SPY Regime Threshold → ${settings.spyRegimeThreshold}%`);
         const prevCrypto = (originalSettings.cryptoSymbols || []).join(',');
         const newCrypto  = (settings.cryptoSymbols || []).join(',');
         if (prevCrypto !== newCrypto) changes.push(`Crypto symbols updated (${(settings.cryptoSymbols || []).length} symbols)`);
@@ -763,6 +765,41 @@ function Settings() {
             Checks the weekly MA10 trend before entering. Only BUYs when weekly trend is up; only SHORTs when weekly trend is down.
             Filters out counter-trend trades that fight the bigger picture.
           </p>
+        </div>
+
+        <div className="form-group">
+          <label>SPY Regime Guard — Min Confidence to Trade Against Market (%)</label>
+          <input
+            type="number"
+            min="60"
+            max="95"
+            step="1"
+            value={settings.spyRegimeThreshold ?? 78}
+            onChange={e => numInput('spyRegimeThreshold', e.target.value)}
+          />
+          <div style={{ marginTop: 8, background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ color: '#888', fontSize: 12, lineHeight: 1.7 }}>
+              Checks SPY's weekly trend (10-week MA) before every stock trade:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700, minWidth: 70 }}>SPY ↑ uptrend</span>
+                <span style={{ color: '#888', fontSize: 12 }}>
+                  SHORTs blocked unless AI confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.spyRegimeThreshold ?? 78}%</strong>. Longs trade normally.
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <span style={{ color: '#ff3d3d', fontSize: 12, fontWeight: 700, minWidth: 70 }}>SPY ↓ downtrend</span>
+                <span style={{ color: '#888', fontSize: 12 }}>
+                  LONGs blocked unless AI confidence ≥ <strong style={{ color: '#c9d1d9' }}>{settings.spyRegimeThreshold ?? 78}%</strong>. Shorts trade normally.
+                </span>
+              </div>
+            </div>
+            <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
+              Lower = more counter-trend trades allowed. Higher = stricter, only very confident signals break through.
+              <br />Recommended: <strong style={{ color: '#888' }}>75–80%</strong>. Below 65% removes most of the protection.
+            </div>
+          </div>
         </div>
 
         <div className="form-group">
