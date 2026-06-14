@@ -113,6 +113,8 @@ function Settings() {
     minConfidence: 60,
     shortExtraConfidence: 5,
     maxConcurrentPositions: 3,
+    maxStockPositions: 5,
+    maxCryptoPositions: 4,
     maxHoldHours: 48,
     aiModel: 'claude-haiku-4-5-20251001',
     cryptoSymbols: [],
@@ -249,6 +251,8 @@ function Settings() {
         if (originalSettings.krakenEnabled !== settings.krakenEnabled) changes.push(`Kraken Margin Shorts → ${settings.krakenEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
         if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
+        if (originalSettings.maxStockPositions !== settings.maxStockPositions) changes.push(`Max Stock Positions → ${settings.maxStockPositions}`);
+        if (originalSettings.maxCryptoPositions !== settings.maxCryptoPositions) changes.push(`Max Crypto Positions → ${settings.maxCryptoPositions}`);
         if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Stock Max Hold → ${settings.maxHoldHours}h`);
         if (originalSettings.cryptoMaxHoldHours !== settings.cryptoMaxHoldHours) changes.push(`Crypto Core Max Hold → ${settings.cryptoMaxHoldHours}h`);
         if (originalSettings.cryptoScannerMaxHoldHours !== settings.cryptoScannerMaxHoldHours) changes.push(`Crypto Scanner Max Hold → ${settings.cryptoScannerMaxHoldHours}h`);
@@ -402,9 +406,9 @@ function Settings() {
               </div>
             ))}
             <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
-              Max stock exposure ({settings.maxConcurrentPositions ?? 3} positions × ${(settings.maxTradeAmount || 0).toFixed(0)} × {settings.leverageMultiplier || 1}x):{' '}
-              <strong style={{ color: '#c9d1d9' }}>${((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.leverageMultiplier || 1)).toFixed(0)}</strong>
-              {' '}({(((settings.maxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.leverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
+              Max stock exposure ({settings.maxStockPositions ?? 5} positions × ${(settings.maxTradeAmount || 0).toFixed(0)} × {settings.leverageMultiplier || 1}x):{' '}
+              <strong style={{ color: '#c9d1d9' }}>${((settings.maxTradeAmount || 0) * (settings.maxStockPositions ?? 5) * (settings.leverageMultiplier || 1)).toFixed(0)}</strong>
+              {' '}({(((settings.maxTradeAmount || 0) * (settings.maxStockPositions ?? 5) * (settings.leverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
             </div>
           </div>
         </div>
@@ -471,9 +475,9 @@ function Settings() {
               </div>
             ))}
             <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
-              Max crypto exposure ({settings.maxConcurrentPositions ?? 3} positions × ${(settings.cryptoMaxTradeAmount || 0).toFixed(0)} × {settings.cryptoLeverageMultiplier || 1}x):{' '}
-              <strong style={{ color: '#c9d1d9' }}>${((settings.cryptoMaxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.cryptoLeverageMultiplier || 1)).toFixed(0)}</strong>
-              {' '}({(((settings.cryptoMaxTradeAmount || 0) * (settings.maxConcurrentPositions ?? 3) * (settings.cryptoLeverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
+              Max crypto exposure ({settings.maxCryptoPositions ?? 4} positions × ${(settings.cryptoMaxTradeAmount || 0).toFixed(0)} × {settings.cryptoLeverageMultiplier || 1}x):{' '}
+              <strong style={{ color: '#c9d1d9' }}>${((settings.cryptoMaxTradeAmount || 0) * (settings.maxCryptoPositions ?? 4) * (settings.cryptoLeverageMultiplier || 1)).toFixed(0)}</strong>
+              {' '}({(((settings.cryptoMaxTradeAmount || 0) * (settings.maxCryptoPositions ?? 4) * (settings.cryptoLeverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
             </div>
           </div>
         </div>
@@ -917,18 +921,32 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Max Concurrent Positions</label>
+          <label>Max Stock Positions</label>
           <input
             type="number"
             min="1"
             max="20"
             step="1"
-            value={settings.maxConcurrentPositions ?? 3}
-            onChange={e => numInput('maxConcurrentPositions', e.target.value)}
+            value={settings.maxStockPositions ?? 5}
+            onChange={e => numInput('maxStockPositions', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Bot will not open new trades when this many positions are already open.
-            Lower = less capital at risk at once. Recommended: 3–5.
+            Bot will not open new stock trades when this many stock positions are already open. Recommended: 4–7.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Max Crypto Positions</label>
+          <input
+            type="number"
+            min="1"
+            max="20"
+            step="1"
+            value={settings.maxCryptoPositions ?? 4}
+            onChange={e => numInput('maxCryptoPositions', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Bot will not open new crypto trades when this many crypto positions are already open. Recommended: 3–5.
           </p>
         </div>
 
