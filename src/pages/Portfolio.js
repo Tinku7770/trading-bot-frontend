@@ -602,6 +602,94 @@ function LivePerformanceSection() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+function Section({ title, subtitle, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="section">
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: open ? 16 : 0 }}
+      >
+        <div>
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          {subtitle && <div style={{ color: '#555', fontSize: 12, marginTop: 3 }}>{subtitle}</div>}
+        </div>
+        <span style={{ color: '#555', fontSize: 13, userSelect: 'none', flexShrink: 0, marginLeft: 12 }}>{open ? '▼' : '▶'}</span>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
+function ScannerPerformanceSection() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    axios.get(`${API}/trades/scanner-performance`)
+      .then(r => { setData(r.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load]);
+
+  const plColor = v => (v ?? 0) >= 0 ? '#00c853' : '#ff3d3d';
+  const plStr   = v => v == null ? '—' : `${v >= 0 ? '+' : ''}$${Math.abs(v).toFixed(2)}`;
+
+  return (
+    <Section title="Scanner Performance" subtitle="How scanner picks have performed as trades — last 30 days" defaultOpen={false}>
+      {loading ? (
+        <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
+      ) : !data ? (
+        <div style={{ color: '#ff3d3d', fontSize: 13 }}>Could not load scanner data</div>
+      ) : (
+        <>
+          <div className="stats-grid" style={{ marginBottom: 20 }}>
+            {[
+              { label: 'Total P/L',          value: plStr(data.totalPL),                      color: plColor(data.totalPL) },
+              { label: 'Picks Found',         value: data.picksFound ?? '—',                   color: '#c9d1d9' },
+              { label: 'Trades Taken',        value: data.tradesTaken ?? '—',                  color: '#c9d1d9' },
+              { label: 'Win Rate',            value: data.tradesTaken ? `${data.winRate}%` : '—', color: (data.winRate||0) >= 50 ? '#00c853' : '#ff3d3d' },
+              { label: 'Avg P/L per Trade',   value: data.tradesTaken ? plStr(data.avgPL) : '—', color: plColor(data.avgPL) },
+            ].map(({ label, value, color }) => (
+              <div className="card" key={label}>
+                <h2>{label}</h2>
+                <div className="value" style={{ color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {(data.bySymbol || []).length > 0 && (
+            <>
+              <h4 style={{ color: '#888', fontWeight: 600, fontSize: 13, marginBottom: 10 }}>By Symbol</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Trades</th>
+                    <th>Win Rate</th>
+                    <th>Total P/L</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.bySymbol.map(s => (
+                    <tr key={s.symbol}>
+                      <td><strong>{s.symbol}</strong></td>
+                      <td style={{ color: '#888' }}>{s.trades}</td>
+                      <td style={{ color: s.winRate >= 50 ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>{s.winRate}%</td>
+                      <td style={{ color: plColor(s.totalPL), fontWeight: 600 }}>{plStr(s.totalPL)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
+
 function Portfolio() {
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState({});
@@ -777,6 +865,8 @@ function Portfolio() {
         </div>
       </div>
 
+      <ScannerPerformanceSection />
+
       {/* Open Positions */}
       {openTrades.length > 0 && (
         <div className="section">
@@ -822,8 +912,7 @@ function Portfolio() {
       )}
 
       {/* P/L Chart */}
-      <div className="section">
-        <h3>Cumulative Profit/Loss Over Time</h3>
+      <Section title="Cumulative P/L Over Time">
         {plChartData.length === 0 ? (
           <p style={{ color: '#666', textAlign: 'center', padding: 40 }}>No closed trades yet</p>
         ) : (
@@ -849,12 +938,11 @@ function Portfolio() {
             </LineChart>
           </ResponsiveContainer>
         )}
-      </div>
+      </Section>
 
       {/* P/L by Symbol */}
       {symbolRows.length > 0 && (
-        <div className="section">
-          <h3>Performance by Symbol</h3>
+        <Section title="Performance by Symbol" defaultOpen={false}>
           <table>
             <thead>
               <tr>
@@ -883,12 +971,11 @@ function Portfolio() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Section>
       )}
 
       {/* Market Breakdown */}
-      <div className="section">
-        <h3>Market Breakdown</h3>
+      <Section title="Market Breakdown" defaultOpen={false}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, alignItems: 'center' }}>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -932,7 +1019,7 @@ function Portfolio() {
             </div>
           </div>
         </div>
-      </div>
+      </Section>
     </div>
   );
 }
