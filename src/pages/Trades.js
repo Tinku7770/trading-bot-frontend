@@ -20,6 +20,25 @@ function formatDuration(start, end) {
   return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
 }
 
+function Section({ title, children, badge = null }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="section">
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: open ? 16 : 0 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          {badge}
+        </div>
+        <span style={{ color: '#555', fontSize: 13, userSelect: 'none', flexShrink: 0 }}>{open ? '▼' : '▶'}</span>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
 function Trades() {
   const { liveTrades } = useApp();
   const [trades, setTrades] = useState([]);
@@ -161,7 +180,14 @@ function Trades() {
         </div>
       </div>
 
-      <div className="section">
+      <Section
+        title="Trade History"
+        badge={
+          <span style={{ color: '#555', fontSize: 12, fontWeight: 400 }}>
+            {filtered.length} of {allTrades.length} trades{allTrades.length >= 100 ? ' (last 100)' : ''}
+          </span>
+        }
+      >
         <table>
           <thead>
             <tr>
@@ -336,7 +362,7 @@ function Trades() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Section>
     </div>
   );
 }

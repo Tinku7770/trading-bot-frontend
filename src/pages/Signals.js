@@ -28,6 +28,25 @@ function SentimentBadge({ label, value }) {
   );
 }
 
+function Section({ title, children, badge = null }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="section">
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: open ? 16 : 0 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          {badge}
+        </div>
+        <span style={{ color: '#555', fontSize: 13, userSelect: 'none', flexShrink: 0 }}>{open ? '▼' : '▶'}</span>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
 function Signals() {
   const { liveSignals } = useApp();
   const [signals, setSignals] = useState([]);
@@ -134,7 +153,14 @@ function Signals() {
         </div>
       </div>
 
-      <div className="section">
+      <Section
+        title="AI Signals"
+        badge={
+          <span style={{ color: '#555', fontSize: 12, fontWeight: 400 }}>
+            {filtered.length} of {allSignals.length} signals
+          </span>
+        }
+      >
         <table>
           <thead>
             <tr>
@@ -204,7 +230,7 @@ function Signals() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Section>
     </div>
   );
 }

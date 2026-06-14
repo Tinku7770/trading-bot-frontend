@@ -30,6 +30,25 @@ function SortTh({ label, field, sortBy, sortDir, onSort }) {
   );
 }
 
+function Section({ title, children, defaultOpen = true, badge = null }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="section">
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: open ? 16 : 0 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          {badge}
+        </div>
+        <span style={{ color: '#555', fontSize: 13, userSelect: 'none', flexShrink: 0 }}>{open ? '▼' : '▶'}</span>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
 function Performance() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -180,8 +199,7 @@ function Performance() {
       </div>
 
       {/* Streaks */}
-      <div className="section">
-        <h3>Streaks</h3>
+      <Section title="Streaks">
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {[
             { label: 'Current Win Streak', value: data.curWinStreak, color: '#00c853' },
@@ -195,12 +213,11 @@ function Performance() {
             </div>
           ))}
         </div>
-      </div>
+      </Section>
 
       {/* Best & Worst Trade */}
       {(data.bestTrade || data.worstTrade) && (
-        <div className="section">
-          <h3>Best & Worst Trade</h3>
+        <Section title="Best & Worst Trade">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
             {data.bestTrade && (
               <div className="card" style={{ borderLeft: '3px solid #00c853' }}>
@@ -241,12 +258,11 @@ function Performance() {
               </div>
             )}
           </div>
-        </div>
+        </Section>
       )}
 
       {/* Per-Symbol P/L Bar Chart */}
-      <div className="section">
-        <h3>P/L by Symbol</h3>
+      <Section title="P/L by Symbol">
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={data.symbols} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3e" />
@@ -263,11 +279,10 @@ function Performance() {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </Section>
 
       {/* Per-Symbol Breakdown Table */}
-      <div className="section">
-        <h3>Per-Symbol Breakdown</h3>
+      <Section title="Per-Symbol Breakdown">
         <table>
           <thead>
             <tr>
@@ -292,12 +307,11 @@ function Performance() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Section>
 
       {/* Equity Curve */}
       {equityCurve && equityCurve.points.length > 1 && (
-        <div className="section">
-          <h3>Account Equity Curve</h3>
+        <Section title="Account Equity Curve">
           <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
             Running account value over time. Starts at <strong style={{ color: '#c9d1d9' }}>${equityCurve.startingCapital?.toLocaleString()}</strong> (your configured capital).
           </p>
@@ -348,13 +362,12 @@ function Performance() {
               );
             })()}
           </div>
-        </div>
+        </Section>
       )}
 
       {/* Long vs Short Breakdown */}
       {dirBreakdown && (dirBreakdown.long.trades > 0 || dirBreakdown.short.trades > 0) && (
-        <div className="section">
-          <h3>Long vs Short Performance</h3>
+        <Section title="Long vs Short Performance">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             {[
               { label: 'LONG (BUY)', data: dirBreakdown.long,  color: '#00c853', border: '#00c85344' },
@@ -386,7 +399,7 @@ function Performance() {
 
           {dirBreakdown.bySymbol.length > 0 && (
             <>
-              <h4 style={{ color: '#888', fontWeight: 600, marginBottom: 10 }}>Per-Symbol Direction Breakdown</h4>
+              <h4 style={{ color: '#888', fontWeight: 600, marginBottom: 10, marginTop: 8 }}>Per-Symbol Direction Breakdown</h4>
               <table>
                 <thead>
                   <tr>
@@ -423,13 +436,12 @@ function Performance() {
               </table>
             </>
           )}
-        </div>
+        </Section>
       )}
 
       {/* Confidence Breakdown */}
       {confBreakdown && confBreakdown.bands.length > 0 && (
-        <div className="section">
-          <h3>Win Rate by AI Confidence Band</h3>
+        <Section title="Win Rate by AI Confidence Band" defaultOpen={false}>
           {confBreakdown.recommendation && (
             <div style={{
               background: '#1e1a2e', border: '1px solid #5865f2', borderRadius: 8,
@@ -476,7 +488,7 @@ function Performance() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Section>
       )}
     </div>
   );
