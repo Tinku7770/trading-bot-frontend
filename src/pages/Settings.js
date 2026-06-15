@@ -230,6 +230,8 @@ function Settings() {
         if (originalSettings.minConfidence !== settings.minConfidence) changes.push(`Stock Min Confidence → ${settings.minConfidence}%`);
         if (originalSettings.cryptoMinConfidence !== settings.cryptoMinConfidence) changes.push(`Crypto Min Confidence → ${settings.cryptoMinConfidence}%`);
         if (originalSettings.cryptoScannerMinConfidence !== settings.cryptoScannerMinConfidence) changes.push(`Crypto Scanner Min Confidence → ${settings.cryptoScannerMinConfidence}%`);
+        if (originalSettings.cryptoMinHoldMinutes !== settings.cryptoMinHoldMinutes) changes.push(`Crypto Min Hold → ${settings.cryptoMinHoldMinutes}min`);
+        if (originalSettings.minHoldMinutes !== settings.minHoldMinutes) changes.push(`Stock Min Hold → ${settings.minHoldMinutes}min`);
         if (originalSettings.shortExtraConfidence !== settings.shortExtraConfidence) changes.push(`Short Extra Confidence → +${settings.shortExtraConfidence}%`);
         if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Stock Leverage → ${settings.leverageMultiplier}x`);
         if (originalSettings.cryptoLeverageMultiplier !== settings.cryptoLeverageMultiplier) changes.push(`Crypto Leverage → ${settings.cryptoLeverageMultiplier}x`);
@@ -919,6 +921,36 @@ function Settings() {
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
             Applies only to coins discovered by the crypto scanner (not your core watchlist). Lower threshold because scanner picks are already pre-filtered by momentum. Recommended: 55–62%.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Min Hold Before AI Exit — Crypto (min)</label>
+          <input
+            type="number"
+            min="0"
+            max="240"
+            step="5"
+            value={settings.cryptoMinHoldMinutes ?? 45}
+            onChange={e => numInput('cryptoMinHoldMinutes', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            AI SELL/BUY signals cannot close a crypto position until it has been open this long. Prevents flip-flopping losses where the AI buys then immediately sells. Stop loss and take profit still fire instantly. Recommended: 30–60 min.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Min Hold Before AI Exit — Stocks (min)</label>
+          <input
+            type="number"
+            min="0"
+            max="480"
+            step="5"
+            value={settings.minHoldMinutes ?? 60}
+            onChange={e => numInput('minHoldMinutes', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            AI signals cannot close a stock position until it has been open this long. Stop loss and take profit still fire instantly. Recommended: 45–90 min.
           </p>
         </div>
 
