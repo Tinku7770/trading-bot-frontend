@@ -173,6 +173,7 @@ function Settings() {
     if ((settings.maxDailyLossPercent || 0) <= 0) return 'Max Daily Loss must be greater than 0%';
     if ((settings.minConfidence || 0) < 50 || (settings.minConfidence || 0) > 90) return 'Stock Min Confidence must be between 50% and 90%';
     if ((settings.cryptoMinConfidence || 0) < 50 || (settings.cryptoMinConfidence || 0) > 90) return 'Crypto Min Confidence must be between 50% and 90%';
+    if ((settings.cryptoScannerMinConfidence ?? 58) < 40 || (settings.cryptoScannerMinConfidence ?? 58) > 85) return 'Crypto Scanner Min Confidence must be between 40% and 85%';
     if ((settings.shortExtraConfidence ?? 5) < 0 || (settings.shortExtraConfidence ?? 5) > 20) return 'Short Extra Confidence must be between 0% and 20%';
     if ((settings.leverageMultiplier || 0) < 1) return 'Stock Leverage must be at least 1x';
     if ((settings.leverageMultiplier || 0) > 10) return 'Stock Leverage cannot exceed 10x';
@@ -228,6 +229,7 @@ function Settings() {
         if (originalSettings.maxDailyLossPercent !== settings.maxDailyLossPercent) changes.push(`Max Daily Loss → ${settings.maxDailyLossPercent}%`);
         if (originalSettings.minConfidence !== settings.minConfidence) changes.push(`Stock Min Confidence → ${settings.minConfidence}%`);
         if (originalSettings.cryptoMinConfidence !== settings.cryptoMinConfidence) changes.push(`Crypto Min Confidence → ${settings.cryptoMinConfidence}%`);
+        if (originalSettings.cryptoScannerMinConfidence !== settings.cryptoScannerMinConfidence) changes.push(`Crypto Scanner Min Confidence → ${settings.cryptoScannerMinConfidence}%`);
         if (originalSettings.shortExtraConfidence !== settings.shortExtraConfidence) changes.push(`Short Extra Confidence → +${settings.shortExtraConfidence}%`);
         if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Stock Leverage → ${settings.leverageMultiplier}x`);
         if (originalSettings.cryptoLeverageMultiplier !== settings.cryptoLeverageMultiplier) changes.push(`Crypto Leverage → ${settings.cryptoLeverageMultiplier}x`);
@@ -901,7 +903,22 @@ function Settings() {
             onChange={e => numInput('cryptoMinConfidence', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Crypto only. Higher than stocks because crypto is more volatile and spot-only (no shorting). Recommended: 72–75%. Scanner picks use 58% regardless.
+            Crypto only. Higher than stocks because crypto is more volatile and spot-only (no shorting). Recommended: 72–75%.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label>Min AI Confidence — Crypto Scanner (%)</label>
+          <input
+            type="number"
+            min="40"
+            max="85"
+            step="1"
+            value={settings.cryptoScannerMinConfidence ?? 58}
+            onChange={e => numInput('cryptoScannerMinConfidence', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Applies only to coins discovered by the crypto scanner (not your core watchlist). Lower threshold because scanner picks are already pre-filtered by momentum. Recommended: 55–62%.
           </p>
         </div>
 
