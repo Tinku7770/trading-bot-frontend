@@ -868,6 +868,7 @@ function Dashboard() {
                     <th>Symbol</th>
                     <th>Type</th>
                     <th>Entry</th>
+                    <th>Live Price</th>
                     <th>Amount</th>
                     <th>Lev</th>
                     <th>Time Held</th>
@@ -895,6 +896,29 @@ function Dashboard() {
                       </td>
                       <td><span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span></td>
                       <td>${trade.price?.toFixed(2)}</td>
+                      <td>{(() => {
+                        const cur = currentPrices[trade.symbol];
+                        const justUpdated = priceUpdatedAt[trade.symbol] && Date.now() - priceUpdatedAt[trade.symbol] < 15000;
+                        if (!cur) return <span style={{ color: '#555' }}>—</span>;
+                        const isShort = trade.type === 'SHORT';
+                        const chgPct = (cur - trade.price) / trade.price * 100 * (isShort ? -1 : 1);
+                        const color = chgPct > 0 ? '#00c853' : chgPct < 0 ? '#ff3d3d' : '#aaa';
+                        const decimals = trade.market === 'crypto' && cur < 1 ? 5 : cur < 100 ? 4 : 2;
+                        return (
+                          <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+                            {justUpdated && <span style={{
+                              display: 'inline-block', width: 6, height: 6,
+                              borderRadius: '50%', background: color,
+                              marginRight: 5, verticalAlign: 'middle',
+                              animation: 'price-pulse 1.2s ease-in-out infinite'
+                            }} />}
+                            ${cur.toFixed(decimals)}
+                            <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>
+                              ({chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%)
+                            </span>
+                          </span>
+                        );
+                      })()}</td>
                       <td>${trade.amount?.toFixed(2)}</td>
                       <td style={{ color: (trade.leverage || 1) > 1 ? '#f5a623' : '#555', fontWeight: (trade.leverage || 1) > 1 ? 700 : 400 }}>
                         {trade.leverage || 1}x
