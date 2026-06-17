@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 import MarketStatus from '../components/MarketStatus';
 import LiquidityHeatmap from '../components/LiquidityHeatmap';
+import AIChat from '../components/AIChat';
 
 const API = process.env.REACT_APP_API_URL;
 
@@ -2098,6 +2099,8 @@ function Dashboard() {
         </table>
       </div>
     </div>
+
+    <AIChat />
   );
 }
 
