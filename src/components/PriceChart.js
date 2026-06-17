@@ -1,13 +1,37 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine
+} from 'recharts';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_API_URL;
 
-function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
+// Custom label rendered on the right edge of the chart for a reference line
+function RightLabel({ viewBox, value, color, bg }) {
+  const { x, y, width } = viewBox;
+  return (
+    <g>
+      <rect x={x + width - 1} y={y - 10} width={70} height={20} rx={4} fill={bg} />
+      <text
+        x={x + width + 34} y={y + 4}
+        textAnchor="middle" fill={color}
+        fontSize={10} fontWeight={700}
+      >
+        {value}
+      </text>
+    </g>
+  );
+}
+
+function PriceChart({ symbol, entryPrice, market, type = 'BUY', livePrice = null }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPrice, setCurrentPrice] = useState(null);
+  const [polledPrice, setPolledPrice] = useState(null);
+
+  // Prefer the live price streamed in from the parent (WebSocket / 5s poll)
+  // Fall back to our own slower poll if parent hasn't provided one yet
+  const currentPrice = livePrice || polledPrice;
 
   const fetchChart = useCallback(async () => {
     try {
@@ -15,33 +39,30 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
       const res = await axios.get(`${API}/dashboard/chart/${encoded}`);
       const points = res.data || [];
       setData(points);
-      // Stocks: derive current price from last chart point — avoids direct Yahoo Finance call
-      if (market !== 'crypto' && points.length > 0) {
-        setCurrentPrice(points[points.length - 1].price);
+      if (market !== 'crypto' && points.length > 0 && !livePrice) {
+        setPolledPrice(points[points.length - 1].price);
       }
       setLoading(false);
-    } catch (err) {
-      console.error(`Failed to fetch chart for ${symbol}:`, err);
+    } catch {
       setLoading(false);
     }
-  }, [symbol, market]);
+  }, [symbol, market, livePrice]);
 
   const fetchLivePrice = useCallback(async () => {
+    if (livePrice) return; // parent is providing live price — no need to poll
     try {
       if (market === 'crypto') {
         const ticker = symbol.replace('/', '');
         const res = await axios.get(`${API}/market/crypto-prices?tickers=${encodeURIComponent(JSON.stringify([ticker]))}`);
         const entry = (res.data || []).find(d => d.symbol === ticker);
-        if (entry) setCurrentPrice(parseFloat(entry.price));
+        if (entry) setPolledPrice(parseFloat(entry.price));
       } else {
         const res = await axios.get(`${API}/market/stock-prices?tickers=${encodeURIComponent(JSON.stringify([symbol]))}`);
         const entry = (res.data || []).find(d => d.symbol === symbol);
-        if (entry) setCurrentPrice(parseFloat(entry.price));
+        if (entry) setPolledPrice(parseFloat(entry.price));
       }
-    } catch (err) {
-      console.error(`Failed to fetch live price for ${symbol}:`, err);
-    }
-  }, [symbol, market]);
+    } catch { /* keep previous */ }
+  }, [symbol, market, livePrice]);
 
   useEffect(() => {
     fetchChart();
@@ -59,14 +80,21 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
   const rawPnlPct = currentPrice && entryPrice
     ? (currentPrice - entryPrice) / entryPrice * 100
     : null;
-  // SHORT profits when price falls — invert direction
   const pnl = rawPnlPct !== null ? (isShort ? -rawPnlPct : rawPnlPct).toFixed(2) : null;
-
   const isProfit = parseFloat(pnl) >= 0;
   const lineColor = isProfit ? '#00c853' : '#ff3d3d';
+  const liveColor = isProfit ? '#00c853' : '#ff3d3d';
 
-  const minPrice = data.length ? Math.min(...data.map(d => d.price)) * 0.999 : 0;
-  const maxPrice = data.length ? Math.max(...data.map(d => d.price)) * 1.001 : 0;
+  const allPrices = data.map(d => d.price);
+  if (currentPrice) allPrices.push(currentPrice);
+  if (entryPrice)   allPrices.push(entryPrice);
+  const minPrice = allPrices.length ? Math.min(...allPrices) * 0.999 : 0;
+  const maxPrice = allPrices.length ? Math.max(...allPrices) * 1.001 : 0;
+
+  const decimals = market === 'crypto' && currentPrice && currentPrice < 1 ? 5
+    : currentPrice && currentPrice < 100 ? 4 : 2;
+
+  const fmtPrice = (p) => p != null ? `$${p.toFixed(decimals)}` : '—';
 
   return (
     <div style={{
@@ -94,10 +122,19 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
               SHORT
             </span>
           )}
+          {livePrice && (
+            <span style={{
+              marginLeft: 8, fontSize: 10, padding: '2px 7px',
+              borderRadius: 10, background: '#0d2a0d', border: '1px solid #00c853',
+              color: '#00c853', fontWeight: 700
+            }}>
+              ● LIVE
+            </span>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 700, fontSize: 18, color: '#fff' }}>
-            ${currentPrice?.toLocaleString() || '—'}
+          <div style={{ fontWeight: 700, fontSize: 20, color: liveColor, transition: 'color 0.3s' }}>
+            {fmtPrice(currentPrice)}
           </div>
           {pnl !== null && (
             <div style={{ fontSize: 13, color: isProfit ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
@@ -107,13 +144,19 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
         </div>
       </div>
 
-      {/* Entry price line info */}
+      {/* Entry / Live price info row */}
       {entryPrice && (
-        <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-          Entry: ${entryPrice?.toLocaleString()} &nbsp;|&nbsp;
-          Current: ${currentPrice?.toLocaleString()} &nbsp;|&nbsp;
-          P/L: <span style={{ color: isProfit ? '#00c853' : '#ff3d3d' }}>
-            {pnl !== null ? `${isProfit ? '+' : ''}${pnl}%` : '—'}
+        <div style={{ fontSize: 12, color: '#666', marginBottom: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <span>
+            <span style={{ color: '#5865f2', fontWeight: 600 }}>── Entry</span>
+            {' '}{fmtPrice(entryPrice)}
+          </span>
+          <span>
+            <span style={{ color: liveColor, fontWeight: 600 }}>── Live</span>
+            {' '}{fmtPrice(currentPrice)}
+          </span>
+          <span style={{ color: isProfit ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+            P/L: {pnl !== null ? `${isProfit ? '+' : ''}${pnl}%` : '—'}
           </span>
         </div>
       )}
@@ -124,8 +167,8 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
       ) : data.length === 0 ? (
         <div style={{ color: '#666', textAlign: 'center', padding: 20 }}>No chart data available</div>
       ) : (
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={data}>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={data} margin={{ right: 72 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e2130" />
             <XAxis
               dataKey="time"
@@ -145,6 +188,29 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY' }) {
               labelStyle={{ color: '#888', fontSize: 12 }}
               formatter={(value) => ['$' + value.toLocaleString(), 'Price']}
             />
+
+            {/* Entry price line */}
+            {entryPrice && (
+              <ReferenceLine
+                y={entryPrice}
+                stroke="#5865f2"
+                strokeDasharray="5 4"
+                strokeWidth={1.5}
+                label={<RightLabel value={fmtPrice(entryPrice)} color="#5865f2" bg="#0d0f1a" />}
+              />
+            )}
+
+            {/* Live price line */}
+            {currentPrice && (
+              <ReferenceLine
+                y={currentPrice}
+                stroke={liveColor}
+                strokeDasharray="0"
+                strokeWidth={2}
+                label={<RightLabel value={fmtPrice(currentPrice)} color={liveColor} bg="#0d0f1a" />}
+              />
+            )}
+
             <Line
               type="monotone"
               dataKey="price"

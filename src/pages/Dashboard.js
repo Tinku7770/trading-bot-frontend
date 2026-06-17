@@ -1123,6 +1123,7 @@ function Dashboard() {
               entryPrice={trade.price}
               market={trade.market}
               type={trade.type}
+              livePrice={currentPrices[trade.symbol] || null}
             />
           </div>
         );
