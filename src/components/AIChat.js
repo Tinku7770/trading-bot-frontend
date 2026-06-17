@@ -8,38 +8,93 @@ const SUGGESTED = [
   "Why did the bot enter today's trades?",
   'What is my current P/L and win rate?',
   'Which symbols are on cooldown right now?',
-  'How is the bot performing this week?',
+  'Close all my open positions',
 ];
+
+function ActionCard({ action, onConfirm, onCancel, executing }) {
+  const colors = {
+    close_position:      { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⚡' },
+    close_all_positions: { bg: '#2a0000', border: '#ff3d3d', text: '#ff3d3d', icon: '🔴' },
+    set_price_target:    { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '🎯' },
+    cancel_price_target: { bg: '#1a1500', border: '#888',    text: '#888',    icon: '✕'  },
+  };
+  const c = colors[action.type] || colors.close_position;
+
+  return (
+    <div style={{
+      background: c.bg, border: `1px solid ${c.border}`,
+      borderRadius: 10, padding: '12px 14px', marginTop: 4
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 16 }}>{c.icon}</span>
+        <span style={{ color: c.text, fontWeight: 700, fontSize: 13 }}>Action Required</span>
+      </div>
+      <div style={{ color: '#ccc', fontSize: 13, marginBottom: 12, lineHeight: 1.5 }}>
+        {action.label}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={onConfirm}
+          disabled={executing}
+          style={{
+            flex: 1, padding: '8px 0', borderRadius: 7, border: 'none',
+            background: executing ? '#333' : c.border,
+            color: executing ? '#666' : '#fff',
+            fontWeight: 700, fontSize: 13,
+            cursor: executing ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s'
+          }}
+        >
+          {executing ? 'Executing...' : 'Confirm'}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={executing}
+          style={{
+            flex: 1, padding: '8px 0', borderRadius: 7,
+            border: '1px solid #2a2d3e', background: 'transparent',
+            color: '#888', fontWeight: 600, fontSize: 13,
+            cursor: executing ? 'not-allowed' : 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function AIChat() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hi! I'm your bot assistant. Ask me anything about your trades, performance, settings, or why the bot made a specific decision."
+      content: "Hi! I'm your bot assistant. I can answer questions about your trades AND execute actions — like closing a position or setting a price target.\n\nTry: \"close COIN\" or \"sell PYPL at $45\""
     }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [error, setError] = useState('');
+  // pending action waiting for confirmation
+  const [pendingAction, setPendingAction] = useState(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+  }, [messages, loading, pendingAction]);
 
   async function send(text) {
     const msg = (text || input).trim();
-    if (!msg || loading) return;
+    if (!msg || loading || executing) return;
     setInput('');
     setError('');
+    setPendingAction(null);
 
     const userMsg = { role: 'user', content: msg };
     const history = [...messages, userMsg];
@@ -51,12 +106,45 @@ export default function AIChat() {
         message: msg,
         history: messages.filter(m => m.role !== 'system')
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: res.data.reply }]);
+
+      const assistantMsg = { role: 'assistant', content: res.data.reply };
+      setMessages(prev => [...prev, assistantMsg]);
+
+      if (res.data.requiresConfirm && res.data.action) {
+        setPendingAction(res.data.action);
+      }
     } catch {
       setError('Failed to get a response — check your connection and try again.');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function confirmAction() {
+    if (!pendingAction || executing) return;
+    setExecuting(true);
+    setError('');
+
+    try {
+      const res = await axios.post(`${API}/chat/execute`, { action: pendingAction });
+      const resultMsg = {
+        role: 'assistant',
+        content: res.data.success
+          ? `✅ ${res.data.message}`
+          : `❌ ${res.data.message}`
+      };
+      setMessages(prev => [...prev, resultMsg]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: '❌ Action failed — please try again or use the dashboard.' }]);
+    } finally {
+      setPendingAction(null);
+      setExecuting(false);
+    }
+  }
+
+  function cancelAction() {
+    setPendingAction(null);
+    setMessages(prev => [...prev, { role: 'assistant', content: 'Action cancelled. Let me know if you need anything else.' }]);
   }
 
   function handleKey(e) {
@@ -91,7 +179,7 @@ export default function AIChat() {
       {open && (
         <div style={{
           position: 'fixed', bottom: 96, right: 28, zIndex: 9998,
-          width: 380, maxHeight: 560,
+          width: 390, maxHeight: 580,
           background: '#0d0f1a', border: '1px solid #2a2d3e',
           borderRadius: 14, display: 'flex', flexDirection: 'column',
           boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
@@ -106,7 +194,7 @@ export default function AIChat() {
               <span style={{ fontSize: 18 }}>🤖</span>
               <div>
                 <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Bot AI Assistant</div>
-                <div style={{ color: '#555', fontSize: 11 }}>Ask about trades, P/L, settings, decisions</div>
+                <div style={{ color: '#555', fontSize: 11 }}>Ask questions · Close trades · Set price targets</div>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00c853' }} />
@@ -122,23 +210,31 @@ export default function AIChat() {
             scrollbarWidth: 'thin', scrollbarColor: '#2a2d3e #0d0f1a'
           }}>
             {messages.map((m, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start'
-              }}>
+              <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
-                  maxWidth: '85%',
+                  maxWidth: '88%',
                   background: m.role === 'user' ? '#5865f2' : '#1a1d27',
                   border: m.role === 'assistant' ? '1px solid #2a2d3e' : 'none',
                   borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
                   padding: '10px 13px',
-                  color: '#e6e8ef', fontSize: 13, lineHeight: 1.55,
+                  color: m.content?.startsWith('✅') ? '#00c853' : m.content?.startsWith('❌') ? '#ff3d3d' : '#e6e8ef',
+                  fontSize: 13, lineHeight: 1.55,
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word'
                 }}>
                   {m.content}
                 </div>
               </div>
             ))}
+
+            {/* Pending action confirmation card */}
+            {pendingAction && (
+              <ActionCard
+                action={pendingAction}
+                onConfirm={confirmAction}
+                onCancel={cancelAction}
+                executing={executing}
+              />
+            )}
 
             {loading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
@@ -193,7 +289,7 @@ export default function AIChat() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input area */}
+          {/* Input */}
           <div style={{
             padding: '10px 12px', borderTop: '1px solid #1a1d27',
             background: '#111320', flexShrink: 0,
@@ -204,27 +300,29 @@ export default function AIChat() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask about your bot..."
+              placeholder='Ask or say "close COIN" / "sell PYPL at $45"...'
               rows={1}
+              disabled={loading || executing}
               style={{
                 flex: 1, background: '#1a1d27', border: '1px solid #2a2d3e',
                 borderRadius: 8, padding: '9px 12px', color: '#e6e8ef',
                 fontSize: 13, resize: 'none', outline: 'none',
                 fontFamily: 'inherit', lineHeight: 1.4,
-                maxHeight: 100, overflowY: 'auto'
+                maxHeight: 100, overflowY: 'auto',
+                opacity: (loading || executing) ? 0.5 : 1
               }}
               onFocus={e => { e.currentTarget.style.borderColor = '#5865f2'; }}
               onBlur={e => { e.currentTarget.style.borderColor = '#2a2d3e'; }}
             />
             <button
               onClick={() => send()}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || executing}
               style={{
-                background: (!input.trim() || loading) ? '#1a1d27' : '#5865f2',
+                background: (!input.trim() || loading || executing) ? '#1a1d27' : '#5865f2',
                 border: 'none', borderRadius: 8,
                 width: 38, height: 38, flexShrink: 0,
-                cursor: (!input.trim() || loading) ? 'not-allowed' : 'pointer',
-                color: (!input.trim() || loading) ? '#444' : '#fff',
+                cursor: (!input.trim() || loading || executing) ? 'not-allowed' : 'pointer',
+                color: (!input.trim() || loading || executing) ? '#444' : '#fff',
                 fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.15s'
               }}
@@ -233,7 +331,6 @@ export default function AIChat() {
             </button>
           </div>
 
-          {/* Bounce animation */}
           <style>{`
             @keyframes bounce {
               0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
