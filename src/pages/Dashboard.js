@@ -2098,9 +2098,8 @@ function Dashboard() {
           </tbody>
         </table>
       </div>
+      <AIChat />
     </div>
-
-    <AIChat />
   );
 }
 
