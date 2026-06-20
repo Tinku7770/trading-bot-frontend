@@ -254,6 +254,7 @@ function Settings() {
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.krakenEnabled !== settings.krakenEnabled) changes.push(`Kraken Margin Shorts → ${settings.krakenEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
+        if (originalSettings.tradeApprovalMode !== settings.tradeApprovalMode) changes.push(`Trade Approval Mode → ${settings.tradeApprovalMode || 'off'}`);
         if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
         if (originalSettings.maxStockPositions !== settings.maxStockPositions) changes.push(`Max Stock Positions → ${settings.maxStockPositions}`);
         if (originalSettings.maxCryptoPositions !== settings.maxCryptoPositions) changes.push(`Max Crypto Positions → ${settings.maxCryptoPositions}`);
@@ -1099,6 +1100,45 @@ function Settings() {
               <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700 }}>Crypto trading is paused. Stocks + scanner continue running normally.</span>
             </div>
           )}
+        </div>
+
+        <div className="form-group">
+          <label>Trade Approval Mode</label>
+          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+            {['off', 'crypto', 'all'].map(mode => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => updateSettings({ tradeApprovalMode: mode })}
+                style={{
+                  padding: '7px 18px',
+                  borderRadius: 20,
+                  border: '1px solid',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  background: (settings.tradeApprovalMode || 'off') === mode
+                    ? mode === 'off' ? '#1a1a2e' : mode === 'crypto' ? '#0d1f2d' : '#1a0d2e'
+                    : '#161b22',
+                  borderColor: (settings.tradeApprovalMode || 'off') === mode
+                    ? mode === 'off' ? '#888' : mode === 'crypto' ? '#1e90ff' : '#a855f7'
+                    : '#30363d',
+                  color: (settings.tradeApprovalMode || 'off') === mode
+                    ? mode === 'off' ? '#ccc' : mode === 'crypto' ? '#1e90ff' : '#a855f7'
+                    : '#666'
+                }}
+              >
+                {mode === 'off' ? '⬜ Off' : mode === 'crypto' ? '🔵 Crypto Only' : '🟣 All Trades'}
+              </button>
+            ))}
+          </div>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 8 }}>
+            {(settings.tradeApprovalMode || 'off') === 'off'
+              ? 'Bot trades automatically with no approval needed.'
+              : (settings.tradeApprovalMode || 'off') === 'crypto'
+              ? 'Bot sends Telegram message before every crypto trade — you choose LONG, SHORT, or Skip.'
+              : 'Bot asks your approval via Telegram before every trade (crypto + stocks).'}
+          </p>
         </div>
 
         <div className="form-group">
