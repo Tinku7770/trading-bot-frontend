@@ -255,6 +255,7 @@ function Settings() {
         if (originalSettings.krakenEnabled !== settings.krakenEnabled) changes.push(`Kraken Margin Shorts → ${settings.krakenEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
         if (originalSettings.tradeApprovalMode !== settings.tradeApprovalMode) changes.push(`Trade Approval Mode → ${settings.tradeApprovalMode || 'off'}`);
+        if (originalSettings.portfolioHeatLimitPercent !== settings.portfolioHeatLimitPercent) changes.push(`Portfolio Heat Limit → ${settings.portfolioHeatLimitPercent ?? 3}%`);
         if (originalSettings.maxConcurrentPositions !== settings.maxConcurrentPositions) changes.push(`Max Positions → ${settings.maxConcurrentPositions}`);
         if (originalSettings.maxStockPositions !== settings.maxStockPositions) changes.push(`Max Stock Positions → ${settings.maxStockPositions}`);
         if (originalSettings.maxCryptoPositions !== settings.maxCryptoPositions) changes.push(`Max Crypto Positions → ${settings.maxCryptoPositions}`);
@@ -998,6 +999,28 @@ function Settings() {
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
             Bot will not open new crypto trades when this many crypto positions are already open. Recommended: 3–5.
           </p>
+        </div>
+
+        <div className="form-group">
+          <label>Portfolio Heat Limit (%)</label>
+          <input
+            type="number"
+            min="0"
+            max="20"
+            step="0.5"
+            value={settings.portfolioHeatLimitPercent ?? 3}
+            onChange={e => numInput('portfolioHeatLimitPercent', e.target.value)}
+          />
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            If total unrealized loss across all open positions exceeds this % of your capital, the bot pauses new entries until conditions improve. Set to 0 to disable. Recommended: 2–5%.
+          </p>
+          {(settings.portfolioHeatLimitPercent ?? 3) > 0 && (
+            <div style={{ background: '#0d1f2d', border: '1px solid #1e90ff', borderRadius: 8, padding: '8px 14px', marginTop: 6 }}>
+              <span style={{ color: '#1e90ff', fontSize: 12 }}>
+                Bot pauses new trades if unrealized loss &gt; <strong style={{ color: '#c9d1d9' }}>${(((settings.portfolioHeatLimitPercent ?? 3) / 100) * (settings.totalCapital || 2000)).toFixed(0)}</strong> (at ${settings.totalCapital || 2000} capital)
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="form-group">
