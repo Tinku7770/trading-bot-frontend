@@ -66,12 +66,16 @@ function ActionCard({ action, onConfirm, onCancel, executing }) {
 
 export default function AIChat() {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ai_chat_history');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [{
       role: 'assistant',
       content: "Hi! I'm your bot assistant. I can answer questions about your trades AND execute actions — like closing a position or setting a price target.\n\nTry: \"close COIN\" or \"sell PYPL at $45\""
-    }
-  ]);
+    }];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
@@ -88,6 +92,12 @@ export default function AIChat() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, pendingAction]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ai_chat_history', JSON.stringify(messages.slice(-50)));
+    } catch {}
+  }, [messages]);
 
   async function send(text) {
     const msg = (text || input).trim();
