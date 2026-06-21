@@ -87,11 +87,9 @@ function Dashboard() {
   const [currentPrices, setCurrentPrices] = useState({});
   const [priceUpdatedAt, setPriceUpdatedAt] = useState({});
   const [scannedStocks, setScannedStocks]       = useState([]);
-  const [scannedCrypto, setScannedCrypto]       = useState([]);
   const [preMarketFlags, setPreMarketFlags]     = useState([]);
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [scannerPerf, setScannerPerf]           = useState(null);
-  const [cryptoScanHistory, setCryptoScanHistory] = useState(null);
   const [scanHistoryExpanded, setScanHistoryExpanded] = useState(false);
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
@@ -120,15 +118,13 @@ function Dashboard() {
   useEffect(() => {
     async function fetchScanned() {
       try {
-        const [scannedRes, preRes, cryptoRes] = await Promise.all([
+        const [scannedRes, preRes] = await Promise.all([
           axios.get(`${API}/bot/scanned-stocks`),
-          axios.get(`${API}/bot/pre-market-flags`),
-          axios.get(`${API}/bot/scanned-crypto`)
+          axios.get(`${API}/bot/pre-market-flags`)
         ]);
         setScannedStocks(scannedRes.data || []);
         setPreMarketFlags(preRes.data || []);
-        setScannedCrypto(cryptoRes.data || []);
-      } catch { setScannedStocks([]); setPreMarketFlags([]); setScannedCrypto([]); }
+      } catch { setScannedStocks([]); setPreMarketFlags([]); }
     }
     fetchScanned();
     const interval = setInterval(fetchScanned, 60000);
@@ -159,17 +155,6 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    async function fetchCryptoHistory() {
-      try {
-        const res = await axios.get(`${API}/scanner/crypto-history`);
-        setCryptoScanHistory(res.data);
-      } catch { /* keep previous data */ }
-    }
-    fetchCryptoHistory();
-    const interval = setInterval(fetchCryptoHistory, 10 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchNextRun() {
     try {
@@ -1218,8 +1203,8 @@ function Dashboard() {
         )}
       </div>}
 
-      {/* Crypto Scanner Picks + History */}
-      {cryptoScanHistory && (() => {
+      {/* [Crypto Scanner removed] */}
+      {false && (() => {
         const totalPicksFound = cryptoScanHistory.runs?.reduce((sum, r) => sum + r.picks.length, 0) || 0;
         const uniqueSymbols   = [...new Set((cryptoScanHistory.runs || []).flatMap(r => r.picks.map(p => p.symbol)))].length;
         return (
@@ -1361,8 +1346,8 @@ function Dashboard() {
         );
       })()}
 
-      {/* Scanner Performance */}
-      {scannerPerf && (scannerPerf.summary.totalPicks > 0 || scannerPerf.summary.tradedPicks > 0) && (
+      {/* [Scanner Performance removed] */}
+      {false && scannerPerf && (scannerPerf.summary.totalPicks > 0 || scannerPerf.summary.tradedPicks > 0) && (
         <div className="section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div>
