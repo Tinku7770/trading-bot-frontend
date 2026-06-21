@@ -173,7 +173,7 @@ export default function AIChat() {
         onClick={() => setOpen(o => !o)}
         title="Ask your bot AI"
         style={{
-          position: 'fixed', bottom: 28, right: 28, zIndex: 9999,
+          position: 'fixed', bottom: 28, right: 16, zIndex: 9999,
           width: 56, height: 56, borderRadius: '50%',
           background: open ? '#2a2d3e' : '#5865f2',
           border: open ? '1px solid #5865f2' : 'none',
@@ -188,8 +188,9 @@ export default function AIChat() {
       {/* Chat panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 96, right: 28, zIndex: 9998,
-          width: 390, maxHeight: 580,
+          position: 'fixed', bottom: 96, right: 12, zIndex: 9998,
+          width: 'min(390px, calc(100vw - 24px))',
+          maxHeight: 'min(580px, calc(100dvh - 120px))',
           background: '#0d0f1a', border: '1px solid #2a2d3e',
           borderRadius: 14, display: 'flex', flexDirection: 'column',
           boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
