@@ -15,6 +15,7 @@ export function AppProvider({ children }) {
   const [tradeMode, setTradeMode] = useState('paper');
   const [liveSignals, setLiveSignals] = useState([]);
   const [liveTrades, setLiveTrades] = useState([]);
+  const [livePrices, setLivePrices] = useState({});
 
   // Initialize tradeMode from backend so the badge is correct on first load
   useEffect(() => {
@@ -50,6 +51,10 @@ export function AppProvider({ children }) {
           const data = JSON.parse(event.data);
 
           if (data.type === 'BOT_STATUS') setBotStatus(data.isRunning);
+
+          if (data.type === 'PRICE_UPDATE') {
+            setLivePrices(prev => ({ ...prev, [data.symbol]: { price: data.price, ts: Date.now() } }));
+          }
 
           if (data.type === 'NEW_SIGNAL') {
             setLiveSignals(prev => [data.signal, ...prev].slice(0, 20));
@@ -99,7 +104,7 @@ export function AppProvider({ children }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ botStatus, setBotStatus, tradeMode, setTradeMode, liveSignals, liveTrades }}>
+    <AppContext.Provider value={{ botStatus, setBotStatus, tradeMode, setTradeMode, liveSignals, liveTrades, livePrices }}>
       {children}
     </AppContext.Provider>
   );

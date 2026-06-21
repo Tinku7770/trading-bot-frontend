@@ -68,7 +68,7 @@ function formatMarketCountdown(ms) {
 }
 
 function Dashboard() {
-  const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades } = useApp();
+  const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades, livePrices } = useApp();
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
@@ -96,11 +96,8 @@ function Dashboard() {
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [wsConnected, setWsConnected] = useState(false);
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
-  const binanceWsRef = useRef(null);
-  const binanceSymbolsRef = useRef('');
 
   useEffect(() => {
     return () => { if (runNowTimerRef.current) clearTimeout(runNowTimerRef.current); };
@@ -212,73 +209,25 @@ function Dashboard() {
     }
   }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Binance.US WebSocket — real-time crypto prices (~1s tick)
+  // Sync backend-streamed crypto prices → currentPrices + priceUpdatedAt
   useEffect(() => {
-    const cryptoTrades = (data?.openTrades || []).filter(t => t.market === 'crypto');
-    const symbolsKey = cryptoTrades.map(t => t.symbol).sort().join(',');
+    if (!Object.keys(livePrices).length) return;
+    setCurrentPrices(prev => {
+      const next = { ...prev };
+      Object.entries(livePrices).forEach(([sym, { price }]) => { next[sym] = price; });
+      return next;
+    });
+    setPriceUpdatedAt(prev => {
+      const next = { ...prev };
+      Object.entries(livePrices).forEach(([sym, { ts }]) => { next[sym] = ts; });
+      return next;
+    });
+  }, [livePrices]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (symbolsKey === binanceSymbolsRef.current && binanceWsRef.current?.readyState === WebSocket.OPEN) return;
-    binanceSymbolsRef.current = symbolsKey;
-
-    if (binanceWsRef.current) {
-      binanceWsRef.current.close(1000);
-      binanceWsRef.current = null;
-    }
-    setWsConnected(false);
-    if (!cryptoTrades.length) return;
-
-    function connect() {
-      const streams = cryptoTrades
-        .map(t => t.symbol.replace('/', '').toLowerCase() + '@miniTicker')
-        .join('/');
-      const ws = new WebSocket(`wss://stream.binance.us:9443/stream?streams=${streams}`);
-      binanceWsRef.current = ws;
-
-      ws.onopen = () => setWsConnected(true);
-      ws.onclose = (e) => {
-        setWsConnected(false);
-        if (e.code !== 1000 && binanceWsRef.current === ws && binanceSymbolsRef.current === symbolsKey) {
-          setTimeout(connect, 3000);
-        }
-      };
-      ws.onerror = () => setWsConnected(false);
-      ws.onmessage = (event) => {
-        try {
-          const ticker = JSON.parse(event.data)?.data;
-          if (!ticker?.c) return;
-          const trade = cryptoTrades.find(t => t.symbol.replace('/', '') === ticker.s);
-          if (!trade) return;
-          const price = parseFloat(ticker.c);
-          if (!isFinite(price)) return;
-          setCurrentPrices(prev => ({ ...prev, [trade.symbol]: price }));
-          setPriceUpdatedAt(prev => ({ ...prev, [trade.symbol]: Date.now() }));
-        } catch {}
-      };
-    }
-    connect();
-
-    return () => {
-      binanceSymbolsRef.current = '';
-      if (binanceWsRef.current) { binanceWsRef.current.close(1000); binanceWsRef.current = null; }
-      setWsConnected(false);
-    };
-  }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Crypto prices: fallback polling every 10s (fires if WebSocket is down)
+  // Stock prices: refresh every 3s
   useEffect(() => {
     if (!data?.openTrades?.length) return;
-    const interval = setInterval(() => {
-      if (!binanceWsRef.current || binanceWsRef.current.readyState !== WebSocket.OPEN) {
-        fetchCryptoPrices(openTradesRef.current);
-      }
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Stock prices: refresh every 5s
-  useEffect(() => {
-    if (!data?.openTrades?.length) return;
-    const interval = setInterval(() => fetchStockPrices(openTradesRef.current), 5000);
+    const interval = setInterval(() => fetchStockPrices(openTradesRef.current), 3000);
     return () => clearInterval(interval);
   }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -833,7 +782,7 @@ function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <h3 style={{ margin: 0 }}>Open Positions</h3>
-                {wsConnected ? (
+                {Object.values(livePrices).some(p => Date.now() - p.ts < 3000) ? (
                   <span style={{
                     background: '#0d2a0d', border: '1px solid #00c853', borderRadius: 20,
                     color: '#00c853', fontSize: 10, fontWeight: 700, padding: '2px 8px',
