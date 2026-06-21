@@ -98,6 +98,9 @@ function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
+  const binanceWsRef = useRef(null);
+  const binanceSymbolsKeyRef = useRef('');
+  const [wsConnected, setWsConnected] = useState(false);
 
   useEffect(() => {
     return () => { if (runNowTimerRef.current) clearTimeout(runNowTimerRef.current); };
@@ -209,9 +212,61 @@ function Dashboard() {
     }
   }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync backend-streamed crypto prices → currentPrices + priceUpdatedAt
+  // Direct Binance.com WebSocket — fastest possible crypto prices (fires on every trade)
+  useEffect(() => {
+    const cryptoTrades = (data?.openTrades || []).filter(t => t.market === 'crypto');
+    const symbolsKey = cryptoTrades.map(t => t.symbol).sort().join(',');
+    if (symbolsKey === binanceSymbolsKeyRef.current && binanceWsRef.current?.readyState === WebSocket.OPEN) return;
+    binanceSymbolsKeyRef.current = symbolsKey;
+
+    if (binanceWsRef.current) { binanceWsRef.current.close(1000); binanceWsRef.current = null; }
+    setWsConnected(false);
+    if (!cryptoTrades.length) return;
+
+    const lastUpdate = {};
+    function connect() {
+      const streams = cryptoTrades.map(t => t.symbol.replace('/', '').toLowerCase() + '@aggTrade').join('/');
+      const ws = new WebSocket(`wss://stream.binance.com/stream?streams=${streams}`);
+      binanceWsRef.current = ws;
+
+      ws.onopen = () => setWsConnected(true);
+      ws.onerror = () => setWsConnected(false);
+      ws.onclose = (e) => {
+        setWsConnected(false);
+        if (e.code !== 1000 && binanceWsRef.current === ws && binanceSymbolsKeyRef.current === symbolsKey) {
+          setTimeout(connect, 2000);
+        }
+      };
+      ws.onmessage = (event) => {
+        try {
+          const trade = JSON.parse(event.data)?.data;
+          if (!trade || trade.e !== 'aggTrade') return;
+          const price = parseFloat(trade.p);
+          if (!isFinite(price)) return;
+          const ourTrade = cryptoTrades.find(t => t.symbol.replace('/', '') === trade.s);
+          if (!ourTrade) return;
+          // Throttle React updates to 100ms — fast visually but won't overload rendering
+          const now = Date.now();
+          if (lastUpdate[ourTrade.symbol] && now - lastUpdate[ourTrade.symbol] < 100) return;
+          lastUpdate[ourTrade.symbol] = now;
+          setCurrentPrices(prev => ({ ...prev, [ourTrade.symbol]: price }));
+          setPriceUpdatedAt(prev => ({ ...prev, [ourTrade.symbol]: now }));
+        } catch {}
+      };
+    }
+    connect();
+
+    return () => {
+      binanceSymbolsKeyRef.current = '';
+      if (binanceWsRef.current) { binanceWsRef.current.close(1000); binanceWsRef.current = null; }
+      setWsConnected(false);
+    };
+  }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Backend PRICE_UPDATE as fallback when direct WS is down
   useEffect(() => {
     if (!Object.keys(livePrices).length) return;
+    if (binanceWsRef.current?.readyState === WebSocket.OPEN) return;
     setCurrentPrices(prev => {
       const next = { ...prev };
       Object.entries(livePrices).forEach(([sym, { price }]) => { next[sym] = price; });
@@ -782,7 +837,7 @@ function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <h3 style={{ margin: 0 }}>Open Positions</h3>
-                {Object.values(livePrices).some(p => Date.now() - p.ts < 3000) ? (
+                {wsConnected ? (
                   <span style={{
                     background: '#0d2a0d', border: '1px solid #00c853', borderRadius: 20,
                     color: '#00c853', fontSize: 10, fontWeight: 700, padding: '2px 8px',
