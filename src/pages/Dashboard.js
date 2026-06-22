@@ -182,7 +182,7 @@ function Dashboard() {
     }
   }, [data?.openTrades]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Direct Binance.com WebSocket — fastest possible crypto prices (fires on every trade)
+  // Direct Binance.US WebSocket — fastest possible crypto prices (fires on every trade)
   useEffect(() => {
     const cryptoTrades = (data?.openTrades || []).filter(t => t.market === 'crypto');
     const symbolsKey = cryptoTrades.map(t => t.symbol).sort().join(',');
@@ -196,7 +196,7 @@ function Dashboard() {
     const lastUpdate = {};
     function connect() {
       const streams = cryptoTrades.map(t => t.symbol.replace('/', '').toLowerCase() + '@aggTrade').join('/');
-      const ws = new WebSocket(`wss://stream.binance.com/stream?streams=${streams}`);
+      const ws = new WebSocket(`wss://stream.binance.us:9443/stream?streams=${streams}`);
       binanceWsRef.current = ws;
 
       ws.onopen = () => setWsConnected(true);
