@@ -69,7 +69,14 @@ export default function AIChat() {
   const [messages, setMessages] = useState(() => {
     try {
       const saved = localStorage.getItem('ai_chat_history');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Filter out any messages with non-string content (corrupted tool_use blocks)
+        const clean = parsed.filter(m =>
+          (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim()
+        );
+        if (clean.length > 0) return clean;
+      }
     } catch {}
     return [{
       role: 'assistant',
