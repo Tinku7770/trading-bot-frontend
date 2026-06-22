@@ -5,8 +5,9 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-if (process.env.REACT_APP_DASHBOARD_API_KEY) {
-  axios.defaults.headers.common['x-api-key'] = process.env.REACT_APP_DASHBOARD_API_KEY;
+const _apiKey = process.env.REACT_APP_DASHBOARD_API_KEY || 'TradingBot2025!Soheb#SecureKey';
+if (_apiKey) {
+  axios.defaults.headers.common['x-api-key'] = _apiKey;
 }
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
 const AppContext = createContext();
-const API = process.env.REACT_APP_API_URL;
+const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
 
 function notify(title, body) {
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -38,7 +38,7 @@ export function AppProvider({ children }) {
 
     function connect() {
       const wsBase = process.env.REACT_APP_WS_URL || 'wss://trading-bot-backend-production-9a53.up.railway.app';
-      const wsKey  = process.env.REACT_APP_DASHBOARD_API_KEY;
+      const wsKey  = process.env.REACT_APP_DASHBOARD_API_KEY || 'TradingBot2025!Soheb#SecureKey';
       socket = new WebSocket(wsKey ? `${wsBase}?key=${encodeURIComponent(wsKey)}` : wsBase);
 
       socket.onopen = () => {

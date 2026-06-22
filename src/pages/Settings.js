@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
 
-const API = process.env.REACT_APP_API_URL;
+const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
 
 function SymbolTags({ symbols, onChange, placeholder }) {
   const [input, setInput] = useState('');
