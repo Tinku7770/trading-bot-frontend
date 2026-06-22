@@ -9,19 +9,21 @@ export async function POST(req: NextRequest) {
   try {
     const { question, portfolioData, walletAddress } = await req.json();
 
-    if (!question || !portfolioData) {
-      return NextResponse.json({ error: "Missing question or portfolio data" }, { status: 400 });
+    if (!question) {
+      return NextResponse.json({ error: "Missing question" }, { status: 400 });
     }
 
-    // Build portfolio summary for Claude
-    const topTokens = portfolioData.tokens
-      .slice(0, 10)
-      .map((t: any) =>
-        `- ${t.symbol} (${t.chain}): $${t.usdValue.toFixed(2)} | 24h: ${t.change24h >= 0 ? "+" : ""}${t.change24h.toFixed(2)}%`
-      )
-      .join("\n");
+    // Build portfolio summary only if wallet data is available
+    let portfolioSummary = "No wallet connected — answer as a general crypto trading advisor.";
+    if (portfolioData && portfolioData.tokens?.length > 0) {
+      const topTokens = portfolioData.tokens
+        .slice(0, 10)
+        .map((t: any) =>
+          `- ${t.symbol} (${t.chain}): $${t.usdValue.toFixed(2)} | 24h: ${t.change24h >= 0 ? "+" : ""}${t.change24h.toFixed(2)}%`
+        )
+        .join("\n");
 
-    const portfolioSummary = `
+      portfolioSummary = `
 Wallet: ${walletAddress}
 Total Value: $${portfolioData.totalUsd.toFixed(2)}
 24h Change: ${portfolioData.change24h >= 0 ? "+" : ""}${portfolioData.change24h.toFixed(2)}%
@@ -30,7 +32,8 @@ Number of tokens: ${portfolioData.tokens.length}
 
 Top holdings:
 ${topTokens}
-    `.trim();
+      `.trim();
+    }
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
