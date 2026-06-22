@@ -88,6 +88,7 @@ function Dashboard() {
   const [priceUpdatedAt, setPriceUpdatedAt] = useState({});
   const [scannedStocks, setScannedStocks]       = useState([]);
   const [preMarketFlags, setPreMarketFlags]     = useState([]);
+  const [conditionalOrders, setConditionalOrders] = useState([]);
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
@@ -138,6 +139,18 @@ function Dashboard() {
     }
     fetchCryptoHealth();
     const interval = setInterval(fetchCryptoHealth, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    async function fetchConditionalOrders() {
+      try {
+        const res = await axios.get(`${API}/bot/conditional-orders`);
+        setConditionalOrders(res.data || []);
+      } catch { /* keep previous */ }
+    }
+    fetchConditionalOrders();
+    const interval = setInterval(fetchConditionalOrders, 15000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1187,6 +1200,67 @@ function Dashboard() {
           </div>
         )}
       </div>}
+
+      {/* Conditional Entry Orders */}
+      {conditionalOrders.length > 0 && (
+        <div className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Conditional Entry Orders</h3>
+              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>Auto-executes when price hits the trigger · checks every 30s</p>
+            </div>
+            <span style={{
+              background: '#0d1a2a', color: '#5865f2', border: '1px solid #5865f2',
+              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
+            }}>{conditionalOrders.length} pending</span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Direction</th>
+                  <th>Trigger</th>
+                  <th>Condition</th>
+                  <th>Auto-Close</th>
+                  <th>Set At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {conditionalOrders.map(order => {
+                  const dir      = order.direction === 'BUY' ? 'LONG' : 'SHORT';
+                  const dirColor = order.direction === 'BUY' ? '#00c853' : '#ff6b35';
+                  const condStr  = order.triggerType === 'above'
+                    ? `Price ≥ $${order.triggerPrice}`
+                    : `Price ≤ $${order.triggerPrice}`;
+                  const setAt = new Date(order.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <tr key={order._id}>
+                      <td><strong>{order.symbol}</strong></td>
+                      <td>
+                        <span style={{
+                          background: order.direction === 'BUY' ? '#0d2a0d' : '#2a1500',
+                          color: dirColor, border: `1px solid ${dirColor}`,
+                          borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700
+                        }}>{dir}</span>
+                      </td>
+                      <td style={{ color: '#5865f2', fontWeight: 600 }}>${order.triggerPrice}</td>
+                      <td style={{ color: '#aaa', fontSize: 12 }}>{condStr}</td>
+                      <td style={{ color: order.closeAfterMinutes ? '#f5a623' : '#444', fontSize: 12 }}>
+                        {order.closeAfterMinutes ? `${order.closeAfterMinutes}m` : '—'}
+                      </td>
+                      <td style={{ color: '#555', fontSize: 12 }}>{setAt}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
+            To cancel: tell AI Chat "cancel my conditional entry for [symbol]"
+          </p>
+        </div>
+      )}
 
       {/* Crypto Market Health */}
       {cryptoHealth && (
