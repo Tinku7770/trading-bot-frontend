@@ -14,9 +14,8 @@ import Backtest from './pages/Backtest';
 import './App.css';
 
 // Attach API key to every axios request automatically
-if (process.env.REACT_APP_DASHBOARD_API_KEY) {
-  axios.defaults.headers.common['x-api-key'] = process.env.REACT_APP_DASHBOARD_API_KEY;
-}
+const DASHBOARD_API_KEY = process.env.REACT_APP_DASHBOARD_API_KEY || 'TradingBot2025!Soheb#SecureKey';
+axios.defaults.headers.common['x-api-key'] = DASHBOARD_API_KEY;
 
 function App() {
   return (
