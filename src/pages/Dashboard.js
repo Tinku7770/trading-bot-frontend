@@ -891,7 +891,7 @@ function Dashboard() {
                         )}
                       </td>
                       <td><span className={`badge ${trade.type?.toLowerCase()}`}>{trade.type}</span></td>
-                      <td>${trade.price?.toFixed(2)}</td>
+                      <td>{(() => { const p = trade.price; if (!p) return '—'; const d = trade.market === 'crypto' && p < 1 ? 5 : p < 100 ? 4 : 2; return `$${p.toFixed(d)}`; })()}</td>
                       <td>{(() => {
                         const cur = currentPrices[trade.symbol];
                         const justUpdated = priceUpdatedAt[trade.symbol] && Date.now() - priceUpdatedAt[trade.symbol] < 15000;
@@ -1738,7 +1738,7 @@ function Dashboard() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#888', fontSize: 13 }}>Entry Price</span>
-                  <span style={{ color: '#aaa' }}>${trade.price?.toFixed(2)}</span>
+                  <span style={{ color: '#aaa' }}>{(() => { const p = trade.price; if (!p) return '—'; const d = trade.market === 'crypto' && p < 1 ? 5 : p < 100 ? 4 : 2; return `$${p.toFixed(d)}`; })()}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#888', fontSize: 13 }}>Amount</span>
