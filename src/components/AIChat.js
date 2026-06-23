@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+const API_KEY = 'TradingBot2025!Soheb#SecureKey';
 
 const SUGGESTED = [
   'What are my open positions?',
@@ -122,6 +123,8 @@ export default function AIChat() {
       const res = await axios.post(`${API}/chat`, {
         message: msg,
         history: messages.filter(m => m.role !== 'system')
+      }, {
+        headers: { 'x-api-key': API_KEY }
       });
 
       const assistantMsg = { role: 'assistant', content: res.data.reply };
@@ -130,8 +133,10 @@ export default function AIChat() {
       if (res.data.requiresConfirm && res.data.action) {
         setPendingAction(res.data.action);
       }
-    } catch {
-      setError('Failed to get a response — check your connection and try again.');
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg2 = err?.response?.data?.error || err?.message || 'unknown error';
+      setError(`Error ${status ? `(${status})` : ''}: ${msg2}`);
     } finally {
       setLoading(false);
     }
@@ -143,7 +148,7 @@ export default function AIChat() {
     setError('');
 
     try {
-      const res = await axios.post(`${API}/chat/execute`, { action: pendingAction });
+      const res = await axios.post(`${API}/chat/execute`, { action: pendingAction }, { headers: { 'x-api-key': API_KEY } });
       const resultMsg = {
         role: 'assistant',
         content: res.data.success
