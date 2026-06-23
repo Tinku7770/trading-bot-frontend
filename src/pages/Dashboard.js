@@ -265,7 +265,7 @@ function Dashboard() {
   // Stock prices: refresh every 3s
   useEffect(() => {
     if (!data?.openTrades?.length) return;
-    const interval = setInterval(() => fetchStockPrices(openTradesRef.current), 3000);
+    const interval = setInterval(() => fetchStockPrices(openTradesRef.current), 1500);
     return () => clearInterval(interval);
   }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
