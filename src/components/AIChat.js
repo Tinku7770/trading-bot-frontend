@@ -219,9 +219,23 @@ export default function AIChat() {
                 <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Bot AI Assistant</div>
                 <div style={{ color: '#555', fontSize: 11 }}>Ask questions · Close trades · Set price targets</div>
               </div>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00c853' }} />
-                <span style={{ color: '#00c853', fontSize: 10, fontWeight: 700 }}>LIVE</span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('ai_chat_history');
+                    setMessages([{ role: 'assistant', content: "Chat cleared. What can I help you with?" }]);
+                    setError('');
+                    setPendingAction(null);
+                  }}
+                  title="Clear chat history"
+                  style={{ background: 'none', border: 'none', color: '#444', fontSize: 13, cursor: 'pointer', padding: '2px 4px' }}
+                >
+                  🗑
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00c853' }} />
+                  <span style={{ color: '#00c853', fontSize: 10, fontWeight: 700 }}>LIVE</span>
+                </div>
               </div>
             </div>
           </div>
