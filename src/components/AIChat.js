@@ -228,9 +228,13 @@ export default function AIChat() {
                     setPendingAction(null);
                   }}
                   title="Clear chat history"
-                  style={{ background: 'none', border: 'none', color: '#444', fontSize: 13, cursor: 'pointer', padding: '2px 4px' }}
+                  style={{
+                    background: '#2a1a1a', border: '1px solid #ff3d3d',
+                    borderRadius: 6, color: '#ff3d3d', fontSize: 13,
+                    cursor: 'pointer', padding: '3px 8px', lineHeight: 1
+                  }}
                 >
-                  🗑
+                  🗑 Clear
                 </button>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#00c853' }} />
