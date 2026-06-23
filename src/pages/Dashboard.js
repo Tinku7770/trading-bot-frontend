@@ -228,9 +228,9 @@ function Dashboard() {
           if (!isFinite(price)) return;
           const ourTrade = cryptoTrades.find(t => t.symbol.replace('/', '') === trade.s);
           if (!ourTrade) return;
-          // Throttle React updates to 100ms — fast visually but won't overload rendering
+          // Throttle React updates to 50ms — snappy visually without overloading rendering
           const now = Date.now();
-          if (lastUpdate[ourTrade.symbol] && now - lastUpdate[ourTrade.symbol] < 100) return;
+          if (lastUpdate[ourTrade.symbol] && now - lastUpdate[ourTrade.symbol] < 50) return;
           lastUpdate[ourTrade.symbol] = now;
           setCurrentPrices(prev => ({ ...prev, [ourTrade.symbol]: price }));
           setPriceUpdatedAt(prev => ({ ...prev, [ourTrade.symbol]: now }));
@@ -268,6 +268,15 @@ function Dashboard() {
     const interval = setInterval(() => fetchStockPrices(openTradesRef.current), 3000);
     return () => clearInterval(interval);
   }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Crypto price fallback: poll every 1s when direct Binance WS is not connected
+  useEffect(() => {
+    if (!data?.openTrades?.length) return;
+    const interval = setInterval(() => {
+      if (!wsConnected) fetchCryptoPrices(openTradesRef.current);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [data?.openTrades?.length, wsConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchDashboard() {
     try {
