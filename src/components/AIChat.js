@@ -19,6 +19,8 @@ function ActionCard({ action, onConfirm, onCancel, executing }) {
     set_price_target:      { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '🎯' },
     cancel_price_target:   { bg: '#1a1500', border: '#888',    text: '#888',    icon: '✕'  },
     bulk_conditional_entry:{ bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '📋' },
+    set_autopilot:         { bg: '#0d1a1a', border: '#00c853', text: '#00c853', icon: '🤖' },
+    cancel_autopilot:      { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⏹' },
   };
   const c = colors[action.type] || colors.close_position;
 
