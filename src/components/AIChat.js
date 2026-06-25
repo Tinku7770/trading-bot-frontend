@@ -250,7 +250,7 @@ export default function AIChat() {
             display: 'flex', flexDirection: 'column', gap: 12,
             scrollbarWidth: 'thin', scrollbarColor: '#2a2d3e #0d0f1a'
           }}>
-            {messages.map((m, i) => (
+            {messages.filter(m => m.content?.trim()).map((m, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
                   maxWidth: '88%',
