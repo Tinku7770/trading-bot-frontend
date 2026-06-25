@@ -14,10 +14,11 @@ const SUGGESTED = [
 
 function ActionCard({ action, onConfirm, onCancel, executing }) {
   const colors = {
-    close_position:      { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⚡' },
-    close_all_positions: { bg: '#2a0000', border: '#ff3d3d', text: '#ff3d3d', icon: '🔴' },
-    set_price_target:    { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '🎯' },
-    cancel_price_target: { bg: '#1a1500', border: '#888',    text: '#888',    icon: '✕'  },
+    close_position:        { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⚡' },
+    close_all_positions:   { bg: '#2a0000', border: '#ff3d3d', text: '#ff3d3d', icon: '🔴' },
+    set_price_target:      { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '🎯' },
+    cancel_price_target:   { bg: '#1a1500', border: '#888',    text: '#888',    icon: '✕'  },
+    bulk_conditional_entry:{ bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '📋' },
   };
   const c = colors[action.type] || colors.close_position;
 
@@ -30,7 +31,7 @@ function ActionCard({ action, onConfirm, onCancel, executing }) {
         <span style={{ fontSize: 16 }}>{c.icon}</span>
         <span style={{ color: c.text, fontWeight: 700, fontSize: 13 }}>Action Required</span>
       </div>
-      <div style={{ color: '#ccc', fontSize: 13, marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ color: '#ccc', fontSize: 13, marginBottom: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
         {action.label}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
