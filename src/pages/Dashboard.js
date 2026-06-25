@@ -77,6 +77,7 @@ function Dashboard() {
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
   const [selectedTradeId, setSelectedTradeId] = useState(null);
+  const [selectedConditionalSymbol, setSelectedConditionalSymbol] = useState(null);
   const [closeModal, setCloseModal] = useState(null);
   const [closeAllModal, setCloseAllModal] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -1245,7 +1246,14 @@ function Dashboard() {
                   const setAt = new Date(order.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                   return (
                     <tr key={order._id}>
-                      <td><strong>{order.symbol}</strong></td>
+                      <td>
+                        <button
+                          onClick={() => setSelectedConditionalSymbol(selectedConditionalSymbol === order.symbol ? null : order.symbol)}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit' }}
+                        >
+                          <strong style={{ textDecoration: 'underline dotted', color: '#5865f2' }}>{order.symbol}</strong>
+                        </button>
+                      </td>
                       <td>
                         <span style={{
                           background: order.direction === 'BUY' ? '#0d2a0d' : '#2a1500',
@@ -1265,6 +1273,23 @@ function Dashboard() {
               </tbody>
             </table>
           </div>
+          {selectedConditionalSymbol && (() => {
+            const order = conditionalOrders.find(o => o.symbol === selectedConditionalSymbol);
+            if (!order) return null;
+            const market = order.symbol.includes('/') ? 'crypto' : 'stock';
+            return (
+              <div style={{ marginTop: 16 }}>
+                <PriceChart
+                  key={order.symbol}
+                  symbol={order.symbol}
+                  entryPrice={order.triggerPrice}
+                  market={market}
+                  type={order.direction}
+                  livePrice={currentPrices[order.symbol] || null}
+                />
+              </div>
+            );
+          })()}
           <p style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
             To cancel: tell AI Chat "cancel my conditional entry for [symbol]"
           </p>
