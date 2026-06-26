@@ -12,8 +12,9 @@ function FundingPanel() {
   const [loadingBal, setLoadingBal]       = useState(true);
   const [krakenMethods, setKrakenMethods] = useState(null);
   const [loadingKraken, setLoadingKraken] = useState(false);
-  const [botSettings, setBotSettings] = useState(null);
-  const [openTrades, setOpenTrades]   = useState([]);
+  const [botSettings, setBotSettings]   = useState(null);
+  const [openTrades, setOpenTrades]     = useState([]);
+  const [closedTrades, setClosedTrades] = useState([]);
 
   // Deposit tracking — stored in localStorage so it persists across refreshes
   const [deposits, setDeposits] = useState(() => {
@@ -42,6 +43,7 @@ function FundingPanel() {
   useEffect(() => {
     axios.get(`${API}/bot/settings`).then(r => setBotSettings(r.data)).catch(() => {});
     axios.get(`${API}/trades?status=open`).then(r => setOpenTrades(r.data || [])).catch(() => {});
+    axios.get(`${API}/trades?status=closed`).then(r => setClosedTrades(r.data || [])).catch(() => {});
   }, []);
 
   function fetchKrakenMethods() {
@@ -126,6 +128,31 @@ function FundingPanel() {
   const alpacaDeployed  = openTrades.filter(t => t.market === 'stock').reduce((s, t) => s + (t.amount || 0), 0);
   const binanceDeployed = openTrades.filter(t => t.market === 'crypto' && t.type === 'BUY').reduce((s, t) => s + (t.amount || 0), 0);
   const krakenDeployed  = openTrades.filter(t => t.market === 'crypto' && t.type === 'SHORT').reduce((s, t) => s + (t.amount || 0), 0);
+
+  const alpacaPL  = closedTrades.filter(t => t.market === 'stock').reduce((s, t) => s + (t.profitLoss || 0), 0);
+  const binancePL = closedTrades.filter(t => t.market === 'crypto' && t.type === 'BUY').reduce((s, t) => s + (t.profitLoss || 0), 0);
+  const krakenPL  = closedTrades.filter(t => t.market === 'crypto' && t.type === 'SHORT').reduce((s, t) => s + (t.profitLoss || 0), 0);
+
+  function BotPLRow({ pl, cap }) {
+    if (!cap || cap === 0) return null;
+    const pct = (pl / cap * 100).toFixed(2);
+    const col = pl >= 0 ? '#00c853' : '#ff3d3d';
+    const sign = pl >= 0 ? '+' : '';
+    return (
+      <div style={{ background: '#0e1018', borderRadius: 6, padding: '8px 12px', marginTop: 10, fontSize: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', marginBottom: 3 }}>
+          <span>Starting Cap</span><span>${cap.toLocaleString()}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', marginBottom: 3 }}>
+          <span>Current Value</span><span style={{ color: '#c9d1d9', fontWeight: 600 }}>${(cap + pl).toFixed(2)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: col, borderTop: '1px solid #2a2d3e', paddingTop: 6, marginTop: 4 }}>
+          <span>Bot P/L</span>
+          <span>{sign}${pl.toFixed(2)} ({sign}{pct}%)</span>
+        </div>
+      </div>
+    );
+  }
 
   function CapBar({ deployed, cap, color }) {
     if (!cap || cap === 0) return null;
@@ -232,6 +259,7 @@ function FundingPanel() {
           </div>
 
           <CapBar deployed={alpacaDeployed} cap={botSettings?.alpacaCapital ?? 1000} color="#5865f2" />
+          <BotPLRow pl={alpacaPL} cap={botSettings?.alpacaCapital ?? 1000} />
 
           {/* Profit tracker */}
           {!loadingBal && alpaca && !alpaca.error && (
@@ -281,6 +309,7 @@ function FundingPanel() {
           )}
 
           <CapBar deployed={binanceDeployed} cap={botSettings?.binanceCapital ?? 1000} color="#f0b90b" />
+          <BotPLRow pl={binancePL} cap={botSettings?.binanceCapital ?? 1000} />
 
           {/* Profit tracker */}
           {!loadingBal && binance && !binance.error && (
@@ -330,6 +359,7 @@ function FundingPanel() {
           )}
 
           <CapBar deployed={krakenDeployed} cap={botSettings?.krakenCapital ?? 1000} color="#7b68ee" />
+          <BotPLRow pl={krakenPL} cap={botSettings?.krakenCapital ?? 1000} />
 
           {/* Profit tracker */}
           {!loadingBal && kraken && !kraken.error && (
