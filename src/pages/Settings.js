@@ -84,6 +84,9 @@ function Settings() {
   const [testing, setTesting]       = useState(false);
   const [settings, setSettings] = useState({
     totalCapital: 2000,
+    alpacaCapital: 1000,
+    binanceCapital: 1000,
+    krakenCapital: 1000,
     maxTradeAmount: 1000,
     stopLossPercent: 1,
     takeProfitPercent: 1.5,
@@ -222,6 +225,9 @@ function Settings() {
       if (originalSettings) {
         if (originalSettings.tradeMode !== settings.tradeMode) changes.push(`Trade Mode → ${settings.tradeMode}`);
         if (originalSettings.totalCapital !== settings.totalCapital) changes.push(`Account Capital → $${settings.totalCapital}`);
+        if (originalSettings.alpacaCapital !== settings.alpacaCapital) changes.push(`Alpaca Cap → $${settings.alpacaCapital}`);
+        if (originalSettings.binanceCapital !== settings.binanceCapital) changes.push(`Binance Cap → $${settings.binanceCapital}`);
+        if (originalSettings.krakenCapital !== settings.krakenCapital) changes.push(`Kraken Cap → $${settings.krakenCapital}`);
         if (originalSettings.maxTradeAmount !== settings.maxTradeAmount) changes.push(`Max Trade Amount → $${settings.maxTradeAmount}`);
         if (originalSettings.stopLossPercent !== settings.stopLossPercent) changes.push(`Stop Loss → ${settings.stopLossPercent}%`);
         if (originalSettings.takeProfitPercent !== settings.takeProfitPercent) changes.push(`Take Profit → ${settings.takeProfitPercent}%`);
@@ -375,6 +381,52 @@ function Settings() {
             Your total paper/live account size. Used for daily/weekly loss limit calculations.
             e.g. {settings.maxDailyLossPercent || 5}% of ${(settings.totalCapital || 2000).toLocaleString()} = bot stops after a <strong style={{ color: '#ff3d3d' }}>-${((settings.totalCapital || 2000) * (settings.maxDailyLossPercent || 5) / 100).toFixed(0)}</strong> daily loss.
           </p>
+        </div>
+
+        {/* ── PER-ACCOUNT CAPITAL LIMITS ── */}
+        <div style={{ margin: '20px 0 8px', borderBottom: '1px solid #2a2d3e', paddingBottom: 6 }}>
+          <span style={{ color: '#00b894', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>Per-Account Capital Limits</span>
+        </div>
+        <div style={{ background: '#0d1a14', border: '1px solid #00b894', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+          <p style={{ color: '#888', fontSize: 12, margin: '0 0 12px' }}>
+            Caps how much each exchange can deploy at once. The bot won't open new positions on an exchange once the deployed total hits its cap. Set to 0 to disable the cap for that exchange.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ color: '#5865f2', fontSize: 12, fontWeight: 700 }}>Alpaca (Stocks) $</label>
+              <input
+                type="number"
+                min="0"
+                value={settings.alpacaCapital ?? 1000}
+                onChange={e => numInput('alpacaCapital', e.target.value)}
+                style={{ marginTop: 4 }}
+              />
+            </div>
+            <div>
+              <label style={{ color: '#f0a500', fontSize: 12, fontWeight: 700 }}>Binance.US (Longs) $</label>
+              <input
+                type="number"
+                min="0"
+                value={settings.binanceCapital ?? 1000}
+                onChange={e => numInput('binanceCapital', e.target.value)}
+                style={{ marginTop: 4 }}
+              />
+            </div>
+            <div>
+              <label style={{ color: '#e84393', fontSize: 12, fontWeight: 700 }}>Kraken (Shorts) $</label>
+              <input
+                type="number"
+                min="0"
+                value={settings.krakenCapital ?? 1000}
+                onChange={e => numInput('krakenCapital', e.target.value)}
+                style={{ marginTop: 4 }}
+              />
+            </div>
+          </div>
+          <div style={{ marginTop: 10, color: '#555', fontSize: 11 }}>
+            Total allocated: <strong style={{ color: '#c9d1d9' }}>${((settings.alpacaCapital ?? 1000) + (settings.binanceCapital ?? 1000) + (settings.krakenCapital ?? 1000)).toLocaleString()}</strong>
+            {' '}/ Reserve: <strong style={{ color: '#c9d1d9' }}>${Math.max(0, (settings.totalCapital || 0) - (settings.alpacaCapital ?? 1000) - (settings.binanceCapital ?? 1000) - (settings.krakenCapital ?? 1000)).toLocaleString()}</strong>
+          </div>
         </div>
 
         {/* ── STOCKS ── */}
