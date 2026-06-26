@@ -14,13 +14,23 @@ const SUGGESTED = [
 
 function ActionCard({ action, onConfirm, onCancel, executing }) {
   const colors = {
-    close_position:        { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⚡' },
-    close_all_positions:   { bg: '#2a0000', border: '#ff3d3d', text: '#ff3d3d', icon: '🔴' },
-    set_price_target:      { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '🎯' },
-    cancel_price_target:   { bg: '#1a1500', border: '#888',    text: '#888',    icon: '✕'  },
-    bulk_conditional_entry:{ bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '📋' },
-    set_autopilot:         { bg: '#0d1a1a', border: '#00c853', text: '#00c853', icon: '🤖' },
-    cancel_autopilot:      { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⏹' },
+    close_position:           { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⚡' },
+    close_all_positions:      { bg: '#2a0000', border: '#ff3d3d', text: '#ff3d3d', icon: '🔴' },
+    set_price_target:         { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '🎯' },
+    cancel_price_target:      { bg: '#1a1500', border: '#888',    text: '#888',    icon: '✕'  },
+    bulk_conditional_entry:   { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '📋' },
+    set_conditional_entry:    { bg: '#0d1a2a', border: '#5865f2', text: '#5865f2', icon: '📌' },
+    cancel_conditional_entry: { bg: '#1a1500', border: '#888',    text: '#888',    icon: '✕'  },
+    adjust_setting:           { bg: '#1a1a2a', border: '#a78bfa', text: '#a78bfa', icon: '⚙️' },
+    manage_symbols:           { bg: '#1a1a2a', border: '#a78bfa', text: '#a78bfa', icon: '📝' },
+    control_bot:              { bg: '#0d1a0d', border: '#00c853', text: '#00c853', icon: '🤖' },
+    send_telegram:            { bg: '#0d1a2a', border: '#29b6f6', text: '#29b6f6', icon: '📨' },
+    manual_trade:             { bg: '#1a2a0d', border: '#76c442', text: '#76c442', icon: '📈' },
+    modify_trade:             { bg: '#1a1a2a', border: '#a78bfa', text: '#a78bfa', icon: '✏️' },
+    flip_position:            { bg: '#2a1a00', border: '#f5a623', text: '#f5a623', icon: '🔄' },
+    schedule_bot:             { bg: '#0d1a2a', border: '#29b6f6', text: '#29b6f6', icon: '📅' },
+    set_autopilot:            { bg: '#0d1a1a', border: '#00c853', text: '#00c853', icon: '🤖' },
+    cancel_autopilot:         { bg: '#2a1500', border: '#f5a623', text: '#f5a623', icon: '⏹' },
   };
   const c = colors[action.type] || colors.close_position;
 
