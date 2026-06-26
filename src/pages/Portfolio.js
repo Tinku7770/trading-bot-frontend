@@ -12,6 +12,8 @@ function FundingPanel() {
   const [loadingBal, setLoadingBal]       = useState(true);
   const [krakenMethods, setKrakenMethods] = useState(null);
   const [loadingKraken, setLoadingKraken] = useState(false);
+  const [botSettings, setBotSettings] = useState(null);
+  const [openTrades, setOpenTrades]   = useState([]);
 
   // Deposit tracking — stored in localStorage so it persists across refreshes
   const [deposits, setDeposits] = useState(() => {
@@ -36,6 +38,11 @@ function FundingPanel() {
     const t = setInterval(loadBalances, 60000);
     return () => clearInterval(t);
   }, [loadBalances]);
+
+  useEffect(() => {
+    axios.get(`${API}/bot/settings`).then(r => setBotSettings(r.data)).catch(() => {});
+    axios.get(`${API}/trades?status=open`).then(r => setOpenTrades(r.data || [])).catch(() => {});
+  }, []);
 
   function fetchKrakenMethods() {
     setLoadingKraken(true);
@@ -113,6 +120,31 @@ function FundingPanel() {
       >
         {deposits[exchange] !== '' ? '✏ Edit deposit' : '+ Track deposit'}
       </button>
+    );
+  }
+
+  const alpacaDeployed  = openTrades.filter(t => t.market === 'stock').reduce((s, t) => s + (t.amount || 0), 0);
+  const binanceDeployed = openTrades.filter(t => t.market === 'crypto' && t.type === 'BUY').reduce((s, t) => s + (t.amount || 0), 0);
+  const krakenDeployed  = openTrades.filter(t => t.market === 'crypto' && t.type === 'SHORT').reduce((s, t) => s + (t.amount || 0), 0);
+
+  function CapBar({ deployed, cap, color }) {
+    if (!cap || cap === 0) return null;
+    const pct       = Math.min(100, (deployed / cap) * 100);
+    const remaining = Math.max(0, cap - deployed);
+    const barColor  = pct >= 90 ? '#ff3d3d' : pct >= 70 ? '#f5a623' : color;
+    return (
+      <div style={{ marginTop: 10, background: '#0e1018', borderRadius: 6, padding: '8px 12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#888', marginBottom: 5 }}>
+          <span>Bot Cap: <strong style={{ color: '#c9d1d9' }}>${cap.toLocaleString()}</strong></span>
+          <span>Available: <strong style={{ color: remaining > 0 ? '#00c853' : '#ff3d3d' }}>${remaining.toFixed(0)}</strong></span>
+        </div>
+        <div style={{ background: '#2a2d3e', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, background: barColor, height: '100%', borderRadius: 4, transition: 'width 0.3s' }} />
+        </div>
+        <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+          ${deployed.toFixed(0)} in open trades ({pct.toFixed(0)}% of cap)
+        </div>
+      </div>
     );
   }
 
@@ -199,6 +231,8 @@ function FundingPanel() {
             )}
           </div>
 
+          <CapBar deployed={alpacaDeployed} cap={botSettings?.alpacaCapital ?? 1000} color="#5865f2" />
+
           {/* Profit tracker */}
           {!loadingBal && alpaca && !alpaca.error && (
             <>
@@ -246,6 +280,8 @@ function FundingPanel() {
             </>
           )}
 
+          <CapBar deployed={binanceDeployed} cap={botSettings?.binanceCapital ?? 1000} color="#f0b90b" />
+
           {/* Profit tracker */}
           {!loadingBal && binance && !binance.error && (
             <>
@@ -292,6 +328,8 @@ function FundingPanel() {
               ))}
             </>
           )}
+
+          <CapBar deployed={krakenDeployed} cap={botSettings?.krakenCapital ?? 1000} color="#7b68ee" />
 
           {/* Profit tracker */}
           {!loadingBal && kraken && !kraken.error && (
