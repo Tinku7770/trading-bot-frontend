@@ -92,6 +92,7 @@ function Dashboard() {
   const [conditionalOrders, setConditionalOrders]   = useState([]);
   const [cryptoScannerLastAt, setCryptoScannerLastAt] = useState(null);
   const [expandedPickId, setExpandedPickId]         = useState(null);
+  const [scanningNow, setScanningNow]               = useState(false);
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
@@ -165,6 +166,7 @@ function Dashboard() {
         if (live.length > 0) {
           setScannerCryptoPicks(live);
           setCryptoScannerLastAt(res.data?.recent?.[0]?.createdAt || null);
+          setScanningNow(false);
         } else if (res.data?.recent?.length > 0) {
           // No live picks in memory (server restarted) — show most recent DB batch
           const latest = res.data.recent[0].createdAt;
@@ -181,6 +183,16 @@ function Dashboard() {
     const interval = setInterval(fetchCryptoPicks, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function triggerCryptoScan() {
+    if (scanningNow) return;
+    setScanningNow(true);
+    try {
+      await axios.post(`${API}/scanner/crypto-scan-now`);
+    } catch { /* backend returns 200 immediately even if scan takes time */ }
+    // Keep spinner for ~60s — scan takes ~30-60s, WS update arrives when done
+    setTimeout(() => setScanningNow(false), 60000);
+  }
 
   async function fetchNextRun() {
     try {
@@ -1153,9 +1165,8 @@ function Dashboard() {
         );
       })()}
 
-      {/* Crypto Scanner Picks */}
-      {scannerCryptoPicks.length > 0 && (
-        <div className="section">
+      {/* Crypto Scanner Picks — always visible so Scan Now button is accessible */}
+      <div className="section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div>
               <h3 style={{ margin: 0 }}>Crypto Scanner</h3>
@@ -1168,14 +1179,35 @@ function Dashboard() {
                 )}
               </p>
             </div>
-            <span style={{
-              background: '#0a1a2e', color: '#00b4d8',
-              border: '1px solid #00b4d8',
-              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
-            }}>
-              {scannerCryptoPicks.length} live picks
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                onClick={triggerCryptoScan}
+                disabled={scanningNow}
+                style={{
+                  background: scanningNow ? '#1a1d27' : '#0a1a2e',
+                  color: scanningNow ? '#555' : '#00b4d8',
+                  border: '1px solid ' + (scanningNow ? '#333' : '#00b4d8'),
+                  borderRadius: 8, padding: '5px 14px', fontSize: 12,
+                  fontWeight: 600, cursor: scanningNow ? 'default' : 'pointer'
+                }}
+              >
+                {scanningNow ? '⏳ Scanning...' : '⚡ Scan Now'}
+              </button>
+              <span style={{
+                background: '#0a1a2e', color: '#00b4d8',
+                border: '1px solid #00b4d8',
+                borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
+              }}>
+                {scannerCryptoPicks.length} live picks
+              </span>
+            </div>
           </div>
+
+          {scanningNow && scannerCryptoPicks.length === 0 && (
+            <div style={{ color: '#555', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>
+              Scanning 250+ coins — AI is analyzing and ranking opportunities. This takes ~30-60 seconds...
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
             {scannerCryptoPicks.map((pick, idx) => {
@@ -1274,7 +1306,6 @@ function Dashboard() {
             })}
           </div>
         </div>
-      )}
 
       {/* Pre-Market Alerts */}
       {preMarketFlags.length > 0 && (
