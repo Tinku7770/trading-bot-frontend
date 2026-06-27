@@ -16,6 +16,7 @@ export function AppProvider({ children }) {
   const [liveSignals, setLiveSignals] = useState([]);
   const [liveTrades, setLiveTrades] = useState([]);
   const [livePrices, setLivePrices] = useState({});
+  const [scannerCryptoPicks, setScannerCryptoPicks] = useState([]);
 
   // Initialize tradeMode from backend so the badge is correct on first load
   useEffect(() => {
@@ -68,6 +69,11 @@ export function AppProvider({ children }) {
             );
           }
 
+          if (data.type === 'CRYPTO_SCANNER_PICKS') {
+            setScannerCryptoPicks(data.picks || []);
+            notify('Crypto Scanner', `${(data.picks || []).length} new opportunities found`);
+          }
+
           if (data.type === 'TRADE_CLOSED') {
             setLiveTrades(prev =>
               prev.map(t => t._id === data.trade._id ? { ...t, ...data.trade } : t)
@@ -104,7 +110,7 @@ export function AppProvider({ children }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ botStatus, setBotStatus, tradeMode, setTradeMode, liveSignals, liveTrades, livePrices }}>
+    <AppContext.Provider value={{ botStatus, setBotStatus, tradeMode, setTradeMode, liveSignals, liveTrades, livePrices, scannerCryptoPicks, setScannerCryptoPicks }}>
       {children}
     </AppContext.Provider>
   );

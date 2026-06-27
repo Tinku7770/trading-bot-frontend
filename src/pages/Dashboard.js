@@ -68,7 +68,7 @@ function formatMarketCountdown(ms) {
 }
 
 function Dashboard() {
-  const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades, livePrices } = useApp();
+  const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades, livePrices, scannerCryptoPicks, setScannerCryptoPicks } = useApp();
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
@@ -87,9 +87,11 @@ function Dashboard() {
   const [nextRunTime, setNextRunTime] = useState(null);
   const [currentPrices, setCurrentPrices] = useState({});
   const [priceUpdatedAt, setPriceUpdatedAt] = useState({});
-  const [scannedStocks, setScannedStocks]       = useState([]);
-  const [preMarketFlags, setPreMarketFlags]     = useState([]);
-  const [conditionalOrders, setConditionalOrders] = useState([]);
+  const [scannedStocks, setScannedStocks]           = useState([]);
+  const [preMarketFlags, setPreMarketFlags]         = useState([]);
+  const [conditionalOrders, setConditionalOrders]   = useState([]);
+  const [cryptoScannerLastAt, setCryptoScannerLastAt] = useState(null);
+  const [expandedPickId, setExpandedPickId]         = useState(null);
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
@@ -152,6 +154,31 @@ function Dashboard() {
     }
     fetchConditionalOrders();
     const interval = setInterval(fetchConditionalOrders, 15000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    async function fetchCryptoPicks() {
+      try {
+        const res = await axios.get(`${API}/scanner/crypto-picks`);
+        const live = res.data?.live || [];
+        if (live.length > 0) {
+          setScannerCryptoPicks(live);
+          setCryptoScannerLastAt(res.data?.recent?.[0]?.createdAt || null);
+        } else if (res.data?.recent?.length > 0) {
+          // No live picks in memory (server restarted) — show most recent DB batch
+          const latest = res.data.recent[0].createdAt;
+          const latestBatch = res.data.recent.filter(p => {
+            const diff = Math.abs(new Date(p.createdAt) - new Date(latest));
+            return diff < 5 * 60 * 1000; // within 5 min of most recent
+          });
+          setScannerCryptoPicks(latestBatch);
+          setCryptoScannerLastAt(latest);
+        }
+      } catch { /* keep previous */ }
+    }
+    fetchCryptoPicks();
+    const interval = setInterval(fetchCryptoPicks, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1125,6 +1152,129 @@ function Dashboard() {
           </div>
         );
       })()}
+
+      {/* Crypto Scanner Picks */}
+      {scannerCryptoPicks.length > 0 && (
+        <div className="section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Crypto Scanner</h3>
+              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
+                AI-ranked opportunities across 250+ coins · refreshes every hour · 24/7
+                {cryptoScannerLastAt && (
+                  <span style={{ marginLeft: 8, color: '#555' }}>
+                    · Last scan: {new Date(cryptoScannerLastAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </p>
+            </div>
+            <span style={{
+              background: '#0a1a2e', color: '#00b4d8',
+              border: '1px solid #00b4d8',
+              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
+            }}>
+              {scannerCryptoPicks.length} live picks
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            {scannerCryptoPicks.map((pick, idx) => {
+              const isLong     = pick.direction === 'LONG';
+              const dirColor   = isLong ? '#00c853' : '#ff6b35';
+              const dirBg      = isLong ? '#0d2a0d' : '#2a1500';
+              const expanded   = expandedPickId === idx;
+              const convColor  = pick.conviction >= 80 ? '#00c853' : pick.conviction >= 65 ? '#f5a623' : '#aaa';
+
+              return (
+                <div key={idx} className="card" style={{
+                  padding: '14px 16px',
+                  borderLeft: `3px solid ${dirColor}`,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s'
+                }} onClick={() => setExpandedPickId(expanded ? null : idx)}>
+
+                  {/* Header row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <strong style={{ fontSize: 15 }}>{pick.symbol}</strong>
+                      <span style={{
+                        background: dirBg, color: dirColor,
+                        border: `1px solid ${dirColor}`,
+                        borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 700
+                      }}>{pick.direction}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: convColor, fontSize: 13, fontWeight: 700 }}>
+                        {pick.conviction}%
+                      </span>
+                      <span style={{ color: '#444', fontSize: 11 }}>{expanded ? '▲' : '▼'}</span>
+                    </div>
+                  </div>
+
+                  {/* Price + momentum row */}
+                  <div style={{ display: 'flex', gap: 16, marginTop: 8, alignItems: 'center' }}>
+                    <span style={{ color: '#ccc', fontSize: 13 }}>
+                      ${pick.price < 0.01 ? pick.price.toFixed(6) : pick.price < 1 ? pick.price.toFixed(4) : pick.price.toFixed(2)}
+                    </span>
+                    <span style={{ color: pick.changePct >= 0 ? '#00c853' : '#ff3d3d', fontWeight: 700, fontSize: 14 }}>
+                      {pick.changePct >= 0 ? '+' : ''}{pick.changePct?.toFixed(2)}%
+                    </span>
+                    {pick.change7d !== undefined && (
+                      <span style={{ color: pick.change7d >= 0 ? '#00b4d8' : '#ff6b35', fontSize: 11 }}>
+                        7d: {pick.change7d >= 0 ? '+' : ''}{pick.change7d?.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Volume + market cap */}
+                  <div style={{ color: '#666', fontSize: 11, marginTop: 4 }}>
+                    {pick.volRatio ? `Vol ${pick.volRatio}x avg` : pick.volume24h ? `Vol $${(pick.volume24h / 1e6).toFixed(1)}M` : ''}
+                    {pick.marketCap > 0 && (
+                      <span style={{ marginLeft: 8 }}>· MCap ${pick.marketCap >= 1e9 ? (pick.marketCap / 1e9).toFixed(1) + 'B' : (pick.marketCap / 1e6).toFixed(0) + 'M'}</span>
+                    )}
+                  </div>
+
+                  {/* AI reason — always show first line, expand for full */}
+                  {pick.reason && (
+                    <div style={{
+                      marginTop: 10, fontSize: 12, color: '#aaa', lineHeight: 1.5,
+                      display: '-webkit-box', WebkitLineClamp: expanded ? 'unset' : 2,
+                      WebkitBoxOrient: 'vertical', overflow: expanded ? 'visible' : 'hidden'
+                    }}>
+                      {pick.reason}
+                    </div>
+                  )}
+
+                  {/* Expanded: entry + risk notes */}
+                  {expanded && (
+                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {pick.entryNote && (
+                        <div style={{ fontSize: 11, padding: '6px 10px', background: '#0d1f12', borderRadius: 6, color: '#00c853' }}>
+                          <strong>Entry:</strong> {pick.entryNote}
+                        </div>
+                      )}
+                      {pick.riskNote && (
+                        <div style={{ fontSize: 11, padding: '6px 10px', background: '#1f0d0d', borderRadius: 6, color: '#ff6b35' }}>
+                          <strong>Risk:</strong> {pick.riskNote}
+                        </div>
+                      )}
+                      {pick.ta && (
+                        <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>
+                          {pick.ta.rsi != null && `RSI ${pick.ta.rsi}`}
+                          {pick.ta.rsi4h != null && ` · 4H RSI ${pick.ta.rsi4h}`}
+                          {pick.ta.aboveMa50 != null && ` · ${pick.ta.aboveMa50 ? '↑' : '↓'} MA50`}
+                          {pick.ta.aboveMa200 != null && ` · ${pick.ta.aboveMa200 ? '↑' : '↓'} MA200`}
+                          {pick.ta.macd && ` · MACD ${pick.ta.macd.bullishCrossover ? '🟢 CROSS' : pick.ta.macd.bearishCrossover ? '🔴 CROSS' : pick.ta.macd.bullish ? 'bullish' : 'bearish'}`}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pre-Market Alerts */}
       {preMarketFlags.length > 0 && (
