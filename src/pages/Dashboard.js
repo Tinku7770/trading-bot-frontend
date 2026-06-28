@@ -1443,18 +1443,26 @@ function Dashboard() {
       </div>
 
       {/* Conditional Entry Orders */}
-      {conditionalOrders.length > 0 && (
-        <div className="section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div>
-              <h3 style={{ margin: 0 }}>Conditional Entry Orders</h3>
-              <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>Auto-executes when price hits the trigger · checks every 30s</p>
-            </div>
-            <span style={{
-              background: '#0d1a2a', color: '#5865f2', border: '1px solid #5865f2',
-              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
-            }}>{conditionalOrders.length} pending</span>
-          </div>
+      {conditionalOrders.length > 0 && (() => {
+        const cryptoOrders = conditionalOrders
+          .filter(o => o.symbol.includes('/'))
+          .sort((a, b) => a.symbol.localeCompare(b.symbol));
+        const stockOrders = conditionalOrders
+          .filter(o => !o.symbol.includes('/'))
+          .sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+        // which symbols have both LONG and SHORT (hedge pairs)
+        const buildHedgeSet = (orders) => {
+          const counts = {};
+          orders.forEach(o => { counts[o.symbol] = (counts[o.symbol] || new Set()).add(o.direction); });
+          const hedged = new Set();
+          Object.entries(counts).forEach(([sym, dirs]) => { if (dirs.size === 2) hedged.add(sym); });
+          return hedged;
+        };
+        const cryptoHedged = buildHedgeSet(cryptoOrders);
+        const stockHedged  = buildHedgeSet(stockOrders);
+
+        const renderTable = (orders, hedgedSet) => (
           <div style={{ overflowX: 'auto' }}>
             <table>
               <thead>
@@ -1468,22 +1476,28 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {conditionalOrders.map(order => {
+                {orders.map(order => {
                   const dir      = order.direction === 'BUY' ? 'LONG' : 'SHORT';
                   const dirColor = order.direction === 'BUY' ? '#00c853' : '#ff6b35';
                   const condStr  = order.triggerType === 'above'
                     ? `Price ≥ $${order.triggerPrice}`
                     : `Price ≤ $${order.triggerPrice}`;
                   const setAt = new Date(order.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  const isHedge = hedgedSet.has(order.symbol);
                   return (
-                    <tr key={order._id}>
+                    <tr key={order._id} style={isHedge ? { borderLeft: '3px solid #5865f2' } : {}}>
                       <td>
-                        <button
-                          onClick={() => setSelectedConditionalSymbol(selectedConditionalSymbol === order.symbol ? null : order.symbol)}
-                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit' }}
-                        >
-                          <strong style={{ textDecoration: 'underline dotted', color: '#5865f2' }}>{order.symbol}</strong>
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            onClick={() => setSelectedConditionalSymbol(selectedConditionalSymbol === order.symbol ? null : order.symbol)}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit' }}
+                          >
+                            <strong style={{ textDecoration: 'underline dotted', color: '#5865f2' }}>{order.symbol}</strong>
+                          </button>
+                          {isHedge && order.direction === 'BUY' && (
+                            <span style={{ fontSize: 9, background: '#1a1a3a', color: '#5865f2', border: '1px solid #5865f2', borderRadius: 3, padding: '1px 5px', fontWeight: 700, letterSpacing: 0.5 }}>HEDGE</span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <span style={{
@@ -1504,28 +1518,64 @@ function Dashboard() {
               </tbody>
             </table>
           </div>
-          {selectedConditionalSymbol && (() => {
-            const order = conditionalOrders.find(o => o.symbol === selectedConditionalSymbol);
-            if (!order) return null;
-            const market = order.symbol.includes('/') ? 'crypto' : 'stock';
-            return (
-              <div style={{ marginTop: 16 }}>
-                <PriceChart
-                  key={order.symbol}
-                  symbol={order.symbol}
-                  entryPrice={order.triggerPrice}
-                  market={market}
-                  type={order.direction}
-                  livePrice={currentPrices[order.symbol] || null}
-                />
+        );
+
+        return (
+          <div className="section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Conditional Entry Orders</h3>
+                <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>Auto-executes when price hits the trigger · checks every 30s</p>
               </div>
-            );
-          })()}
-          <p style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
-            To cancel: tell AI Chat "cancel my conditional entry for [symbol]"
-          </p>
-        </div>
-      )}
+              <span style={{
+                background: '#0d1a2a', color: '#5865f2', border: '1px solid #5865f2',
+                borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700
+              }}>{conditionalOrders.length} pending</span>
+            </div>
+
+            {cryptoOrders.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f0b429' }}>Crypto</span>
+                  <span style={{ fontSize: 11, color: '#555' }}>{cryptoOrders.length} order{cryptoOrders.length !== 1 ? 's' : ''} · {cryptoHedged.size} hedge pair{cryptoHedged.size !== 1 ? 's' : ''}</span>
+                </div>
+                {renderTable(cryptoOrders, cryptoHedged)}
+              </div>
+            )}
+
+            {stockOrders.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#00c853' }}>Stocks</span>
+                  <span style={{ fontSize: 11, color: '#555' }}>{stockOrders.length} order{stockOrders.length !== 1 ? 's' : ''} · {stockHedged.size} hedge pair{stockHedged.size !== 1 ? 's' : ''}</span>
+                </div>
+                {renderTable(stockOrders, stockHedged)}
+              </div>
+            )}
+
+            {selectedConditionalSymbol && (() => {
+              const order = conditionalOrders.find(o => o.symbol === selectedConditionalSymbol);
+              if (!order) return null;
+              const market = order.symbol.includes('/') ? 'crypto' : 'stock';
+              return (
+                <div style={{ marginTop: 16 }}>
+                  <PriceChart
+                    key={order.symbol}
+                    symbol={order.symbol}
+                    entryPrice={order.triggerPrice}
+                    market={market}
+                    type={order.direction}
+                    livePrice={currentPrices[order.symbol] || null}
+                  />
+                </div>
+              );
+            })()}
+            <p style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
+              To cancel: tell AI Chat "cancel my conditional entry for [symbol]"
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Crypto Market Health */}
       {cryptoHealth && (
