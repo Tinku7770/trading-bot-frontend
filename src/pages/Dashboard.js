@@ -1533,6 +1533,30 @@ function Dashboard() {
               }}>{conditionalOrders.length} pending</span>
             </div>
 
+            {/* Chart appears ABOVE the tables so it's visible without scrolling */}
+            {selectedConditionalSymbol && (() => {
+              const orders = conditionalOrders.filter(o => o.symbol === selectedConditionalSymbol);
+              if (!orders.length) return null;
+              const market = orders[0].symbol.includes('/') ? 'crypto' : 'stock';
+              const longOrder  = orders.find(o => o.direction === 'BUY');
+              const shortOrder = orders.find(o => o.direction === 'SELL');
+              const primary = longOrder || shortOrder;
+              const isHedgePair = !!(longOrder && shortOrder);
+              return (
+                <div style={{ marginBottom: 16 }}>
+                  <PriceChart
+                    key={primary.symbol}
+                    symbol={primary.symbol}
+                    entryPrice={isHedgePair ? longOrder.triggerPrice : primary.triggerPrice}
+                    hedgePrice={isHedgePair ? shortOrder.triggerPrice : undefined}
+                    market={market}
+                    type={primary.direction}
+                    livePrice={currentPrices[primary.symbol] || null}
+                  />
+                </div>
+              );
+            })()}
+
             {cryptoOrders.length > 0 && (
               <div style={{ marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -1553,27 +1577,6 @@ function Dashboard() {
               </div>
             )}
 
-            {selectedConditionalSymbol && (() => {
-              const orders = conditionalOrders.filter(o => o.symbol === selectedConditionalSymbol);
-              if (!orders.length) return null;
-              const market = orders[0].symbol.includes('/') ? 'crypto' : 'stock';
-              const longOrder  = orders.find(o => o.direction === 'BUY');
-              const shortOrder = orders.find(o => o.direction === 'SELL');
-              const primary = longOrder || shortOrder;
-              return (
-                <div style={{ marginTop: 16 }}>
-                  <PriceChart
-                    key={primary.symbol}
-                    symbol={primary.symbol}
-                    entryPrice={longOrder ? longOrder.triggerPrice : undefined}
-                    hedgePrice={shortOrder ? shortOrder.triggerPrice : undefined}
-                    market={market}
-                    type={primary.direction}
-                    livePrice={currentPrices[primary.symbol] || null}
-                  />
-                </div>
-              );
-            })()}
             <p style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
               To cancel: tell AI Chat "cancel my conditional entry for [symbol]"
             </p>
