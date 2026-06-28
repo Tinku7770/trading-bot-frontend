@@ -1538,9 +1538,9 @@ function Dashboard() {
               const orders = conditionalOrders.filter(o => o.symbol === selectedConditionalSymbol);
               if (!orders.length) return null;
               const market = orders[0].symbol.includes('/') ? 'crypto' : 'stock';
-              const longOrder  = orders.find(o => o.direction === 'BUY');
-              const shortOrder = orders.find(o => o.direction === 'SELL');
-              const primary = longOrder || shortOrder;
+              const longOrder  = orders.find(o => o.direction === 'BUY'  || o.direction === 'LONG');
+              const shortOrder = orders.find(o => o.direction === 'SELL' || o.direction === 'SHORT');
+              const primary = longOrder || shortOrder || orders[0];
               const isHedgePair = !!(longOrder && shortOrder);
               return (
                 <div style={{ marginBottom: 16 }}>
