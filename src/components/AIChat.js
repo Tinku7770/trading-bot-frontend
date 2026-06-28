@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { useApp } from '../context/AppContext';
 
 const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
 const API_KEY = 'TradingBot2025!Soheb#SecureKey';
@@ -79,6 +80,8 @@ function ActionCard({ action, onConfirm, onCancel, executing }) {
 }
 
 export default function AIChat() {
+  const { scannerCryptoPicks } = useApp();
+  const [pickPrices, setPickPrices] = useState({});
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState(() => {
     try {
@@ -119,6 +122,30 @@ export default function AIChat() {
       localStorage.setItem('ai_chat_history', JSON.stringify(messages.slice(-50)));
     } catch {}
   }, [messages]);
+
+  // Fetch live prices for scanner picks every 30s
+  useEffect(() => {
+    if (!scannerCryptoPicks.length) return;
+    async function fetchPrices() {
+      try {
+        const tickers = scannerCryptoPicks.map(p => p.symbol.replace('/', ''));
+        const res = await axios.get(`${API}/market/crypto-prices`, {
+          params: { tickers: JSON.stringify(tickers), mode: '24hr' }
+        });
+        const map = {};
+        (res.data || []).forEach(t => {
+          map[t.symbol] = {
+            price: parseFloat(t.lastPrice || t.price || 0),
+            change: parseFloat(t.priceChangePercent || 0)
+          };
+        });
+        setPickPrices(map);
+      } catch { /* keep previous */ }
+    }
+    fetchPrices();
+    const iv = setInterval(fetchPrices, 30000);
+    return () => clearInterval(iv);
+  }, [scannerCryptoPicks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function send(text) {
     const msg = (text || input).trim();
@@ -257,6 +284,57 @@ export default function AIChat() {
             </div>
           </div>
 
+          {/* Scanner Picks Bar */}
+          {scannerCryptoPicks.length > 0 && (
+            <div style={{
+              borderBottom: '1px solid #1a1d27', background: '#0a0c17',
+              padding: '8px 12px', flexShrink: 0
+            }}>
+              <div style={{ color: '#555', fontSize: 10, fontWeight: 700, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' }}>
+                📡 Scanner Picks — click to analyze
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {scannerCryptoPicks.map((pick, idx) => {
+                  const ticker  = pick.symbol.replace('/', '');
+                  const live    = pickPrices[ticker];
+                  const price   = live?.price || pick.price || 0;
+                  const change  = live?.change ?? pick.changePct ?? 0;
+                  const isLong  = pick.direction === 'LONG';
+                  const dirColor = isLong ? '#00c853' : '#ff6b35';
+                  const chgColor = change >= 0 ? '#00c853' : '#ff3d3d';
+                  const fmtPrice = price < 0.01 ? price.toFixed(6) : price < 1 ? price.toFixed(4) : price.toFixed(3);
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => send(`Analyze ${pick.symbol} from the scanner picks — current price $${fmtPrice}, it's a ${pick.direction} at ${pick.conviction}% conviction. Should I enter now? Give me a specific trade plan with entry, stop loss, and target.`)}
+                      title={`${pick.conviction}% conviction · ${pick.reason?.slice(0, 80)}...`}
+                      style={{
+                        background: '#111320', border: `1px solid ${dirColor}33`,
+                        borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+                        display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left',
+                        transition: 'all 0.15s', minWidth: 90
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = dirColor; e.currentTarget.style.background = '#1a1d27'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = `${dirColor}33`; e.currentTarget.style.background = '#111320'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ color: '#e6e8ef', fontSize: 11, fontWeight: 700 }}>{pick.symbol.replace('/USDT', '')}</span>
+                        <span style={{ color: dirColor, fontSize: 9, fontWeight: 700 }}>{pick.direction}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ color: '#aaa', fontSize: 10 }}>${fmtPrice}</span>
+                        <span style={{ color: chgColor, fontSize: 10, fontWeight: 600 }}>
+                          {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div style={{ color: '#555', fontSize: 9 }}>{pick.conviction}% conv</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Messages */}
           <div style={{
             flex: 1, overflowY: 'auto', padding: '16px 14px',
@@ -320,10 +398,15 @@ export default function AIChat() {
             {showSuggestions && !loading && (
               <div style={{ marginTop: 4 }}>
                 <div style={{ color: '#444', fontSize: 11, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Try asking:
+                  {scannerCryptoPicks.length > 0 ? 'Scanner actions:' : 'Try asking:'}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {SUGGESTED.map((q, i) => (
+                  {(scannerCryptoPicks.length > 0 ? [
+                    `Which of the ${scannerCryptoPicks.length} scanner picks should I trade first?`,
+                    'Set conditional orders for all scanner picks',
+                    `Give me a full trade plan for ${scannerCryptoPicks[0]?.symbol || 'the top pick'}`,
+                    "Play devil's advocate — why could these picks fail?",
+                  ] : SUGGESTED).map((q, i) => (
                     <button key={i} onClick={() => send(q)} style={{
                       background: '#111320', border: '1px solid #2a2d3e',
                       borderRadius: 8, padding: '7px 12px', color: '#aaa',
