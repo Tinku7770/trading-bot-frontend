@@ -1554,18 +1554,22 @@ function Dashboard() {
             )}
 
             {selectedConditionalSymbol && (() => {
-              const order = conditionalOrders.find(o => o.symbol === selectedConditionalSymbol);
-              if (!order) return null;
-              const market = order.symbol.includes('/') ? 'crypto' : 'stock';
+              const orders = conditionalOrders.filter(o => o.symbol === selectedConditionalSymbol);
+              if (!orders.length) return null;
+              const market = orders[0].symbol.includes('/') ? 'crypto' : 'stock';
+              const longOrder  = orders.find(o => o.direction === 'BUY');
+              const shortOrder = orders.find(o => o.direction === 'SELL');
+              const primary = longOrder || shortOrder;
               return (
                 <div style={{ marginTop: 16 }}>
                   <PriceChart
-                    key={order.symbol}
-                    symbol={order.symbol}
-                    entryPrice={order.triggerPrice}
+                    key={primary.symbol}
+                    symbol={primary.symbol}
+                    entryPrice={longOrder ? longOrder.triggerPrice : undefined}
+                    hedgePrice={shortOrder ? shortOrder.triggerPrice : undefined}
                     market={market}
-                    type={order.direction}
-                    livePrice={currentPrices[order.symbol] || null}
+                    type={primary.direction}
+                    livePrice={currentPrices[primary.symbol] || null}
                   />
                 </div>
               );

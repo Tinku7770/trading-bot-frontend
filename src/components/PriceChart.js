@@ -24,7 +24,7 @@ function RightLabel({ viewBox, value, color, bg }) {
   );
 }
 
-function PriceChart({ symbol, entryPrice, market, type = 'BUY', livePrice = null }) {
+function PriceChart({ symbol, entryPrice, hedgePrice, market, type = 'BUY', livePrice = null }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [polledPrice, setPolledPrice] = useState(null);
@@ -88,6 +88,7 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY', livePrice = null
   const allPrices = data.map(d => d.price);
   if (currentPrice) allPrices.push(currentPrice);
   if (entryPrice)   allPrices.push(entryPrice);
+  if (hedgePrice)   allPrices.push(hedgePrice);
   const minPrice = allPrices.length ? Math.min(...allPrices) * 0.999 : 0;
   const maxPrice = allPrices.length ? Math.max(...allPrices) * 1.001 : 0;
 
@@ -145,19 +146,39 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY', livePrice = null
       </div>
 
       {/* Entry / Live price info row */}
-      {entryPrice && (
+      {(entryPrice || hedgePrice) && (
         <div style={{ fontSize: 12, color: '#666', marginBottom: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <span>
-            <span style={{ color: '#5865f2', fontWeight: 600 }}>── Entry</span>
-            {' '}{fmtPrice(entryPrice)}
-          </span>
-          <span>
-            <span style={{ color: liveColor, fontWeight: 600 }}>── Live</span>
-            {' '}{fmtPrice(currentPrice)}
-          </span>
-          <span style={{ color: isProfit ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
-            P/L: {pnl !== null ? `${isProfit ? '+' : ''}${pnl}%` : '—'}
-          </span>
+          {entryPrice && (
+            <span>
+              <span style={{ color: hedgePrice ? '#00c853' : '#5865f2', fontWeight: 600 }}>
+                {hedgePrice ? '── LONG' : '── Entry'}
+              </span>
+              {' '}{fmtPrice(entryPrice)}
+            </span>
+          )}
+          {hedgePrice && (
+            <span>
+              <span style={{ color: '#ff6b35', fontWeight: 600 }}>── SHORT</span>
+              {' '}{fmtPrice(hedgePrice)}
+            </span>
+          )}
+          {!hedgePrice && entryPrice && (
+            <span>
+              <span style={{ color: liveColor, fontWeight: 600 }}>── Live</span>
+              {' '}{fmtPrice(currentPrice)}
+            </span>
+          )}
+          {!hedgePrice && pnl !== null && (
+            <span style={{ color: isProfit ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+              P/L: {isProfit ? '+' : ''}{pnl}%
+            </span>
+          )}
+          {hedgePrice && currentPrice && (
+            <span>
+              <span style={{ color: liveColor, fontWeight: 600 }}>── Live</span>
+              {' '}{fmtPrice(currentPrice)}
+            </span>
+          )}
         </div>
       )}
 
@@ -189,14 +210,25 @@ function PriceChart({ symbol, entryPrice, market, type = 'BUY', livePrice = null
               formatter={(value) => ['$' + value.toLocaleString(), 'Price']}
             />
 
-            {/* Entry price line */}
+            {/* Entry price line — green for LONG trigger, purple for open trade entry */}
             {entryPrice && (
               <ReferenceLine
                 y={entryPrice}
-                stroke="#5865f2"
+                stroke={hedgePrice ? '#00c853' : '#5865f2'}
                 strokeDasharray="5 4"
                 strokeWidth={1.5}
-                label={<RightLabel value={fmtPrice(entryPrice)} color="#5865f2" bg="#0d0f1a" />}
+                label={<RightLabel value={fmtPrice(entryPrice)} color={hedgePrice ? '#00c853' : '#5865f2'} bg="#0d0f1a" />}
+              />
+            )}
+
+            {/* Hedge (SHORT) trigger line */}
+            {hedgePrice && (
+              <ReferenceLine
+                y={hedgePrice}
+                stroke="#ff6b35"
+                strokeDasharray="5 4"
+                strokeWidth={1.5}
+                label={<RightLabel value={fmtPrice(hedgePrice)} color="#ff6b35" bg="#0d0f1a" />}
               />
             )}
 
