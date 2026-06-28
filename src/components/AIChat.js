@@ -80,7 +80,7 @@ function ActionCard({ action, onConfirm, onCancel, executing }) {
 }
 
 export default function AIChat() {
-  const { scannerCryptoPicks } = useApp();
+  const { scannerCryptoPicks, setScannerCryptoPicks } = useApp();
   const [pickPrices, setPickPrices] = useState({});
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState(() => {
@@ -122,6 +122,27 @@ export default function AIChat() {
       localStorage.setItem('ai_chat_history', JSON.stringify(messages.slice(-50)));
     } catch {}
   }, [messages]);
+
+  // When chat opens and context has no picks, fetch them directly
+  useEffect(() => {
+    if (!open || scannerCryptoPicks.length > 0) return;
+    async function loadPicks() {
+      try {
+        const res = await axios.get(`${API}/scanner/crypto-picks`);
+        const live = res.data?.live || [];
+        if (live.length > 0) {
+          setScannerCryptoPicks(live);
+        } else if (res.data?.recent?.length > 0) {
+          const latest = res.data.recent[0].createdAt;
+          const batch = res.data.recent.filter(p =>
+            Math.abs(new Date(p.createdAt) - new Date(latest)) < 5 * 60 * 1000
+          );
+          if (batch.length > 0) setScannerCryptoPicks(batch);
+        }
+      } catch { /* silent */ }
+    }
+    loadPicks();
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch live prices for scanner picks every 30s
   useEffect(() => {
