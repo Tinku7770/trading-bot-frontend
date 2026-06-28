@@ -93,6 +93,7 @@ function Dashboard() {
   const [cryptoScannerLastAt, setCryptoScannerLastAt] = useState(null);
   const [expandedPickId, setExpandedPickId]         = useState(null);
   const [scanningNow, setScanningNow]               = useState(false);
+  const [scanningStocks, setScanningStocks]         = useState(false);
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
@@ -192,6 +193,31 @@ function Dashboard() {
     } catch { /* backend returns 200 immediately even if scan takes time */ }
     // Keep spinner for ~60s — scan takes ~30-60s, WS update arrives when done
     setTimeout(() => setScanningNow(false), 60000);
+  }
+
+  async function triggerStockScan() {
+    if (scanningStocks) return;
+    setScanningStocks(true);
+    try {
+      await axios.post(`${API}/scanner/stock-scan-now`);
+    } catch { /* backend returns 200 immediately */ }
+    // Poll every 3s for up to 90s waiting for results
+    const start = Date.now();
+    const poll = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API}/bot/scanned-stocks`);
+        const stocks = res.data || [];
+        if (stocks.length > 0) {
+          setScannedStocks(stocks);
+          setScanningStocks(false);
+          clearInterval(poll);
+        }
+      } catch { /* ignore */ }
+      if (Date.now() - start > 90000) {
+        setScanningStocks(false);
+        clearInterval(poll);
+      }
+    }, 3000);
   }
 
   async function fetchNextRun() {
@@ -1347,29 +1373,53 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Today's Scanner Picks */}
-      {scannedStocks.length > 0 && <div className="section">
+      {/* Today's Scanner Picks (Stocks) */}
+      <div className="section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
-            <h3 style={{ margin: 0 }}>Today's Scanner Picks</h3>
+            <h3 style={{ margin: 0 }}>📈 Stock Scanner</h3>
             <p style={{ color: '#888', fontSize: 12, margin: '4px 0 0' }}>
-              Top movers from Tech, Semiconductors &amp; Energy — added to bot watchlist at market open
+              Top movers from Tech, Semiconductors &amp; Energy — scans Yahoo Finance (free)
             </p>
           </div>
-          <span style={{
-            background: scannedStocks.length > 0 ? '#0d2a0d' : '#1a1d27',
-            color: scannedStocks.length > 0 ? '#00c853' : '#555',
-            border: `1px solid ${scannedStocks.length > 0 ? '#00c853' : '#2a2d3e'}`,
-            borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600
-          }}>
-            {scannedStocks.length > 0 ? `${scannedStocks.length} active` : 'Market closed'}
-          </span>
-        </div>
-        {scannedStocks.length === 0 ? (
-          <div style={{ color: '#555', fontSize: 13, padding: '16px 0' }}>
-            No scanner picks yet — scanner runs automatically when market opens at 9:30 AM PT
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={triggerStockScan}
+              disabled={scanningStocks}
+              style={{
+                background: scanningStocks ? '#1a1d27' : '#0a1a0a',
+                color: scanningStocks ? '#555' : '#00c853',
+                border: '1px solid ' + (scanningStocks ? '#333' : '#00c853'),
+                borderRadius: 8, padding: '5px 14px', fontSize: 12,
+                fontWeight: 600, cursor: scanningStocks ? 'default' : 'pointer'
+              }}
+            >
+              {scanningStocks ? '⏳ Scanning...' : '⚡ Scan Now'}
+            </button>
+            <span style={{
+              background: scannedStocks.length > 0 ? '#0d2a0d' : '#1a1d27',
+              color: scannedStocks.length > 0 ? '#00c853' : '#555',
+              border: `1px solid ${scannedStocks.length > 0 ? '#00c853' : '#2a2d3e'}`,
+              borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600
+            }}>
+              {scannedStocks.length > 0 ? `${scannedStocks.length} picks` : 'No picks'}
+            </span>
           </div>
-        ) : (
+        </div>
+
+        {scanningStocks && scannedStocks.length === 0 && (
+          <div style={{ color: '#555', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>
+            Scanning Yahoo Finance for top movers — this takes ~15-30 seconds...
+          </div>
+        )}
+
+        {!scanningStocks && scannedStocks.length === 0 && (
+          <div style={{ color: '#555', fontSize: 13, padding: '16px 0' }}>
+            No scanner picks — click ⚡ Scan Now or wait for market open (9:30 AM ET Mon–Fri)
+          </div>
+        )}
+
+        {scannedStocks.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
             {scannedStocks.map(s => (
               <div key={s.symbol} className="card" style={{ padding: '12px 16px' }}>
@@ -1390,7 +1440,7 @@ function Dashboard() {
             ))}
           </div>
         )}
-      </div>}
+      </div>
 
       {/* Conditional Entry Orders */}
       {conditionalOrders.length > 0 && (
