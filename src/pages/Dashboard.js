@@ -335,12 +335,15 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [data?.openTrades?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Crypto price fallback: poll every 1s when direct Binance WS is not connected
+  // Crypto price poll — always runs so symbols not on Binance.US still get live prices.
+  // At 3s when WS is connected (WS already handles Binance.US coins at 50ms),
+  // at 1s when WS is down (sole price source).
   useEffect(() => {
     if (!data?.openTrades?.length) return;
-    const interval = setInterval(() => {
-      if (!wsConnected) fetchCryptoPrices(openTradesRef.current);
-    }, 1000);
+    const interval = setInterval(
+      () => fetchCryptoPrices(openTradesRef.current),
+      wsConnected ? 3000 : 1000
+    );
     return () => clearInterval(interval);
   }, [data?.openTrades?.length, wsConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
