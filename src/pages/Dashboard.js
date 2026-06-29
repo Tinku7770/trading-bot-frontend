@@ -955,6 +955,9 @@ function Dashboard() {
                     >
                       <td>
                         <strong>{trade.symbol}</strong>
+                        {trade.chatOwned && (
+                          <span title="Chat-owned — bot SL/TP disabled" style={{ marginLeft: 6, fontSize: 10, background: '#1a1d2e', border: '1px solid #5865f2', color: '#5865f2', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>CHAT</span>
+                        )}
                         {selectedTradeId === trade._id && (
                           <span style={{ marginLeft: 6, fontSize: 8, color: '#5865f2' }}>●</span>
                         )}
