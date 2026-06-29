@@ -95,6 +95,8 @@ function Settings() {
     shortingEnabled: false,
     leverageMultiplier: 1,
     cryptoLeverageMultiplier: 1,
+    cryptoLongLeverageMultiplier: 0,
+    cryptoShortLeverageMultiplier: 0,
     cryptoMaxTradeAmount: 100,
     cryptoTakeProfitPercent: 0.8,
     cryptoStopLossPercent: 0.5,
@@ -179,8 +181,12 @@ function Settings() {
     if ((settings.shortExtraConfidence ?? 5) < 0 || (settings.shortExtraConfidence ?? 5) > 20) return 'Short Extra Confidence must be between 0% and 20%';
     if ((settings.leverageMultiplier || 0) < 1) return 'Stock Leverage must be at least 1x';
     if ((settings.leverageMultiplier || 0) > 10) return 'Stock Leverage cannot exceed 10x';
-    if ((settings.cryptoLeverageMultiplier || 0) < 1) return 'Crypto Leverage must be at least 1x';
-    if ((settings.cryptoLeverageMultiplier || 0) > 10) return 'Crypto Leverage cannot exceed 10x';
+    const cryptoLongLev = settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1;
+    const cryptoShortLev = settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1;
+    if (cryptoLongLev < 1) return 'Crypto LONG Leverage must be at least 1x';
+    if (cryptoLongLev > 10) return 'Crypto LONG Leverage cannot exceed 10x';
+    if (cryptoShortLev < 1) return 'Crypto SHORT Leverage must be at least 1x';
+    if (cryptoShortLev > 10) return 'Crypto SHORT Leverage cannot exceed 10x';
     if ((settings.totalCapital || 0) <= 0) return 'Total Account Capital must be greater than $0';
     if ((settings.maxTradeAmount || 0) <= 0) return 'Max Trade Amount must be greater than $0';
     if ((settings.maxTradeAmount || 0) > (settings.totalCapital || Infinity)) return 'Max Trade Amount cannot exceed Total Account Capital';
@@ -240,6 +246,8 @@ function Settings() {
         if (originalSettings.shortExtraConfidence !== settings.shortExtraConfidence) changes.push(`Short Extra Confidence → +${settings.shortExtraConfidence}%`);
         if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Stock Leverage → ${settings.leverageMultiplier}x`);
         if (originalSettings.cryptoLeverageMultiplier !== settings.cryptoLeverageMultiplier) changes.push(`Crypto Leverage → ${settings.cryptoLeverageMultiplier}x`);
+        if (originalSettings.cryptoLongLeverageMultiplier !== settings.cryptoLongLeverageMultiplier) changes.push(`Crypto LONG Leverage → ${settings.cryptoLongLeverageMultiplier}x`);
+        if (originalSettings.cryptoShortLeverageMultiplier !== settings.cryptoShortLeverageMultiplier) changes.push(`Crypto SHORT Leverage → ${settings.cryptoShortLeverageMultiplier}x`);
         if (originalSettings.cryptoMaxTradeAmount !== settings.cryptoMaxTradeAmount) changes.push(`Crypto Max Trade → $${settings.cryptoMaxTradeAmount}`);
         if (originalSettings.cryptoTakeProfitPercent !== settings.cryptoTakeProfitPercent) changes.push(`Crypto Take Profit → ${settings.cryptoTakeProfitPercent}%`);
         if (originalSettings.cryptoStopLossPercent !== settings.cryptoStopLossPercent) changes.push(`Crypto Stop Loss → ${settings.cryptoStopLossPercent}%`);
@@ -500,7 +508,9 @@ function Settings() {
 
         {/* ── CRYPTO ── */}
         <div style={{ margin: '20px 0 8px', borderBottom: '1px solid #2a2d3e', paddingBottom: 6 }}>
-          <span style={{ color: '#f5a623', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>Crypto — {settings.cryptoLeverageMultiplier || 1}x Leverage</span>
+          <span style={{ color: '#f5a623', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>
+            Crypto — LONG {settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1}x / SHORT {settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1}x Leverage
+          </span>
         </div>
 
         <div className="form-group">
@@ -518,23 +528,23 @@ function Settings() {
               { label: '80–89% confidence', pct: 0.75, color: '#69f0ae' },
               { label: '70–79% confidence', pct: 0.50, color: '#f5a623' },
               { label: '60–69% confidence', pct: 0.25, color: '#ff7043' },
-            ].map(({ label, pct, color }) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
-                <span style={{ color, fontWeight: 700, fontSize: 13 }}>
-                  ${((settings.cryptoMaxTradeAmount || 0) * pct).toFixed(0)}
-                  {(settings.cryptoLeverageMultiplier || 1) > 1 && (
-                    <span style={{ color: '#f5a623', fontSize: 11, marginLeft: 4 }}>
-                      → ${((settings.cryptoMaxTradeAmount || 0) * pct * (settings.cryptoLeverageMultiplier || 1)).toFixed(0)} exposure
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
+            ].map(({ label, pct, color }) => {
+              const longLev = settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1;
+              const shortLev = settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1;
+              return (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
+                  <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+                    ${((settings.cryptoMaxTradeAmount || 0) * pct).toFixed(0)}
+                    {longLev > 1 && <span style={{ color: '#00c853', fontSize: 11, marginLeft: 4 }}>L:${((settings.cryptoMaxTradeAmount || 0) * pct * longLev).toFixed(0)}</span>}
+                    {shortLev > 1 && <span style={{ color: '#ff6b35', fontSize: 11, marginLeft: 4 }}>S:${((settings.cryptoMaxTradeAmount || 0) * pct * shortLev).toFixed(0)}</span>}
+                  </span>
+                </div>
+              );
+            })}
             <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
-              Max crypto exposure ({settings.maxCryptoPositions ?? 4} positions × ${(settings.cryptoMaxTradeAmount || 0).toFixed(0)} × {settings.cryptoLeverageMultiplier || 1}x):{' '}
-              <strong style={{ color: '#c9d1d9' }}>${((settings.cryptoMaxTradeAmount || 0) * (settings.maxCryptoPositions ?? 4) * (settings.cryptoLeverageMultiplier || 1)).toFixed(0)}</strong>
-              {' '}({(((settings.cryptoMaxTradeAmount || 0) * (settings.maxCryptoPositions ?? 4) * (settings.cryptoLeverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
+              Long leverage: <strong style={{ color: '#00c853' }}>{settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1}x</strong>
+              {' '}| Short leverage: <strong style={{ color: '#ff6b35' }}>{settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1}x</strong>
             </div>
           </div>
         </div>
@@ -899,37 +909,44 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Crypto Leverage Multiplier (1x = no leverage)</label>
-          <input
-            type="number"
-            min="1"
-            max="10"
-            step="0.5"
-            value={settings.cryptoLeverageMultiplier || 1}
-            onChange={e => numInput('cryptoLeverageMultiplier', e.target.value)}
-          />
-          {(settings.cryptoLeverageMultiplier || 1) > 3 && (
-            <div style={{
-              background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8,
-              padding: '10px 14px', marginTop: 8
-            }}>
-              <div style={{ color: '#f5a623', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                ⚠️ High Leverage Warning — {settings.cryptoLeverageMultiplier}x on Crypto
-              </div>
-              <p style={{ color: '#c8852a', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
-                A 1% move against you = <strong style={{ color: '#f5a623' }}>{settings.cryptoLeverageMultiplier}% real loss</strong>.
-                Crypto is more volatile than stocks — high leverage can liquidate quickly.
+          <label>Crypto Leverage — LONG vs SHORT</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 6 }}>
+            <div style={{ background: '#0d1a0d', border: '1px solid #00c853', borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ color: '#00c853', fontWeight: 700, fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>LONG (BUY)</div>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="0.5"
+                value={settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1}
+                onChange={e => numInput('cryptoLongLeverageMultiplier', e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+              <p style={{ color: '#555', fontSize: 11, marginTop: 6, marginBottom: 0 }}>
+                Applied to all crypto BUY trades.<br />
+                {(() => { const lev = settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1; return lev > 3 ? <span style={{ color: '#f5a623' }}>⚠️ High — 1% move = {lev}% loss</span> : `${lev}x leverage`; })()}
               </p>
             </div>
-          )}
-          {(settings.cryptoLeverageMultiplier || 1) > 1 && (settings.cryptoLeverageMultiplier || 1) <= 3 && (
-            <p style={{ color: '#f5a623', fontSize: 12, marginTop: 4 }}>
-              ⚠️ {settings.cryptoLeverageMultiplier}x leverage amplifies both gains AND losses by {settings.cryptoLeverageMultiplier}x.
-            </p>
-          )}
-          {(settings.cryptoLeverageMultiplier || 1) === 1 && (
-            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>1x = no leverage (spot trading). Try 2x for crypto — it's commonly used and manageable.</p>
-          )}
+            <div style={{ background: '#1a0d0d', border: '1px solid #ff6b35', borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ color: '#ff6b35', fontWeight: 700, fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>SHORT (SELL)</div>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="0.5"
+                value={settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1}
+                onChange={e => numInput('cryptoShortLeverageMultiplier', e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+              <p style={{ color: '#555', fontSize: 11, marginTop: 6, marginBottom: 0 }}>
+                Applied to all crypto SHORT trades.<br />
+                {(() => { const lev = settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1; return lev > 3 ? <span style={{ color: '#f5a623' }}>⚠️ High — 1% move = {lev}% loss</span> : `${lev}x leverage`; })()}
+              </p>
+            </div>
+          </div>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 8 }}>
+            Set different leverage for each direction. Your shorts perform better — keep SHORT higher (e.g. 10x) and LONG lower (e.g. 5x) to reduce long-side risk.
+          </p>
         </div>
 
         <div className="form-group">
