@@ -94,6 +94,8 @@ function Settings() {
     tradeMode: 'paper',
     shortingEnabled: false,
     leverageMultiplier: 1,
+    stockLongLeverageMultiplier: 0,
+    stockShortLeverageMultiplier: 0,
     cryptoLeverageMultiplier: 1,
     cryptoLongLeverageMultiplier: 0,
     cryptoShortLeverageMultiplier: 0,
@@ -179,8 +181,12 @@ function Settings() {
     if ((settings.minConfidence || 0) < 50 || (settings.minConfidence || 0) > 90) return 'Stock Min Confidence must be between 50% and 90%';
     if ((settings.cryptoMinConfidence || 0) < 50 || (settings.cryptoMinConfidence || 0) > 90) return 'Crypto Min Confidence must be between 50% and 90%';
     if ((settings.shortExtraConfidence ?? 5) < 0 || (settings.shortExtraConfidence ?? 5) > 20) return 'Short Extra Confidence must be between 0% and 20%';
-    if ((settings.leverageMultiplier || 0) < 1) return 'Stock Leverage must be at least 1x';
-    if ((settings.leverageMultiplier || 0) > 10) return 'Stock Leverage cannot exceed 10x';
+    const stockLongLev = settings.stockLongLeverageMultiplier || settings.leverageMultiplier || 1;
+    const stockShortLev = settings.stockShortLeverageMultiplier || settings.leverageMultiplier || 1;
+    if (stockLongLev < 1) return 'Stock LONG Leverage must be at least 1x';
+    if (stockLongLev > 10) return 'Stock LONG Leverage cannot exceed 10x';
+    if (stockShortLev < 1) return 'Stock SHORT Leverage must be at least 1x';
+    if (stockShortLev > 10) return 'Stock SHORT Leverage cannot exceed 10x';
     const cryptoLongLev = settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1;
     const cryptoShortLev = settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1;
     if (cryptoLongLev < 1) return 'Crypto LONG Leverage must be at least 1x';
@@ -245,6 +251,8 @@ function Settings() {
         if (originalSettings.minHoldMinutes !== settings.minHoldMinutes) changes.push(`Stock Min Hold → ${settings.minHoldMinutes}min`);
         if (originalSettings.shortExtraConfidence !== settings.shortExtraConfidence) changes.push(`Short Extra Confidence → +${settings.shortExtraConfidence}%`);
         if (originalSettings.leverageMultiplier !== settings.leverageMultiplier) changes.push(`Stock Leverage → ${settings.leverageMultiplier}x`);
+        if (originalSettings.stockLongLeverageMultiplier !== settings.stockLongLeverageMultiplier) changes.push(`Stock LONG Leverage → ${settings.stockLongLeverageMultiplier}x`);
+        if (originalSettings.stockShortLeverageMultiplier !== settings.stockShortLeverageMultiplier) changes.push(`Stock SHORT Leverage → ${settings.stockShortLeverageMultiplier}x`);
         if (originalSettings.cryptoLeverageMultiplier !== settings.cryptoLeverageMultiplier) changes.push(`Crypto Leverage → ${settings.cryptoLeverageMultiplier}x`);
         if (originalSettings.cryptoLongLeverageMultiplier !== settings.cryptoLongLeverageMultiplier) changes.push(`Crypto LONG Leverage → ${settings.cryptoLongLeverageMultiplier}x`);
         if (originalSettings.cryptoShortLeverageMultiplier !== settings.cryptoShortLeverageMultiplier) changes.push(`Crypto SHORT Leverage → ${settings.cryptoShortLeverageMultiplier}x`);
@@ -439,7 +447,9 @@ function Settings() {
 
         {/* ── STOCKS ── */}
         <div style={{ margin: '20px 0 8px', borderBottom: '1px solid #2a2d3e', paddingBottom: 6 }}>
-          <span style={{ color: '#5865f2', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>Stocks — {settings.leverageMultiplier || 1}x Leverage</span>
+          <span style={{ color: '#5865f2', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>
+            Stocks — LONG {settings.stockLongLeverageMultiplier || settings.leverageMultiplier || 1}x / SHORT {settings.stockShortLeverageMultiplier || settings.leverageMultiplier || 1}x Leverage
+          </span>
         </div>
 
         <div className="form-group">
@@ -457,23 +467,23 @@ function Settings() {
               { label: '80–89% confidence', pct: 0.75, color: '#69f0ae' },
               { label: '70–79% confidence', pct: 0.50, color: '#f5a623' },
               { label: '60–69% confidence', pct: 0.25, color: '#ff7043' },
-            ].map(({ label, pct, color }) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
-                <span style={{ color, fontWeight: 700, fontSize: 13 }}>
-                  ${((settings.maxTradeAmount || 0) * pct).toFixed(0)}
-                  {(settings.leverageMultiplier || 1) > 1 && (
-                    <span style={{ color: '#f5a623', fontSize: 11, marginLeft: 4 }}>
-                      → ${((settings.maxTradeAmount || 0) * pct * (settings.leverageMultiplier || 1)).toFixed(0)} exposure
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
+            ].map(({ label, pct, color }) => {
+              const longLev = settings.stockLongLeverageMultiplier || settings.leverageMultiplier || 1;
+              const shortLev = settings.stockShortLeverageMultiplier || settings.leverageMultiplier || 1;
+              return (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
+                  <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+                    ${((settings.maxTradeAmount || 0) * pct).toFixed(0)}
+                    {longLev > 1 && <span style={{ color: '#5865f2', fontSize: 11, marginLeft: 4 }}>L:${((settings.maxTradeAmount || 0) * pct * longLev).toFixed(0)}</span>}
+                    {shortLev > 1 && <span style={{ color: '#ff6b35', fontSize: 11, marginLeft: 4 }}>S:${((settings.maxTradeAmount || 0) * pct * shortLev).toFixed(0)}</span>}
+                  </span>
+                </div>
+              );
+            })}
             <div style={{ color: '#555', fontSize: 11, marginTop: 8, borderTop: '1px solid #1a1d2e', paddingTop: 8 }}>
-              Max stock exposure ({settings.maxStockPositions ?? 5} positions × ${(settings.maxTradeAmount || 0).toFixed(0)} × {settings.leverageMultiplier || 1}x):{' '}
-              <strong style={{ color: '#c9d1d9' }}>${((settings.maxTradeAmount || 0) * (settings.maxStockPositions ?? 5) * (settings.leverageMultiplier || 1)).toFixed(0)}</strong>
-              {' '}({(((settings.maxTradeAmount || 0) * (settings.maxStockPositions ?? 5) * (settings.leverageMultiplier || 1)) / (settings.totalCapital || 1) * 100).toFixed(0)}% of capital)
+              Long leverage: <strong style={{ color: '#5865f2' }}>{settings.stockLongLeverageMultiplier || settings.leverageMultiplier || 1}x</strong>
+              {' '}| Short leverage: <strong style={{ color: '#ff6b35' }}>{settings.stockShortLeverageMultiplier || settings.leverageMultiplier || 1}x</strong>
             </div>
           </div>
         </div>
@@ -874,38 +884,44 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>Stock Leverage Multiplier (1x = no leverage)</label>
-          <input
-            type="number"
-            min="1"
-            max="10"
-            step="0.5"
-            value={settings.leverageMultiplier || 1}
-            onChange={e => numInput('leverageMultiplier', e.target.value)}
-          />
-          {(settings.leverageMultiplier || 1) > 3 && (
-            <div style={{
-              background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8,
-              padding: '10px 14px', marginTop: 8
-            }}>
-              <div style={{ color: '#f5a623', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                ⚠️ High Leverage Warning — {settings.leverageMultiplier}x
-              </div>
-              <p style={{ color: '#c8852a', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
-                A 1% move against you = <strong style={{ color: '#f5a623' }}>{settings.leverageMultiplier}% real loss</strong>.
-                A {(100 / settings.leverageMultiplier).toFixed(0)}% move = full liquidation.
-                Only use this in paper trading until you fully understand the risk.
+          <label>Stock Leverage — LONG vs SHORT</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 6 }}>
+            <div style={{ background: '#0d1121', border: '1px solid #5865f2', borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ color: '#5865f2', fontWeight: 700, fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>LONG (BUY)</div>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="0.5"
+                value={settings.stockLongLeverageMultiplier || settings.leverageMultiplier || 1}
+                onChange={e => numInput('stockLongLeverageMultiplier', e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+              <p style={{ color: '#555', fontSize: 11, marginTop: 6, marginBottom: 0 }}>
+                Applied to all stock BUY trades.<br />
+                {(() => { const lev = settings.stockLongLeverageMultiplier || settings.leverageMultiplier || 1; return lev > 3 ? <span style={{ color: '#f5a623' }}>⚠️ High — 1% move = {lev}% loss</span> : `${lev}x leverage`; })()}
               </p>
             </div>
-          )}
-          {(settings.leverageMultiplier || 1) > 1 && (settings.leverageMultiplier || 1) <= 3 && (
-            <p style={{ color: '#f5a623', fontSize: 12, marginTop: 4 }}>
-              ⚠️ {settings.leverageMultiplier}x leverage amplifies both gains AND losses by {settings.leverageMultiplier}x.
-            </p>
-          )}
-          {(settings.leverageMultiplier || 1) === 1 && (
-            <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>1x = no leverage (spot trading). Stocks: keep at 1x unless you know margin trading well.</p>
-          )}
+            <div style={{ background: '#1a0d0d', border: '1px solid #ff6b35', borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ color: '#ff6b35', fontWeight: 700, fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>SHORT (SELL)</div>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="0.5"
+                value={settings.stockShortLeverageMultiplier || settings.leverageMultiplier || 1}
+                onChange={e => numInput('stockShortLeverageMultiplier', e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+              <p style={{ color: '#555', fontSize: 11, marginTop: 6, marginBottom: 0 }}>
+                Applied to all stock SHORT trades.<br />
+                {(() => { const lev = settings.stockShortLeverageMultiplier || settings.leverageMultiplier || 1; return lev > 3 ? <span style={{ color: '#f5a623' }}>⚠️ High — 1% move = {lev}% loss</span> : `${lev}x leverage`; })()}
+              </p>
+            </div>
+          </div>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 8 }}>
+            Set different leverage per direction. Stocks are less volatile than crypto — 5x is common for day trading. Keep SHORT ≤ LONG unless your short win rate is significantly higher.
+          </p>
         </div>
 
         <div className="form-group">
