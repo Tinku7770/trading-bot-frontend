@@ -436,6 +436,18 @@ function Dashboard() {
     setCloseModal(trade);
   }
 
+  async function deleteTrade(tradeId) {
+    const trade = data?.openTrades?.find(t => t._id === tradeId);
+    if (!trade) return;
+    if (!window.confirm(`Delete ${trade.symbol} trade permanently? This cannot be undone and will NOT affect your P/L.`)) return;
+    try {
+      await axios.delete(`${API}/trades/${tradeId}`);
+      await fetchDashboard();
+    } catch {
+      alert('Failed to delete trade');
+    }
+  }
+
   async function executeClose() {
     const trade = closeModal;
     setCloseModal(null);
@@ -1042,7 +1054,7 @@ function Dashboard() {
                           </span>
                         );
                       })()}</td>
-                      <td>
+                      <td style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <button
                           onClick={(e) => { e.stopPropagation(); closePosition(trade._id); }}
                           disabled={closingId === trade._id}
@@ -1056,6 +1068,20 @@ function Dashboard() {
                           }}
                         >
                           {closingId === trade._id ? 'Closing...' : 'Close'}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteTrade(trade._id); }}
+                          title="Delete trade — no P/L impact"
+                          style={{
+                            padding: '6px 10px', borderRadius: 6,
+                            border: '1px solid #555',
+                            background: 'transparent',
+                            color: '#888',
+                            fontWeight: 600, cursor: 'pointer',
+                            fontSize: 12, transition: 'all 0.2s'
+                          }}
+                        >
+                          🗑
                         </button>
                       </td>
                     </tr>
