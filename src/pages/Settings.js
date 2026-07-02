@@ -123,7 +123,7 @@ function Settings() {
     maxStockPositions: 5,
     maxCryptoPositions: 4,
     maxHoldHours: 48,
-    aiModel: 'claude-haiku-4-5-20251001',
+    aiModel: 'claude-opus-4-8',
     cryptoSymbols: [],
     stockSymbols: [],
     blockedSymbols: [],
@@ -369,14 +369,14 @@ function Settings() {
 
         <div className="form-group">
           <label>AI Model</label>
-          <select value={settings.aiModel || 'claude-haiku-4-5-20251001'} onChange={e => updateSettings({ aiModel: e.target.value })}>
-            <option value="claude-haiku-4-5-20251001">Claude Haiku (Fast · Cheapest · Recommended)</option>
-            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Smarter · Higher Cost)</option>
-            <option value="claude-opus-4-7">Claude Opus 4.7 (Most Powerful · Most Expensive)</option>
+          <select value={settings.aiModel || 'claude-opus-4-8'} onChange={e => updateSettings({ aiModel: e.target.value })}>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast · Cheapest)</option>
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Smarter · Moderate Cost)</option>
+            <option value="claude-opus-4-8">Claude Opus 4.8 (Sharpest Reasoning · Recommended)</option>
           </select>
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Model used for every BUY/SELL/HOLD decision. <strong style={{ color: '#c9d1d9' }}>Haiku</strong> runs ~100 decisions/day cheaply.
-            Switch to <strong style={{ color: '#c9d1d9' }}>Sonnet</strong> for higher quality decisions when using larger capital or live trading.
+            Model used for every BUY/SELL/HOLD decision. <strong style={{ color: '#c9d1d9' }}>Haiku</strong> is cheapest but basic.
+            <strong style={{ color: '#c9d1d9' }}>Opus 4.8</strong> gives the sharpest trade reasoning — recommended for live trading.
           </p>
           {(settings.aiModel || '').includes('opus') && (
             <div style={{ background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
