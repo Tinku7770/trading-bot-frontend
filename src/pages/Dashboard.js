@@ -1494,6 +1494,16 @@ function Dashboard() {
         const cryptoHedged = buildHedgeSet(cryptoOrders);
         const stockHedged  = buildHedgeSet(stockOrders);
 
+        const cancelConditionalOrder = async (orderId, symbol) => {
+          if (!window.confirm(`Cancel conditional order for ${symbol}?`)) return;
+          try {
+            await axios.delete(`${API}/bot/conditional-orders/${orderId}`);
+            setConditionalOrders(prev => prev.filter(o => o._id !== orderId));
+          } catch (err) {
+            alert('Failed to cancel order. Please try again.');
+          }
+        };
+
         const renderTable = (orders, hedgedSet) => (
           <div style={{ overflowX: 'auto' }}>
             <table>
@@ -1505,6 +1515,7 @@ function Dashboard() {
                   <th>Condition</th>
                   <th>Auto-Close</th>
                   <th>Set At</th>
+                  <th>Cancel</th>
                 </tr>
               </thead>
               <tbody>
@@ -1544,6 +1555,20 @@ function Dashboard() {
                         {order.closeAfterMinutes ? `${order.closeAfterMinutes}m` : '—'}
                       </td>
                       <td style={{ color: '#555', fontSize: 12 }}>{setAt}</td>
+                      <td>
+                        <button
+                          onClick={() => cancelConditionalOrder(order._id, order.symbol)}
+                          title={`Cancel ${dir} ${order.symbol}`}
+                          style={{
+                            background: 'transparent', border: '1px solid #ff4444',
+                            color: '#ff4444', borderRadius: 4, padding: '3px 8px',
+                            cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                            lineHeight: 1, transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={e => { e.target.style.background = '#ff4444'; e.target.style.color = '#fff'; }}
+                          onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.color = '#ff4444'; }}
+                        >✕</button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1610,7 +1635,7 @@ function Dashboard() {
             )}
 
             <p style={{ color: '#555', fontSize: 11, marginTop: 8 }}>
-              To cancel: tell AI Chat "cancel my conditional entry for [symbol]"
+              Click ✕ to cancel any order directly, or tell AI Chat to cancel it for you.
             </p>
           </div>
         );
