@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
 
-const API = 'https://trading-bot-backend-production-9a53.up.railway.app/api';
-const API_KEY = 'TradingBot2025!Soheb#SecureKey';
+const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
 
 const SUGGESTED = [
   'What are my open positions?',
@@ -184,8 +183,6 @@ export default function AIChat() {
       const res = await axios.post(`${API}/chat`, {
         message: msg,
         history: messages.filter(m => m.role !== 'system')
-      }, {
-        headers: { 'x-api-key': API_KEY }
       });
 
       const assistantMsg = { role: 'assistant', content: res.data.reply };
@@ -209,7 +206,7 @@ export default function AIChat() {
     setError('');
 
     try {
-      const res = await axios.post(`${API}/chat/execute`, { action: pendingAction }, { headers: { 'x-api-key': API_KEY } });
+      const res = await axios.post(`${API}/chat/execute`, { action: pendingAction });
       const resultMsg = {
         role: 'assistant',
         content: res.data.success

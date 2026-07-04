@@ -5,7 +5,7 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-const _apiKey = process.env.REACT_APP_DASHBOARD_API_KEY || 'TradingBot2025!Soheb#SecureKey';
+const _apiKey = process.env.REACT_APP_DASHBOARD_API_KEY;
 if (_apiKey) {
   axios.defaults.headers.common['x-api-key'] = _apiKey;
 }

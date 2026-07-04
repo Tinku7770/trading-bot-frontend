@@ -13,8 +13,10 @@ import Performance from './pages/Performance';
 import './App.css';
 
 // Attach API key to every axios request automatically
-const DASHBOARD_API_KEY = process.env.REACT_APP_DASHBOARD_API_KEY || 'TradingBot2025!Soheb#SecureKey';
-axios.defaults.headers.common['x-api-key'] = DASHBOARD_API_KEY;
+const DASHBOARD_API_KEY = process.env.REACT_APP_DASHBOARD_API_KEY;
+if (DASHBOARD_API_KEY) {
+  axios.defaults.headers.common['x-api-key'] = DASHBOARD_API_KEY;
+}
 
 function App() {
   return (

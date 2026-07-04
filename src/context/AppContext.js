@@ -36,10 +36,11 @@ export function AppProvider({ children }) {
     let socket;
     let retryTimeout;
     let retryDelay = 1000;
+    let destroyed = false;
 
     function connect() {
       const wsBase = process.env.REACT_APP_WS_URL || 'wss://trading-bot-backend-production-9a53.up.railway.app';
-      const wsKey  = process.env.REACT_APP_DASHBOARD_API_KEY || 'TradingBot2025!Soheb#SecureKey';
+      const wsKey  = process.env.REACT_APP_DASHBOARD_API_KEY;
       socket = new WebSocket(wsKey ? `${wsBase}?key=${encodeURIComponent(wsKey)}` : wsBase);
 
       socket.onopen = () => {
@@ -93,6 +94,7 @@ export function AppProvider({ children }) {
       socket.onerror = () => socket.close();
 
       socket.onclose = () => {
+        if (destroyed) return;
         console.log(`WebSocket disconnected — reconnecting in ${retryDelay}ms`);
         retryTimeout = setTimeout(() => {
           retryDelay = Math.min(retryDelay * 2, 30000);
@@ -104,6 +106,7 @@ export function AppProvider({ children }) {
     connect();
 
     return () => {
+      destroyed = true;
       clearTimeout(retryTimeout);
       if (socket) socket.close();
     };
