@@ -374,18 +374,25 @@ function Settings() {
 
         <div className="form-group">
           <label>AI Model</label>
-          <select value={settings.aiModel || 'claude-opus-4-8'} onChange={e => updateSettings({ aiModel: e.target.value })}>
+          <select value={settings.aiModel || 'claude-fable-5'} onChange={e => updateSettings({ aiModel: e.target.value })}>
             <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast · Cheapest)</option>
             <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Smarter · Moderate Cost)</option>
-            <option value="claude-opus-4-8">Claude Opus 4.8 (Sharpest Reasoning · Recommended)</option>
+            <option value="claude-opus-4-8">Claude Opus 4.8 (Sharpest Reasoning)</option>
+            <option value="claude-fable-5">Claude Fable 5 (Most Powerful · Recommended)</option>
           </select>
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Model used for every BUY/SELL/HOLD decision. <strong style={{ color: '#c9d1d9' }}>Haiku</strong> is cheapest but basic.
-            <strong style={{ color: '#c9d1d9' }}>Opus 4.8</strong> gives the sharpest trade reasoning — recommended for live trading.
+            Model used for BUY/SELL/HOLD decisions and the AI chat assistant.{' '}
+            <strong style={{ color: '#c9d1d9' }}>Fable 5</strong> is the most capable model — best reasoning, best trade analysis.{' '}
+            <strong style={{ color: '#c9d1d9' }}>Haiku</strong> is cheapest but basic.
           </p>
+          {(settings.aiModel || '').includes('fable') && (
+            <div style={{ background: '#0d1a0d', border: '1px solid #00c853', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
+              <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700 }}>✓ Fable 5 — Anthropic's most powerful model. Best for live trading and complex multi-step analysis.</span>
+            </div>
+          )}
           {(settings.aiModel || '').includes('opus') && (
             <div style={{ background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
-              <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700 }}>⚠️ Opus is ~15x more expensive than Haiku per decision. Only recommended for live trading with significant capital.</span>
+              <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700 }}>⚠️ Opus 4.8 is still strong but Fable 5 is now more capable. Consider upgrading.</span>
             </div>
           )}
         </div>
