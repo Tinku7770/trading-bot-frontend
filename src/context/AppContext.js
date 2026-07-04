@@ -41,11 +41,12 @@ export function AppProvider({ children }) {
     function connect() {
       const wsBase = process.env.REACT_APP_WS_URL || 'wss://trading-bot-backend-production-9a53.up.railway.app';
       const wsKey  = process.env.REACT_APP_DASHBOARD_API_KEY;
-      socket = new WebSocket(wsKey ? `${wsBase}?key=${encodeURIComponent(wsKey)}` : wsBase);
+      socket = new WebSocket(wsBase);
 
       socket.onopen = () => {
         console.log('WebSocket connected');
         retryDelay = 1000;
+        if (wsKey) socket.send(JSON.stringify({ type: 'auth', key: wsKey }));
       };
 
       socket.onmessage = (event) => {

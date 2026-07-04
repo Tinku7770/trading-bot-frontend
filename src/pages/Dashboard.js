@@ -100,12 +100,18 @@ function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
+  const cryptoScanTimerRef = useRef(null);
+  const stockScanPollRef = useRef(null);
   const binanceWsRef = useRef(null);
   const binanceSymbolsKeyRef = useRef('');
   const [wsConnected, setWsConnected] = useState(false);
 
   useEffect(() => {
-    return () => { if (runNowTimerRef.current) clearTimeout(runNowTimerRef.current); };
+    return () => {
+      if (runNowTimerRef.current) clearTimeout(runNowTimerRef.current);
+      if (cryptoScanTimerRef.current) clearTimeout(cryptoScanTimerRef.current);
+      if (stockScanPollRef.current) clearInterval(stockScanPollRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -192,7 +198,7 @@ function Dashboard() {
       await axios.post(`${API}/scanner/crypto-scan-now`);
     } catch { /* backend returns 200 immediately even if scan takes time */ }
     // Keep spinner for ~60s — scan takes ~30-60s, WS update arrives when done
-    setTimeout(() => setScanningNow(false), 60000);
+    cryptoScanTimerRef.current = setTimeout(() => setScanningNow(false), 60000);
   }
 
   async function triggerStockScan() {
@@ -203,19 +209,21 @@ function Dashboard() {
     } catch { /* backend returns 200 immediately */ }
     // Poll every 3s for up to 90s waiting for results
     const start = Date.now();
-    const poll = setInterval(async () => {
+    stockScanPollRef.current = setInterval(async () => {
       try {
         const res = await axios.get(`${API}/bot/scanned-stocks`);
         const stocks = res.data || [];
         if (stocks.length > 0) {
           setScannedStocks(stocks);
           setScanningStocks(false);
-          clearInterval(poll);
+          clearInterval(stockScanPollRef.current);
+          stockScanPollRef.current = null;
         }
       } catch { /* ignore */ }
       if (Date.now() - start > 90000) {
         setScanningStocks(false);
-        clearInterval(poll);
+        clearInterval(stockScanPollRef.current);
+        stockScanPollRef.current = null;
       }
     }, 3000);
   }
