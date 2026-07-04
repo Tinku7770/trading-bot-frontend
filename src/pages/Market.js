@@ -86,7 +86,8 @@ function SignalBadge({ signal }) {
 
 // externalPrice / externalChange are passed from the parent for crypto (batched fetch).
 // Stocks derive price and change from their own chart data.
-function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSignal, externalPrice, externalChange }) {
+// refreshTick increments in the parent every 5 min so all cards re-fetch together.
+function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSignal, externalPrice, externalChange, refreshTick }) {
   const [chartData, setChartData]     = useState([]);
   const [stockPrice, setStockPrice]   = useState(null);
   const [stockChange, setStockChange] = useState(null);
@@ -112,9 +113,7 @@ function SymbolCard({ symbol, name, isCrypto, ticker, selected, onClick, lastSig
 
   useEffect(() => {
     fetchChart();
-    const interval = setInterval(fetchChart, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchChart]);
+  }, [fetchChart, refreshTick]);
 
   const price     = isCrypto ? (externalPrice  ?? null) : stockPrice;
   const change    = isCrypto ? (externalChange ?? null) : stockChange;
@@ -224,6 +223,12 @@ function Market() {
   const [session, setSession] = useState(getStockMarketSession());
   const [fearGreed, setFearGreed] = useState(null);
   const [symbolsLoaded, setSymbolsLoaded] = useState(false);
+  const [chartRefreshTick, setChartRefreshTick] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setChartRefreshTick(t => t + 1), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Batch-fetch all crypto prices via backend proxy (avoids CORS / geo-block from user browsers)
   const fetchAllCryptoPrices = useCallback(async () => {
@@ -357,6 +362,7 @@ function Market() {
               lastSignal={latestSignals[c.symbol] || null}
               externalPrice={cryptoPrices[c.ticker]?.price}
               externalChange={cryptoPrices[c.ticker]?.change}
+              refreshTick={chartRefreshTick}
             />
           ))}
         </div>
@@ -388,6 +394,7 @@ function Market() {
               selected={selected === s.symbol}
               onClick={() => toggle(s.symbol)}
               lastSignal={latestSignals[s.symbol] || null}
+              refreshTick={chartRefreshTick}
             />
           ))}
         </div>

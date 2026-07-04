@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -108,15 +108,31 @@ function BotUptime({ botStatus, botStartedAt, botStoppedAt }) {
 
 function MarketSessionClock() {
   const [now, setNow] = useState(new Date());
+  const [isHoliday, setIsHoliday] = useState(false);
+
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-  const mkt = getMarketInfo(now);
-  const cd = formatMarketCountdown(mkt.ms);
+
+  useEffect(() => {
+    async function checkHoliday() {
+      try {
+        const res = await axios.get(`${API}/market/status`);
+        setIsHoliday(res.data?.session === 'holiday');
+      } catch {}
+    }
+    checkHoliday();
+    const t = setInterval(checkHoliday, 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const rawMkt = getMarketInfo(now);
+  const mkt = isHoliday ? { isOpen: false, ms: 0, sessionPct: 0 } : rawMkt;
+  const cd = isHoliday ? 'Holiday' : formatMarketCountdown(mkt.ms);
   const isUrgent = mkt.isOpen && mkt.ms < 30 * 60 * 1000;
   const isWarning = mkt.isOpen && mkt.ms < 10 * 60 * 1000;
-  const color = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#00c853') : '#555';
+  const color = isHoliday ? '#888' : mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#00c853') : '#555';
   const borderColor = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#1a3a1a') : '#1a1d27';
   return (
     <div style={{
@@ -132,12 +148,17 @@ function MarketSessionClock() {
       <div style={{ width: 1, height: 50, background: '#2a2d3e', flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 220 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <span style={{ color, fontWeight: 700, fontSize: 14 }}>{mkt.isOpen ? '● MARKET OPEN' : '○ MARKET CLOSED'}</span>
+          <span style={{ color, fontWeight: 700, fontSize: 14 }}>{isHoliday ? '○ MARKET HOLIDAY' : mkt.isOpen ? '● MARKET OPEN' : '○ MARKET CLOSED'}</span>
           <span style={{ color: '#444', fontSize: 11 }}>NYSE / NASDAQ</span>
           {isWarning && <span style={{ background: '#2a0000', border: '1px solid #ff3d3d', borderRadius: 20, color: '#ff3d3d', fontSize: 10, fontWeight: 700, padding: '2px 8px' }}>⚠ CLOSING SOON</span>}
           {isUrgent && !isWarning && <span style={{ background: '#2a1500', border: '1px solid #f5a623', borderRadius: 20, color: '#f5a623', fontSize: 10, fontWeight: 700, padding: '2px 8px' }}>30 MIN WARNING</span>}
         </div>
-        {mkt.isOpen ? (
+        {isHoliday ? (
+          <div style={{ color: '#888', fontSize: 14 }}>
+            Market closed for holiday
+            <div style={{ color: '#555', fontSize: 11, marginTop: 3 }}>Resumes next trading day</div>
+          </div>
+        ) : mkt.isOpen ? (
           <>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
               <span style={{ color: '#888', fontSize: 12 }}>Closes in</span>
@@ -177,6 +198,8 @@ function Dashboard() {
   const [selectedConditionalSymbol, setSelectedConditionalSymbol] = useState(null);
   const [closeModal, setCloseModal] = useState(null);
   const [closeAllModal, setCloseAllModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [cancelOrderModal, setCancelOrderModal] = useState(null);
   const [actionError, setActionError] = useState('');
   const [refreshing, setRefreshing]   = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
@@ -320,18 +343,18 @@ function Dashboard() {
     }, 3000);
   }
 
-  async function fetchNextRun() {
+  const fetchNextRun = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/bot/next-run`);
       setNextRunTime(new Date(res.data.nextRun));
     } catch (err) {
       console.error('Failed to fetch next run time:', err);
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchNextRun();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchNextRun]);
 
   useEffect(() => {
     if (!nextRunTime) return;
@@ -347,7 +370,7 @@ function Dashboard() {
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [nextRunTime]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nextRunTime, fetchNextRun]);
 
   // Keep ref in sync so the stable interval below always reads the latest trades
   useEffect(() => {
@@ -536,15 +559,35 @@ function Dashboard() {
     setCloseModal(trade);
   }
 
-  async function deleteTrade(tradeId) {
+  function deleteTrade(tradeId) {
     const trade = data?.openTrades?.find(t => t._id === tradeId);
     if (!trade) return;
-    if (!window.confirm(`Delete ${trade.symbol} trade permanently? This cannot be undone and will NOT affect your P/L.`)) return;
+    setDeleteModal(trade);
+  }
+
+  async function executeDelete() {
+    const trade = deleteModal;
+    setDeleteModal(null);
     try {
-      await axios.delete(`${API}/trades/${tradeId}`);
+      await axios.delete(`${API}/trades/${trade._id}`);
       await fetchDashboard();
     } catch {
-      alert('Failed to delete trade');
+      setActionError('Failed to delete trade');
+    }
+  }
+
+  function cancelConditionalOrder(orderId, symbol) {
+    setCancelOrderModal({ _id: orderId, symbol });
+  }
+
+  async function executeCancelOrder() {
+    const order = cancelOrderModal;
+    setCancelOrderModal(null);
+    try {
+      await axios.delete(`${API}/bot/conditional-orders/${order._id}`);
+      setConditionalOrders(prev => prev.filter(o => o._id !== order._id));
+    } catch {
+      setActionError('Failed to cancel order');
     }
   }
 
@@ -1476,16 +1519,6 @@ function Dashboard() {
         const cryptoHedged = buildHedgeSet(cryptoOrders);
         const stockHedged  = buildHedgeSet(stockOrders);
 
-        const cancelConditionalOrder = async (orderId, symbol) => {
-          if (!window.confirm(`Cancel conditional order for ${symbol}?`)) return;
-          try {
-            await axios.delete(`${API}/bot/conditional-orders/${orderId}`);
-            setConditionalOrders(prev => prev.filter(o => o._id !== orderId));
-          } catch (err) {
-            alert('Failed to cancel order. Please try again.');
-          }
-        };
-
         const renderTable = (orders, hedgedSet) => (
           <div style={{ overflowX: 'auto' }}>
             <table>
@@ -2232,6 +2265,46 @@ function Dashboard() {
           </div>
         );
       })()}
+
+      {/* Delete Trade Modal */}
+      {deleteModal && (
+        <div
+          onClick={() => setDeleteModal(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 12, padding: '28px 32px', minWidth: 320, maxWidth: 420, width: '90%' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, color: '#fff' }}>Delete Trade?</h3>
+            <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+              Remove <strong style={{ color: '#fff' }}>{deleteModal.symbol}</strong> from your records permanently.
+              This does <strong style={{ color: '#f5a623' }}>not</strong> affect your broker or P/L.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setDeleteModal(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #2a2d3e', background: 'transparent', color: '#888', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Cancel</button>
+              <button onClick={executeDelete} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ff3d3d', background: '#2a1a1a', color: '#ff3d3d', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Conditional Order Modal */}
+      {cancelOrderModal && (
+        <div
+          onClick={() => setCancelOrderModal(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 12, padding: '28px 32px', minWidth: 320, maxWidth: 420, width: '90%' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, color: '#fff' }}>Cancel Order?</h3>
+            <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+              Cancel the conditional order for <strong style={{ color: '#fff' }}>{cancelOrderModal.symbol}</strong>?
+              The order will be removed and will not execute.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setCancelOrderModal(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #2a2d3e', background: 'transparent', color: '#888', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Keep Order</button>
+              <button onClick={executeCancelOrder} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ff3d3d', background: '#2a1a1a', color: '#ff3d3d', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Yes, Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recent Trades */}
       <div className="section">
