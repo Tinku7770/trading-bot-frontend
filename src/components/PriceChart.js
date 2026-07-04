@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import axios from 'axios';
 
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import { API_URL as API } from '../config';
 
 // Custom label rendered on the right edge of the chart for a reference line
 function RightLabel({ viewBox, value, color, bg }) {

@@ -1,15 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
-
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
-
-function formatDateTime(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleString([], {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
-}
+import Section from '../components/Section';
+import { formatDateTime } from '../utils';
+import { API_URL as API } from '../config';
 
 function formatDuration(start, end) {
   if (!start || !end) return '—';
@@ -18,25 +12,6 @@ function formatDuration(start, end) {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ${mins % 60}m`;
   return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
-}
-
-function Section({ title, children, badge = null }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="section">
-      <div
-        onClick={() => setOpen(o => !o)}
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: open ? 16 : 0 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          {badge}
-        </div>
-        <span style={{ color: '#555', fontSize: 13, userSelect: 'none', flexShrink: 0 }}>{open ? '▼' : '▶'}</span>
-      </div>
-      {open && children}
-    </div>
-  );
 }
 
 function Trades() {

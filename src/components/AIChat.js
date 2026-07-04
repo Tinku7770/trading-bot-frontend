@@ -107,6 +107,8 @@ export default function AIChat() {
   const [pendingAction, setPendingAction] = useState(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const msgIdRef = useRef(0);
+  const nextId = () => `msg-${++msgIdRef.current}`;
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
@@ -174,7 +176,7 @@ export default function AIChat() {
     setError('');
     setPendingAction(null);
 
-    const userMsg = { role: 'user', content: msg };
+    const userMsg = { id: nextId(), role: 'user', content: msg };
     const history = [...messages, userMsg];
     setMessages(history);
     setLoading(true);
@@ -185,7 +187,7 @@ export default function AIChat() {
         history: messages.filter(m => m.role !== 'system')
       });
 
-      const assistantMsg = { role: 'assistant', content: res.data.reply };
+      const assistantMsg = { id: nextId(), role: 'assistant', content: res.data.reply };
       setMessages(prev => [...prev, assistantMsg]);
 
       if (res.data.requiresConfirm && res.data.action) {
@@ -208,14 +210,12 @@ export default function AIChat() {
     try {
       const res = await axios.post(`${API}/chat/execute`, { action: pendingAction });
       const resultMsg = {
-        role: 'assistant',
-        content: res.data.success
-          ? `✅ ${res.data.message}`
-          : `❌ ${res.data.message}`
+        id: nextId(), role: 'assistant',
+        content: res.data.success ? `✅ ${res.data.message}` : `❌ ${res.data.message}`
       };
       setMessages(prev => [...prev, resultMsg]);
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: '❌ Action failed — please try again or use the dashboard.' }]);
+      setMessages(prev => [...prev, { id: nextId(), role: 'assistant', content: '❌ Action failed — please try again or use the dashboard.' }]);
     } finally {
       setPendingAction(null);
       setExecuting(false);
@@ -224,7 +224,7 @@ export default function AIChat() {
 
   function cancelAction() {
     setPendingAction(null);
-    setMessages(prev => [...prev, { role: 'assistant', content: 'Action cancelled. Let me know if you need anything else.' }]);
+    setMessages(prev => [...prev, { id: nextId(), role: 'assistant', content: 'Action cancelled. Let me know if you need anything else.' }]);
   }
 
   function handleKey(e) {
@@ -281,7 +281,7 @@ export default function AIChat() {
                 <button
                   onClick={() => {
                     localStorage.removeItem('ai_chat_history');
-                    setMessages([{ role: 'assistant', content: "Chat cleared. What can I help you with?" }]);
+                    setMessages([{ id: nextId(), role: 'assistant', content: "Chat cleared. What can I help you with?" }]);
                     setError('');
                     setPendingAction(null);
                   }}
@@ -359,8 +359,8 @@ export default function AIChat() {
             display: 'flex', flexDirection: 'column', gap: 12,
             scrollbarWidth: 'thin', scrollbarColor: '#2a2d3e #0d0f1a'
           }}>
-            {messages.filter(m => m.content?.trim()).map((m, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            {messages.filter(m => m.content?.trim()).map((m) => (
+              <div key={m.id} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
                   maxWidth: '88%',
                   background: m.role === 'user' ? '#5865f2' : '#1a1d27',

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
-
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import Section from '../components/Section';
+import { formatDateTime } from '../utils';
+import { API_URL as API } from '../config';
 
 function sentimentColor(val) {
   if (!val) return '#888';
@@ -12,37 +13,11 @@ function sentimentColor(val) {
   return '#888';
 }
 
-function formatDateTime(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleString([], {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
-}
-
 function SentimentBadge({ label, value }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 80 }}>
       <span style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
       <span style={{ color: sentimentColor(value), fontWeight: 600, fontSize: 13 }}>{value || 'N/A'}</span>
-    </div>
-  );
-}
-
-function Section({ title, children, badge = null }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="section">
-      <div
-        onClick={() => setOpen(o => !o)}
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: open ? 16 : 0 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          {badge}
-        </div>
-        <span style={{ color: '#555', fontSize: 13, userSelect: 'none', flexShrink: 0 }}>{open ? '▼' : '▶'}</span>
-      </div>
-      {open && children}
     </div>
   );
 }

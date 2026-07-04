@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useApp } from '../context/AppContext';
 
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import { API_URL as API } from '../config';
 
 function SymbolTags({ symbols, onChange, placeholder }) {
   const [input, setInput] = useState('');
@@ -131,6 +131,7 @@ function Settings() {
   });
   const [saved, setSaved] = useState(false);
   const [savedFields, setSavedFields] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -224,9 +225,11 @@ function Settings() {
   }
 
   async function saveSettings() {
+    if (saving) return;
     const err = validate();
     if (err) { setSaveError(err); return; }
     setSaveError('');
+    setSaving(true);
     try {
       const { _id, __v, cooldowns, updatedAt, isRunning, ...payload } = settings;
       await axios.put(`${API}/bot/settings`, payload);
@@ -300,6 +303,8 @@ function Settings() {
       setTimeout(() => { setSaved(false); setSavedFields(null); }, 8000);
     } catch {
       setSaveError('Failed to save settings — check your connection');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -1287,8 +1292,8 @@ function Settings() {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="save-btn" onClick={saveSettings}>
-            {saved ? '✓ Saved' : 'Save Settings'}
+          <button className="save-btn" onClick={saveSettings} disabled={saving} style={{ opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Settings'}
           </button>
           {dirty && !saved && (
             <>

@@ -5,7 +5,8 @@ import {
   ResponsiveContainer, Cell, ReferenceLine
 } from 'recharts';
 
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import Section from '../components/Section';
+import { API_URL as API } from '../config';
 
 function fmt(value) {
   if (value == null || !isFinite(value) || isNaN(value)) return 'N/A';
@@ -27,25 +28,6 @@ function SortTh({ label, field, sortBy, sortDir, onSort }) {
         {active ? (sortDir === 'desc' ? '▼' : '▲') : '▼'}
       </span>
     </th>
-  );
-}
-
-function Section({ title, children, defaultOpen = true, badge = null }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="section">
-      <div
-        onClick={() => setOpen(o => !o)}
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: open ? 16 : 0 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          {badge}
-        </div>
-        <span style={{ color: '#555', fontSize: 13, userSelect: 'none', flexShrink: 0 }}>{open ? '▼' : '▶'}</span>
-      </div>
-      {open && children}
-    </div>
   );
 }
 

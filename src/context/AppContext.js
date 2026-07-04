@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
 const AppContext = createContext();
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import { API_URL as API } from './config';
 
 function notify(title, body) {
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {

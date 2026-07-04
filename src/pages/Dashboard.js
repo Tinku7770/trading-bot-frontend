@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -7,8 +7,9 @@ import PriceChart from '../components/PriceChart';
 import MarketStatus from '../components/MarketStatus';
 import LiquidityHeatmap from '../components/LiquidityHeatmap';
 import AIChat from '../components/AIChat';
-
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import LiveClock from '../components/LiveClock';
+import { API_URL as API } from '../config';
+import { formatDateTime } from '../utils';
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00';
@@ -22,13 +23,6 @@ function formatDuration(ms) {
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-function formatDateTime(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleString([], {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
 }
 
 function getMarketInfo(now) {
@@ -67,6 +61,109 @@ function formatMarketCountdown(ms) {
   return `${mm}m ${ss}s`;
 }
 
+function BotUptime({ botStatus, botStartedAt, botStoppedAt }) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (botStatus && botStartedAt) {
+    const ms = now - new Date(botStartedAt);
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const dur = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const since = new Date(botStartedAt).toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    return (
+      <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+        <span style={{ color: '#00c853', fontWeight: 700 }}>↑ Running</span>
+        {' '}since <span style={{ color: '#aaa' }}>{since} PT</span>
+        <span style={{ color: '#555', marginLeft: 6 }}>({dur})</span>
+      </p>
+    );
+  }
+  if (!botStatus && botStoppedAt) {
+    const ms = now - new Date(botStoppedAt);
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const ago = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const stoppedAt = new Date(botStoppedAt).toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    return (
+      <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+        <span style={{ color: '#ff3d3d', fontWeight: 700 }}>↓ Stopped</span>
+        {' '}at <span style={{ color: '#aaa' }}>{stoppedAt} PT</span>
+        <span style={{ color: '#555', marginLeft: 6 }}>({ago} ago)</span>
+      </p>
+    );
+  }
+  return null;
+}
+
+function MarketSessionClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const mkt = getMarketInfo(now);
+  const cd = formatMarketCountdown(mkt.ms);
+  const isUrgent = mkt.isOpen && mkt.ms < 30 * 60 * 1000;
+  const isWarning = mkt.isOpen && mkt.ms < 10 * 60 * 1000;
+  const color = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#00c853') : '#555';
+  const borderColor = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#1a3a1a') : '#1a1d27';
+  return (
+    <div style={{
+      background: '#0d0f1a', border: `1px solid ${borderColor}`,
+      borderRadius: 10, padding: '14px 20px', marginBottom: 16,
+      display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap'
+    }}>
+      <div>
+        <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>California (PT)</div>
+        <LiveClock timeZone="America/Los_Angeles" options={{ weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }} style={{ color: '#aaa', fontWeight: 600, fontSize: 16, fontVariantNumeric: 'tabular-nums', display: 'block' }} />
+        <LiveClock timeZone="America/Los_Angeles" options={{ hour: '2-digit', minute: '2-digit', second: '2-digit' }} style={{ color: '#fff', fontWeight: 700, fontSize: 22, fontVariantNumeric: 'tabular-nums', letterSpacing: 1, display: 'block' }} />
+      </div>
+      <div style={{ width: 1, height: 50, background: '#2a2d3e', flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ color, fontWeight: 700, fontSize: 14 }}>{mkt.isOpen ? '● MARKET OPEN' : '○ MARKET CLOSED'}</span>
+          <span style={{ color: '#444', fontSize: 11 }}>NYSE / NASDAQ</span>
+          {isWarning && <span style={{ background: '#2a0000', border: '1px solid #ff3d3d', borderRadius: 20, color: '#ff3d3d', fontSize: 10, fontWeight: 700, padding: '2px 8px' }}>⚠ CLOSING SOON</span>}
+          {isUrgent && !isWarning && <span style={{ background: '#2a1500', border: '1px solid #f5a623', borderRadius: 20, color: '#f5a623', fontSize: 10, fontWeight: 700, padding: '2px 8px' }}>30 MIN WARNING</span>}
+        </div>
+        {mkt.isOpen ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
+              <span style={{ color: '#888', fontSize: 12 }}>Closes in</span>
+              <span style={{ color, fontWeight: 800, fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{cd}</span>
+              <span style={{ color: '#555', fontSize: 11 }}>(1:00 PM PT)</span>
+            </div>
+            <div style={{ background: '#1a1d27', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+              <div style={{ width: `${mkt.sessionPct}%`, height: '100%', background: `linear-gradient(90deg, #00c853, ${color})`, transition: 'width 1s linear' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 10, color: '#444' }}>
+              <span>6:30 AM PT open</span>
+              <span>{mkt.sessionPct.toFixed(0)}% of session elapsed</span>
+              <span>1:00 PM PT close</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ color: '#888', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+            Opens in <strong style={{ color: '#aaa', fontWeight: 700 }}>{cd}</strong>
+            <div style={{ color: '#555', fontSize: 11, marginTop: 3 }}>Mon – Fri · 6:30 AM – 1:00 PM PT</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const { botStatus, setBotStatus, tradeMode, liveSignals, liveTrades, livePrices, scannerCryptoPicks, setScannerCryptoPicks } = useApp();
   const [data, setData]           = useState(null);
@@ -97,7 +194,6 @@ function Dashboard() {
   const [cryptoHealth, setCryptoHealth]         = useState(null);
   const [plBySymbolExpanded, setPlBySymbolExpanded] = useState(false);
   const [cooldownsExpanded, setCooldownsExpanded] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const openTradesRef = useRef([]);
   const runNowTimerRef = useRef(null);
   const cryptoScanTimerRef = useRef(null);
@@ -114,10 +210,6 @@ function Dashboard() {
     };
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     fetchDashboard();
@@ -533,16 +625,20 @@ function Dashboard() {
 
   const stats = data?.stats || {};
 
-  const seenTradeIds = new Set();
-  const recentTrades = [...liveTrades, ...(data?.recentTrades || [])]
-    .filter(t => { if (seenTradeIds.has(t._id)) return false; seenTradeIds.add(t._id); return true; })
-    .slice(0, 8);
+  const recentTrades = useMemo(() => {
+    const seen = new Set();
+    return [...liveTrades, ...(data?.recentTrades || [])]
+      .filter(t => { if (seen.has(t._id)) return false; seen.add(t._id); return true; })
+      .slice(0, 8);
+  }, [liveTrades, data?.recentTrades]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const seenSignalIds = new Set();
-  const recentSignals = [...liveSignals, ...(data?.recentSignals || [])]
-    .filter(s => { if (seenSignalIds.has(s._id)) return false; seenSignalIds.add(s._id); return true; })
-    .filter(s => (s.confidence || 0) > 0)
-    .slice(0, 8);
+  const recentSignals = useMemo(() => {
+    const seen = new Set();
+    return [...liveSignals, ...(data?.recentSignals || [])]
+      .filter(s => { if (seen.has(s._id)) return false; seen.add(s._id); return true; })
+      .filter(s => (s.confidence || 0) > 0)
+      .slice(0, 8);
+  }, [liveSignals, data?.recentSignals]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const capitalPctRaw = stats.totalCapital > 0
     ? (stats.capitalInTrades / stats.totalCapital) * 100
@@ -588,11 +684,7 @@ function Dashboard() {
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ color: '#aaa', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
-            {currentTime.toLocaleString('en-US', {
-              timeZone: 'America/Los_Angeles',
-              weekday: 'short', month: 'short', day: 'numeric',
-              hour: '2-digit', minute: '2-digit', second: '2-digit'
-            })} <span style={{ color: '#555', fontSize: 11 }}>PT</span>
+            <LiveClock timeZone="America/Los_Angeles" options={{ weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }} /> <span style={{ color: '#555', fontSize: 11 }}>PT</span>
           </span>
           <span style={{ color: '#555' }}>|</span>
           <span style={{ color: '#888', fontVariantNumeric: 'tabular-nums' }}>
@@ -653,42 +745,7 @@ function Dashboard() {
           </div>
           {/* Uptime / downtime */}
           <div style={{ marginTop: 8 }}>
-            {botStatus && data?.botStartedAt && (() => {
-              const ms = currentTime - new Date(data.botStartedAt);
-              const d = Math.floor(ms / 86400000);
-              const h = Math.floor((ms % 86400000) / 3600000);
-              const m = Math.floor((ms % 3600000) / 60000);
-              const dur = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
-              const since = new Date(data.botStartedAt).toLocaleString('en-US', {
-                timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit', second: '2-digit'
-              });
-              return (
-                <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
-                  <span style={{ color: '#00c853', fontWeight: 700 }}>↑ Running</span>
-                  {' '}since <span style={{ color: '#aaa' }}>{since} PT</span>
-                  <span style={{ color: '#555', marginLeft: 6 }}>({dur})</span>
-                </p>
-              );
-            })()}
-            {!botStatus && data?.botStoppedAt && (() => {
-              const ms = currentTime - new Date(data.botStoppedAt);
-              const d = Math.floor(ms / 86400000);
-              const h = Math.floor((ms % 86400000) / 3600000);
-              const m = Math.floor((ms % 3600000) / 60000);
-              const ago = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
-              const stoppedAt = new Date(data.botStoppedAt).toLocaleString('en-US', {
-                timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit', second: '2-digit'
-              });
-              return (
-                <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
-                  <span style={{ color: '#ff3d3d', fontWeight: 700 }}>↓ Stopped</span>
-                  {' '}at <span style={{ color: '#aaa' }}>{stoppedAt} PT</span>
-                  <span style={{ color: '#555', marginLeft: 6 }}>({ago} ago)</span>
-                </p>
-              );
-            })()}
+            <BotUptime botStatus={botStatus} botStartedAt={data?.botStartedAt} botStoppedAt={data?.botStoppedAt} />
           </div>
         </div>
         <button
@@ -732,90 +789,7 @@ function Dashboard() {
       <MarketStatus />
 
       {/* Market Session Clock + Close Reminder */}
-      {(() => {
-        const mkt = getMarketInfo(currentTime);
-        const countdown = formatMarketCountdown(mkt.ms);
-        const isUrgent = mkt.isOpen && mkt.ms < 30 * 60 * 1000;
-        const isWarning = mkt.isOpen && mkt.ms < 10 * 60 * 1000;
-        const color = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#00c853') : '#555';
-        const borderColor = mkt.isOpen ? (isWarning ? '#ff3d3d' : isUrgent ? '#f5a623' : '#1a3a1a') : '#1a1d27';
-        return (
-          <div style={{
-            background: '#0d0f1a', border: `1px solid ${borderColor}`,
-            borderRadius: 10, padding: '14px 20px', marginBottom: 16,
-            display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap'
-          }}>
-            {/* PT Clock */}
-            <div>
-              <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>California (PT)</div>
-              <div style={{ color: '#aaa', fontWeight: 600, fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>
-                {currentTime.toLocaleString('en-US', {
-                  timeZone: 'America/Los_Angeles',
-                  weekday: 'long', month: 'short', day: 'numeric', year: 'numeric'
-                })}
-              </div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 22, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
-                {currentTime.toLocaleString('en-US', {
-                  timeZone: 'America/Los_Angeles',
-                  hour: '2-digit', minute: '2-digit', second: '2-digit'
-                })}
-              </div>
-            </div>
-
-            <div style={{ width: 1, height: 50, background: '#2a2d3e', flexShrink: 0 }} />
-
-            {/* Market Status + Countdown */}
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <span style={{ color, fontWeight: 700, fontSize: 14 }}>
-                  {mkt.isOpen ? '● MARKET OPEN' : '○ MARKET CLOSED'}
-                </span>
-                <span style={{ color: '#444', fontSize: 11 }}>NYSE / NASDAQ</span>
-                {isWarning && (
-                  <span style={{
-                    background: '#2a0000', border: '1px solid #ff3d3d', borderRadius: 20,
-                    color: '#ff3d3d', fontSize: 10, fontWeight: 700, padding: '2px 8px'
-                  }}>⚠ CLOSING SOON</span>
-                )}
-                {isUrgent && !isWarning && (
-                  <span style={{
-                    background: '#2a1500', border: '1px solid #f5a623', borderRadius: 20,
-                    color: '#f5a623', fontSize: 10, fontWeight: 700, padding: '2px 8px'
-                  }}>30 MIN WARNING</span>
-                )}
-              </div>
-              {mkt.isOpen ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
-                    <span style={{ color: '#888', fontSize: 12 }}>Closes in</span>
-                    <span style={{ color, fontWeight: 800, fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>
-                      {countdown}
-                    </span>
-                    <span style={{ color: '#555', fontSize: 11 }}>(1:00 PM PT)</span>
-                  </div>
-                  <div style={{ background: '#1a1d27', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${mkt.sessionPct}%`, height: '100%',
-                      background: `linear-gradient(90deg, #00c853, ${color})`,
-                      transition: 'width 1s linear'
-                    }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 10, color: '#444' }}>
-                    <span>6:30 AM PT open</span>
-                    <span>{mkt.sessionPct.toFixed(0)}% of session elapsed</span>
-                    <span>1:00 PM PT close</span>
-                  </div>
-                </>
-              ) : (
-                <div style={{ color: '#888', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
-                  Opens in <strong style={{ color: '#aaa', fontWeight: 700 }}>{countdown}</strong>
-                  <div style={{ color: '#555', fontSize: 11, marginTop: 3 }}>Mon – Fri · 6:30 AM – 1:00 PM PT</div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      <MarketSessionClock />
 
       {/* High Leverage Warning */}
       {(data?.leverageMultiplier ?? 1) > 3 && data?.tradeMode === 'live' && (
@@ -1825,8 +1799,9 @@ function Dashboard() {
             <div className="card">
               <h2>Profit Factor</h2>
               {(() => {
-                const wins = recentTrades.filter(t => t.status === 'closed' && (t.profitLoss || 0) > 0);
-                const losses = recentTrades.filter(t => t.status === 'closed' && (t.profitLoss || 0) < 0);
+                const allClosed = (data?.recentTrades || []).filter(t => t.status === 'closed');
+                const wins = allClosed.filter(t => (t.profitLoss || 0) > 0);
+                const losses = allClosed.filter(t => (t.profitLoss || 0) < 0);
                 const grossWin = wins.reduce((s, t) => s + t.profitLoss, 0);
                 const grossLoss = Math.abs(losses.reduce((s, t) => s + t.profitLoss, 0));
                 const pf = grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : grossWin > 0 ? '∞' : '—';

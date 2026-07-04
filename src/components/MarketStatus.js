@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import { API_URL as API } from '../config';
 
 const SESSION_CONFIG = {
   open:       { label: 'Market Open',    color: '#00c853', hint: '6:30 AM – 1:00 PM PT' },
