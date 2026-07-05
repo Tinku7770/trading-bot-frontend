@@ -30,7 +30,8 @@ function formatMcap(v) {
   if (!v) return 'N/A';
   if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
   if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
-  return `$${(v / 1e3).toFixed(0)}K`;
+  if (v >= 1000) return `$${(v / 1e3).toFixed(0)}K`;
+  return `$${v.toFixed(0)}`;
 }
 
 export default function Listings() {
