@@ -128,25 +128,41 @@ export default function Listings() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {announcements.map((a, i) => (
-              <div key={i} style={{
-                background: '#0d1117', border: '1px solid #2a2d3e', borderRadius: 8,
-                padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4
-              }}>
-                <div style={{ fontSize: 14, color: '#e0e0e0', lineHeight: 1.4 }}>{a.title}</div>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, color: '#888' }}>Source: {a.source}</span>
-                  {a.time && <span style={{ fontSize: 11, color: '#555' }}>{timeSince(a.time)}</span>}
-                  <span style={{
-                    marginLeft: 'auto', fontSize: 11, fontWeight: 700,
-                    color: '#f5a623', background: '#2a1a00', borderRadius: 4,
-                    padding: '2px 8px', border: '1px solid #3a2a00'
-                  }}>
-                    ⚡ ACT FAST
-                  </span>
+            {announcements.map((a, i) => {
+              const ex = a.exchange;
+              const isWarning = ex?.warning;
+              const sideBg = ex?.side === 'SHORT' ? { bg: '#1a0d2e', border: '#3a1a5a', color: '#c77dff' } : { bg: '#0d1a0d', border: '#1a3a1a', color: '#00c853' };
+              return (
+                <div key={i} style={{
+                  background: '#0d1117', border: `1px solid ${isWarning ? '#3a2a00' : '#2a2d3e'}`, borderRadius: 8,
+                  padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6
+                }}>
+                  <div style={{ fontSize: 14, color: '#e0e0e0', lineHeight: 1.4 }}>{a.title}</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: '#888' }}>Source: {a.source}</span>
+                    {a.time && <span style={{ fontSize: 11, color: '#555' }}>{timeSince(a.time)}</span>}
+                    {ex && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
+                        background: sideBg.bg, border: `1px solid ${sideBg.border}`, color: sideBg.color
+                      }}>
+                        {ex.label} · {ex.side}
+                      </span>
+                    )}
+                    {isWarning && (
+                      <span style={{ fontSize: 11, color: '#f5a623' }}>⚠️ Verify on Binance.US</span>
+                    )}
+                    <span style={{
+                      marginLeft: 'auto', fontSize: 11, fontWeight: 700,
+                      color: '#f5a623', background: '#2a1a00', borderRadius: 4,
+                      padding: '2px 8px', border: '1px solid #3a2a00'
+                    }}>
+                      ⚡ ACT FAST
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -195,10 +211,11 @@ export default function Listings() {
       <div style={{ ...card, border: '1px solid #1e3a2a', background: '#0d1a14' }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#00c853', marginBottom: 10 }}>How This Scanner Works</div>
         <div style={{ fontSize: 12, color: '#888', lineHeight: 1.8 }}>
-          <div>📢 <b style={{ color: '#aaa' }}>Announcement alerts</b> — monitors Binance/Coinbase listing news every 2h, Telegram fires instantly when detected</div>
-          <div>🆕 <b style={{ color: '#aaa' }}>New coins</b> — pulls recently added coins from CoinGecko every 2h</div>
-          <div>⚡ <b style={{ color: '#aaa' }}>Best trade</b> — buy on the announcement (before listing), ride to listing day pump, then exit</div>
-          <div>🤖 <b style={{ color: '#aaa' }}>AI chat</b> — say "any new listings?" for full AI analysis and trade recommendation</div>
+          <div>📢 <b style={{ color: '#aaa' }}>Announcement alerts</b> — monitors <b style={{ color: '#f0b90b' }}>Binance.US</b>, <b style={{ color: '#5741d9' }}>Kraken</b>, and Coinbase listing news every 2h — Telegram fires instantly</div>
+          <div>⚠️ <b style={{ color: '#aaa' }}>Global Binance</b> — flagged separately with a warning. Always verify a coin is on <b style={{ color: '#f0b90b' }}>Binance.US</b> before trading LONG</div>
+          <div>🟢 <b style={{ color: '#aaa' }}>LONG plays</b> — Binance.US listings. Buy on announcement, ride to listing day pump, exit</div>
+          <div>🔴 <b style={{ color: '#aaa' }}>SHORT plays</b> — Kraken listings that pump hard on day 1 then fade. SHORT the retracement</div>
+          <div>🤖 <b style={{ color: '#aaa' }}>AI chat</b> — say "any new listings?" for full AI analysis with specific trade recommendations</div>
         </div>
       </div>
     </div>
