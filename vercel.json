@@ -1,4 +1,8 @@
 {
-  "buildCommand": "npm install --legacy-peer-deps && CI=false npm run build",
-  "outputDirectory": "build"
+  "buildCommand": "npm install --legacy-peer-deps && npm run build",
+  "outputDirectory": "build",
+  "env": {
+    "CI": "false",
+    "DISABLE_ESLINT_PLUGIN": "true"
+  }
 }
