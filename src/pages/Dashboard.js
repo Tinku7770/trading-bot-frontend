@@ -652,6 +652,22 @@ function Dashboard() {
     }
   }
 
+  // These must stay ABOVE early returns — hooks cannot be called conditionally
+  const recentTrades = useMemo(() => {
+    const seen = new Set();
+    return [...liveTrades, ...(data?.recentTrades || [])]
+      .filter(t => { if (seen.has(t._id)) return false; seen.add(t._id); return true; })
+      .slice(0, 8);
+  }, [liveTrades, data?.recentTrades]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recentSignals = useMemo(() => {
+    const seen = new Set();
+    return [...liveSignals, ...(data?.recentSignals || [])]
+      .filter(s => { if (seen.has(s._id)) return false; seen.add(s._id); return true; })
+      .filter(s => (s.confidence || 0) > 0)
+      .slice(0, 8);
+  }, [liveSignals, data?.recentSignals]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) return <div className="page-title">Loading...</div>;
 
   if (error) return (
@@ -667,21 +683,6 @@ function Dashboard() {
   );
 
   const stats = data?.stats || {};
-
-  const recentTrades = useMemo(() => {
-    const seen = new Set();
-    return [...liveTrades, ...(data?.recentTrades || [])]
-      .filter(t => { if (seen.has(t._id)) return false; seen.add(t._id); return true; })
-      .slice(0, 8);
-  }, [liveTrades, data?.recentTrades]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const recentSignals = useMemo(() => {
-    const seen = new Set();
-    return [...liveSignals, ...(data?.recentSignals || [])]
-      .filter(s => { if (seen.has(s._id)) return false; seen.add(s._id); return true; })
-      .filter(s => (s.confidence || 0) > 0)
-      .slice(0, 8);
-  }, [liveSignals, data?.recentSignals]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const capitalPctRaw = stats.totalCapital > 0
     ? (stats.capitalInTrades / stats.totalCapital) * 100
