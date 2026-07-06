@@ -301,8 +301,9 @@ function Settings() {
       setSavedFields(changes.length > 0 ? changes : ['All settings saved']);
       setDirty(false);
       setTimeout(() => { setSaved(false); setSavedFields(null); }, 8000);
-    } catch {
-      setSaveError('Failed to save settings — check your connection');
+    } catch (err) {
+      const detail = err?.response?.data?.details?.[0] || err?.response?.data?.error;
+      setSaveError(detail ? `Validation error: ${detail}` : 'Failed to save settings — check your connection');
     } finally {
       setSaving(false);
     }
