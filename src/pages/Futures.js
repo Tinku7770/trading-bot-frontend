@@ -574,7 +574,7 @@ function Futures() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
           <div style={{ background: '#0d0f1a', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ fontSize: 11, color: '#555', marginBottom: 4 }}>ACCOUNT NUMBER</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>5WI91851</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{ttStatus?.account || '—'}</div>
             <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>Individual Margin</div>
           </div>
           <div style={{ background: '#0d0f1a', borderRadius: 8, padding: '14px 16px' }}>
