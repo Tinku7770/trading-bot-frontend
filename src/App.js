@@ -12,6 +12,7 @@ import Settings from './pages/Settings';
 import Performance from './pages/Performance';
 import Listings from './pages/Listings';
 import Scanners from './pages/Scanners';
+import Futures from './pages/Futures';
 import './App.css';
 
 // Attach API key to every axios request automatically
@@ -37,6 +38,7 @@ function App() {
               <Route path="/performance" element={<Performance />} />
               <Route path="/listings" element={<Listings />} />
               <Route path="/scanners" element={<Scanners />} />
+              <Route path="/futures" element={<Futures />} />
             </Routes>
           </div>
         </div>

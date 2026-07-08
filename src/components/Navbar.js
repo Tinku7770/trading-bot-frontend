@@ -16,6 +16,7 @@ function Navbar() {
     { path: '/market',      label: 'Market' },
     { path: '/performance', label: 'Performance' },
     { path: '/scanners',    label: 'Scanners' },
+    { path: '/futures',     label: 'Futures' },
     { path: '/settings',    label: 'Settings' }
   ];
 
