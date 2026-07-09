@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import Section from '../components/Section';
+import PriceChart from '../components/PriceChart';
 import { formatDateTime } from '../utils';
 import { API_URL as API } from '../config';
 
@@ -193,6 +194,15 @@ function Futures() {
           color={ttStatus?.configured ? '#00c853' : '#888'}
         />
       </div>
+
+      {/* Live Gold Price Chart */}
+      <Section title="Gold Price Chart (GC=F · 1D)">
+        <PriceChart
+          symbol="GC=F"
+          market="stock"
+          livePrice={goldPrice?.price || null}
+        />
+      </Section>
 
       {/* Open Positions */}
       <Section
