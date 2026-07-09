@@ -33,6 +33,8 @@ function Futures() {
   const [openTrades, setOpenTrades]     = useState([]);
   const [closedTrades, setClosedTrades] = useState([]);
   const [prices, setPrices]             = useState({});
+  const [priceUpdatedAt, setPriceUpdatedAt] = useState(null);
+  const [tick, setTick]                 = useState(0);
   const [settings, setSettings]         = useState(null);
   const [ttStatus, setTtStatus]         = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -68,6 +70,7 @@ function Futures() {
       try {
         const res = await axios.get(`${API}/futures/price/${encodeURIComponent(sym)}`);
         setPrices(p => ({ ...p, [sym]: res.data }));
+        setPriceUpdatedAt(Date.now());
       } catch {}
     }
   }, []);
@@ -85,6 +88,12 @@ function Futures() {
     const t = setInterval(() => refreshPrices(symbols), 30000);
     return () => clearInterval(t);
   }, [settings, openTrades, refreshPrices]);
+
+  // Tick every second so "updated X seconds ago" stays current
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   function unrealizedPL(trade) {
     const currentPrice = prices[trade.symbol]?.price;
@@ -117,6 +126,7 @@ function Futures() {
     setLocalSettings(prev => ({ ...prev, [key]: val }));
   }
 
+  const now = Date.now() + (tick * 0); // tick drives re-render every second
   const totalPL = closedTrades.reduce((s, t) => s + (t.profitLoss || 0), 0);
   const wins = closedTrades.filter(t => (t.profitLoss || 0) > 0).length;
   const winRate = closedTrades.length > 0 ? Math.round(wins / closedTrades.length * 100) : null;
@@ -148,9 +158,14 @@ function Futures() {
         <StatCard
           label="Gold Price"
           value={goldPrice?.price ? `$${goldPrice.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
-          sub={goldPrice?.change24h != null
-            ? `${goldPrice.change24h >= 0 ? '+' : ''}${goldPrice.change24h.toFixed(2)}% today`
-            : '/oz (GC=F)'}
+          sub={(() => {
+            const changeLine = goldPrice?.change24h != null
+              ? `${goldPrice.change24h >= 0 ? '+' : ''}${goldPrice.change24h.toFixed(2)}% today`
+              : '/oz (GC=F)';
+            const secsAgo = priceUpdatedAt ? Math.floor((now - priceUpdatedAt) / 1000) : null;
+            const freshLine = secsAgo !== null ? `Updated ${secsAgo}s ago` : '';
+            return `${changeLine}${freshLine ? ' · ' + freshLine : ''}`;
+          })()}
           color={goldPrice?.change24h > 0 ? '#00c853' : goldPrice?.change24h < 0 ? '#ff3d3d' : '#fff'}
         />
         <StatCard
