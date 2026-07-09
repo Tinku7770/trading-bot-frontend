@@ -3,6 +3,7 @@ import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
+import AIChat from './components/AIChat';
 import Dashboard from './pages/Dashboard';
 import Trades from './pages/Trades';
 import Signals from './pages/Signals';
@@ -41,6 +42,7 @@ function App() {
               <Route path="/futures" element={<Futures />} />
             </Routes>
           </div>
+          <AIChat />
         </div>
       </Router>
     </AppProvider>

@@ -6,7 +6,6 @@ import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 import MarketStatus from '../components/MarketStatus';
 import LiquidityHeatmap from '../components/LiquidityHeatmap';
-import AIChat from '../components/AIChat';
 import LiveClock from '../components/LiveClock';
 import { API_URL as API } from '../config';
 import { formatDateTime } from '../utils';
@@ -2378,7 +2377,6 @@ function Dashboard() {
           </tbody>
         </table>
       </div>
-      <AIChat />
     </div>
   );
 }
