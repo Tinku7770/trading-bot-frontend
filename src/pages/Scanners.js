@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-
-const API = process.env.REACT_APP_API_URL || 'https://trading-bot-backend-production-9a53.up.railway.app/api';
+import { API_URL as API } from '../config';
 
 function timeAgo(isoStr) {
   if (!isoStr) return 'never';
@@ -65,7 +64,11 @@ function SqueezeSection() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [load]);
 
   return (
     <Section
@@ -107,7 +110,9 @@ function SqueezeSection() {
                     <tr key={s.symbol}>
                       <td style={{ fontWeight: 700, color: '#fff' }}>{s.symbol}</td>
                       <td>${(s.price || 0).toFixed(2)}</td>
-                      <td style={{ color: '#00c853' }}>+{(s.changePct || 0).toFixed(2)}%</td>
+                      <td style={{ color: (s.changePct || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                        {(s.changePct || 0) >= 0 ? '+' : ''}{(s.changePct || 0).toFixed(2)}%
+                      </td>
                       <td style={{ color: '#40a9ff' }}>{(s.volRatio || 0).toFixed(1)}x avg</td>
                       <td>{score}</td>
                       <td>
@@ -149,7 +154,11 @@ function IpoSection() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [load]);
 
   return (
     <Section
@@ -199,7 +208,11 @@ function ListingsSection() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [load]);
 
   return (
     <Section
