@@ -579,11 +579,11 @@ function Futures() {
           </div>
           <div style={{ background: '#0d0f1a', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ fontSize: 11, color: '#555', marginBottom: 4 }}>FUTURES STATUS</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: settings?.tastytradeEnabled ? '#00c853' : '#f5a623' }}>
-              {settings?.tastytradeEnabled ? 'Approved + Active' : 'Awaiting Approval'}
+            <div style={{ fontSize: 15, fontWeight: 700, color: settings?.tastytradeEnabled ? '#00c853' : ttStatus?.configured ? '#f5a623' : '#888' }}>
+              {settings?.tastytradeEnabled ? 'Approved + Active' : ttStatus?.configured ? 'Approved — Fund Account' : 'Awaiting Setup'}
             </div>
             <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-              {settings?.tastytradeEnabled ? 'Bot placing live orders' : 'Email sent — check soheb.s@yahoo.com'}
+              {settings?.tastytradeEnabled ? 'Bot placing live orders' : ttStatus?.configured ? 'Deposit $2,500+ to go live' : 'Set Railway env vars first'}
             </div>
           </div>
           <div style={{ background: '#0d0f1a', borderRadius: 8, padding: '14px 16px' }}>
@@ -611,8 +611,8 @@ function Futures() {
               {[
                 ['Tastytrade account open', true],
                 ['Futures approval email sent', true],
-                ['Futures approval received', !!settings?.tastytradeEnabled],
-                ['Account funded ($2,500+)', false],
+                ['Futures approval received', !!ttStatus?.configured],
+                ['Account funded ($2,500+)', !!(ttStatus?.balance?.['net-liq-balance'] > 0)],
                 ['Railway env vars set', !!ttStatus?.configured],
                 ['tastytradeEnabled = true', !!settings?.tastytradeEnabled],
               ].map(([label, done]) => (
