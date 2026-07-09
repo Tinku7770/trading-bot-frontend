@@ -190,9 +190,19 @@ function Futures() {
         <StatCard
           label="Tastytrade"
           value={ttStatus?.configured ? 'Connected' : 'Pending'}
-          sub={ttStatus?.configured ? `Account ${ttStatus?.balance?.['net-liq-balance'] ? `$${parseFloat(ttStatus.balance['net-liq-balance']).toLocaleString()}` : '—'}` : 'Waiting for futures approval'}
+          sub={ttStatus?.configured
+            ? `Account $${parseFloat(ttStatus?.balance?.['net-liq-balance'] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+            : 'Waiting for futures approval'}
           color={ttStatus?.configured ? '#00c853' : '#888'}
         />
+        {!settings?.tastytradeEnabled && (
+          <StatCard
+            label="Paper Capital"
+            value={`$${(settings?.tastytradeCapital || 2000).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+            sub="Simulated — no real money"
+            color="#5865f2"
+          />
+        )}
       </div>
 
       {/* Live Gold Price Chart */}
