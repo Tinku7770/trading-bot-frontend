@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import PortfolioOverview from "@/components/PortfolioOverview";
 import WalletInput from "@/components/WalletInput";
 import AIInsights from "@/components/AIInsights";
@@ -39,9 +40,14 @@ export default function Home() {
             <h1 className="text-xl font-bold text-white">Crypto AI Dashboard</h1>
             <p className="text-xs text-gray-400">Portfolio tracker with AI insights</p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            <span className="text-xs text-gray-400">Live</span>
+          <div className="flex items-center gap-4">
+            <Link href="/analytics" className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors">
+              Bot Analytics
+            </Link>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+              <span className="text-xs text-gray-400">Live</span>
+            </div>
           </div>
         </div>
       </div>
