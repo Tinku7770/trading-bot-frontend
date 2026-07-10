@@ -170,7 +170,7 @@ export default function AnalyticsPage() {
                     <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickFormatter={v => `$${v}`} width={60} />
                     <Tooltip
                       contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
-                      formatter={(v: number) => [`${v >= 0 ? "+" : ""}$${v.toFixed(2)}`, "Cumulative P/L"]}
+                      formatter={(v: unknown) => { const n = Number(v ?? 0); return [`${n >= 0 ? "+" : ""}$${n.toFixed(2)}`, "Cumulative P/L"]; }}
                     />
                     <Line type="monotone" dataKey="pl" stroke="#3b82f6" strokeWidth={2} dot={false}
                       activeDot={{ r: 4, fill: "#3b82f6" }} />
@@ -253,7 +253,7 @@ export default function AnalyticsPage() {
                       <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickFormatter={v => `$${v}`} width={55} />
                       <Tooltip
                         contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
-                        formatter={(v: number, _: any, p: any) => [`${v >= 0 ? "+" : ""}$${v.toFixed(2)} (WR ${p.payload.winRate}%)`, p.payload.symbol]}
+                        formatter={(v: unknown, _: unknown, p: any) => { const n = Number(v ?? 0); return [`${n >= 0 ? "+" : ""}$${n.toFixed(2)} (WR ${p.payload.winRate}%)`, p.payload.symbol]; }}
                       />
                       <Bar dataKey="totalPL" radius={[3, 3, 0, 0]}>
                         {plBySymbol.map((entry, i) => (
