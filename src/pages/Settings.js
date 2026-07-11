@@ -124,6 +124,7 @@ function Settings() {
     maxCryptoPositions: 4,
     maxHoldHours: 48,
     aiModel: 'claude-opus-4-8',
+    aiChatModel: 'claude-fable-5',
     cryptoSymbols: [],
     stockSymbols: [],
     blockedSymbols: [],
@@ -286,7 +287,8 @@ function Settings() {
         if (originalSettings.maxHoldHours !== settings.maxHoldHours) changes.push(`Stock Max Hold → ${settings.maxHoldHours}h`);
         if (originalSettings.cryptoMaxHoldHours !== settings.cryptoMaxHoldHours) changes.push(`Crypto Core Max Hold → ${settings.cryptoMaxHoldHours}h`);
         if (originalSettings.cryptoScannerMaxHoldHours !== settings.cryptoScannerMaxHoldHours) changes.push(`Crypto Scanner Max Hold → ${settings.cryptoScannerMaxHoldHours}h`);
-        if (originalSettings.aiModel !== settings.aiModel) changes.push(`AI Model → ${settings.aiModel}`);
+        if (originalSettings.aiModel !== settings.aiModel) changes.push(`AI Model (Bot) → ${settings.aiModel}`);
+        if (originalSettings.aiChatModel !== settings.aiChatModel) changes.push(`AI Model (Chat) → ${settings.aiChatModel}`);
         if (originalSettings.spyRegimeThreshold !== settings.spyRegimeThreshold) changes.push(`SPY Regime Threshold → ${settings.spyRegimeThreshold}%`);
         const prevCrypto = (originalSettings.cryptoSymbols || []).join(',');
         const newCrypto  = (settings.cryptoSymbols || []).join(',');
@@ -374,26 +376,49 @@ function Settings() {
         </div>
 
         <div className="form-group">
-          <label>AI Model</label>
+          <label>AI Model — Auto Bot (Scanner)</label>
           <select value={settings.aiModel || 'claude-fable-5'} onChange={e => updateSettings({ aiModel: e.target.value })}>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast · Cheapest)</option>
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Smarter · Moderate Cost)</option>
+            <option value="claude-opus-4-8">Claude Opus 4.8 (Sharpest Reasoning)</option>
+            <option value="claude-fable-5">Claude Fable 5 (Most Powerful)</option>
+          </select>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            Model used for automated BUY/SELL/HOLD decisions (runs every 30 min on schedule).{' '}
+            <strong style={{ color: '#c9d1d9' }}>Haiku</strong> is recommended here — cheapest, runs constantly, saves ~80% API cost.
+          </p>
+          {(settings.aiModel || '').includes('haiku') && (
+            <div style={{ background: '#0d1a0d', border: '1px solid #00c853', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
+              <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700 }}>✓ Haiku — best choice for the auto scanner. Fast, cheap, runs constantly without draining your API budget.</span>
+            </div>
+          )}
+          {(settings.aiModel || '').includes('fable') && (
+            <div style={{ background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
+              <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700 }}>⚠️ Fable 5 on the auto scanner is expensive — it runs 30-96 times per day. Consider switching to Haiku to save cost.</span>
+            </div>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label>AI Model — Chat Assistant</label>
+          <select value={settings.aiChatModel || 'claude-fable-5'} onChange={e => updateSettings({ aiChatModel: e.target.value })}>
             <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (Fast · Cheapest)</option>
             <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Smarter · Moderate Cost)</option>
             <option value="claude-opus-4-8">Claude Opus 4.8 (Sharpest Reasoning)</option>
             <option value="claude-fable-5">Claude Fable 5 (Most Powerful · Recommended)</option>
           </select>
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            Model used for BUY/SELL/HOLD decisions and the AI chat assistant.{' '}
-            <strong style={{ color: '#c9d1d9' }}>Fable 5</strong> is the most capable model — best reasoning, best trade analysis.{' '}
-            <strong style={{ color: '#c9d1d9' }}>Haiku</strong> is cheapest but basic.
+            Model used when you chat with the AI assistant. Only runs when you send a message — on-demand, not on a schedule.{' '}
+            <strong style={{ color: '#c9d1d9' }}>Fable 5</strong> is recommended here for the best trade analysis and execution decisions.
           </p>
-          {(settings.aiModel || '').includes('fable') && (
+          {(settings.aiChatModel || '').includes('fable') && (
             <div style={{ background: '#0d1a0d', border: '1px solid #00c853', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
-              <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700 }}>✓ Fable 5 — Anthropic's most powerful model. Best for live trading and complex multi-step analysis.</span>
+              <span style={{ color: '#00c853', fontSize: 12, fontWeight: 700 }}>✓ Fable 5 — Anthropic's most powerful model. Best for live trading decisions and complex multi-step analysis.</span>
             </div>
           )}
-          {(settings.aiModel || '').includes('opus') && (
-            <div style={{ background: '#2a1500', border: '1px solid #f5a623', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
-              <span style={{ color: '#f5a623', fontSize: 12, fontWeight: 700 }}>⚠️ Opus 4.8 is still strong but Fable 5 is now more capable. Consider upgrading.</span>
+          {(settings.aiChatModel || '').includes('opus') && (
+            <div style={{ background: '#1a1a2e', border: '1px solid #7c6af5', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
+              <span style={{ color: '#7c6af5', fontSize: 12, fontWeight: 700 }}>Opus 4.8 — strong reasoning, but Fable 5 is now more capable. Consider upgrading.</span>
             </div>
           )}
         </div>
