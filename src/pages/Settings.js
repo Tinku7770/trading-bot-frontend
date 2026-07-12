@@ -607,7 +607,7 @@ function Settings() {
             onChange={e => numInput('cryptoStopLossPercent', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            With {settings.cryptoLeverageMultiplier || 1}x leverage: {settings.cryptoStopLossPercent ?? 0.5}% move = <strong style={{ color: '#ff3d3d' }}>{((settings.cryptoStopLossPercent || 0.5) * (settings.cryptoLeverageMultiplier || 1)).toFixed(1)}% loss</strong> on trade amount (${((settings.cryptoMaxTradeAmount || 0) * (settings.cryptoStopLossPercent || 0.5) / 100 * (settings.cryptoLeverageMultiplier || 1)).toFixed(2)} max loss per trade)
+            {(() => { const lL = settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1; const sL = settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1; const sl = settings.cryptoStopLossPercent || 0.5; return <>LONG {lL}x / SHORT {sL}x — {sl}% move = <strong style={{ color: '#ff3d3d' }}>-{(sl * lL).toFixed(1)}% / -{(sl * sL).toFixed(1)}% loss</strong> on trade amount (max ${((settings.cryptoMaxTradeAmount || 0) * sl / 100 * Math.max(lL, sL)).toFixed(2)} per trade)</>; })()}
           </p>
         </div>
 
@@ -621,7 +621,7 @@ function Settings() {
             onChange={e => numInput('cryptoTakeProfitPercent', e.target.value)}
           />
           <p style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-            With {settings.cryptoLeverageMultiplier || 1}x leverage: {settings.cryptoTakeProfitPercent ?? 0.8}% move = <strong style={{ color: '#00c853' }}>{((settings.cryptoTakeProfitPercent || 0.8) * (settings.cryptoLeverageMultiplier || 1)).toFixed(1)}% gain</strong> on trade amount (${((settings.cryptoMaxTradeAmount || 0) * (settings.cryptoTakeProfitPercent || 0.8) / 100 * (settings.cryptoLeverageMultiplier || 1)).toFixed(2)} max gain per trade)
+            {(() => { const lL = settings.cryptoLongLeverageMultiplier || settings.cryptoLeverageMultiplier || 1; const sL = settings.cryptoShortLeverageMultiplier || settings.cryptoLeverageMultiplier || 1; const tp = settings.cryptoTakeProfitPercent || 0.8; return <>LONG {lL}x / SHORT {sL}x — {tp}% move = <strong style={{ color: '#00c853' }}>+{(tp * lL).toFixed(1)}% / +{(tp * sL).toFixed(1)}% gain</strong> on trade amount (max ${((settings.cryptoMaxTradeAmount || 0) * tp / 100 * Math.max(lL, sL)).toFixed(2)} per trade)</>; })()}
           </p>
         </div>
 
