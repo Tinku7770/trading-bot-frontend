@@ -111,7 +111,6 @@ export default function AIChat() {
   const inputRef = useRef(null);
   const panelRef = useRef(null);
   const dragRef = useRef(null);
-  const resizeRef = useRef(null);
   const msgIdRef = useRef(0);
   const nextId = () => `msg-${++msgIdRef.current}`;
 
@@ -137,21 +136,25 @@ export default function AIChat() {
     window.addEventListener('mouseup', onUp);
   }
 
-  // Drag-to-resize from bottom-right corner
-  function onResizeMouseDown(e) {
+  // Resize from any edge or corner — direction is a string like 'n','s','e','w','ne','se','sw','nw'
+  function onEdgeMouseDown(e, direction) {
     e.preventDefault();
     e.stopPropagation();
-    resizeRef.current = { startX: e.clientX, startY: e.clientY, origW: panelSize.w, origH: panelSize.h };
+    const rect = panelRef.current.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    const orig = { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
     function onMove(ev) {
-      const dw = ev.clientX - resizeRef.current.startX;
-      const dh = ev.clientY - resizeRef.current.startY;
-      setPanelSize({
-        w: Math.max(360, Math.min(window.innerWidth - 24, resizeRef.current.origW + dw)),
-        h: Math.max(400, Math.min(window.innerHeight - 40, resizeRef.current.origH + dh))
-      });
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      let newX = orig.x, newY = orig.y, newW = orig.w, newH = orig.h;
+      if (direction.includes('e')) { newW = Math.max(360, Math.min(window.innerWidth - orig.x - 8, orig.w + dx)); }
+      if (direction.includes('w')) { newW = Math.max(360, orig.w - dx); newX = orig.x + orig.w - newW; }
+      if (direction.includes('s')) { newH = Math.max(400, Math.min(window.innerHeight - orig.y - 8, orig.h + dy)); }
+      if (direction.includes('n')) { newH = Math.max(400, orig.h - dy); newY = orig.y + orig.h - newH; }
+      setPanelSize({ w: newW, h: newH });
+      setPanelPos({ x: Math.max(0, newX), y: Math.max(0, newY) });
     }
     function onUp() {
-      resizeRef.current = null;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     }
@@ -644,21 +647,17 @@ export default function AIChat() {
           `}</style>
         </div>
 
-        {/* Resize handle — outside overflow:hidden inner div so mouse events work */}
-        <div
-          onMouseDown={onResizeMouseDown}
-          style={{
-            position: 'absolute', bottom: 0, right: 0,
-            width: 24, height: 24, cursor: 'se-resize', zIndex: 20,
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end',
-            padding: '4px'
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <line x1="2" y1="12" x2="12" y2="2" stroke="#5865f2" strokeWidth="2" strokeLinecap="round"/>
-            <line x1="7" y1="12" x2="12" y2="7" stroke="#5865f2" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </div>
+        {/* 8 resize handles — all outside overflow:hidden so mouse events work */}
+        {/* Edges */}
+        <div onMouseDown={e => onEdgeMouseDown(e,'n')}  style={{ position:'absolute', top:-3,    left:14,  right:14, height:6,  cursor:'n-resize',  zIndex:20 }} />
+        <div onMouseDown={e => onEdgeMouseDown(e,'s')}  style={{ position:'absolute', bottom:-3, left:14,  right:14, height:6,  cursor:'s-resize',  zIndex:20 }} />
+        <div onMouseDown={e => onEdgeMouseDown(e,'e')}  style={{ position:'absolute', right:-3,  top:14,   bottom:14, width:6,  cursor:'e-resize',  zIndex:20 }} />
+        <div onMouseDown={e => onEdgeMouseDown(e,'w')}  style={{ position:'absolute', left:-3,   top:14,   bottom:14, width:6,  cursor:'w-resize',  zIndex:20 }} />
+        {/* Corners */}
+        <div onMouseDown={e => onEdgeMouseDown(e,'nw')} style={{ position:'absolute', top:-3,    left:-3,  width:16, height:16, cursor:'nw-resize', zIndex:21 }} />
+        <div onMouseDown={e => onEdgeMouseDown(e,'ne')} style={{ position:'absolute', top:-3,    right:-3, width:16, height:16, cursor:'ne-resize', zIndex:21 }} />
+        <div onMouseDown={e => onEdgeMouseDown(e,'sw')} style={{ position:'absolute', bottom:-3, left:-3,  width:16, height:16, cursor:'sw-resize', zIndex:21 }} />
+        <div onMouseDown={e => onEdgeMouseDown(e,'se')} style={{ position:'absolute', bottom:-3, right:-3, width:16, height:16, cursor:'se-resize', zIndex:21 }} />
         </div>
       )}
     </>
