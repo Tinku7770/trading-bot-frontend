@@ -642,9 +642,9 @@ export default function AIChat() {
               40% { transform: scale(1); opacity: 1; }
             }
           `}</style>
-        </div>{/* end inner overflow:hidden div */}
+        </div>
 
-        {/* Resize handle — OUTSIDE overflow:hidden so it always receives mouse events */}
+        {/* Resize handle — outside overflow:hidden inner div so mouse events work */}
         <div
           onMouseDown={onResizeMouseDown}
           style={{
@@ -659,8 +659,7 @@ export default function AIChat() {
             <line x1="7" y1="12" x2="12" y2="7" stroke="#5865f2" strokeWidth="2" strokeLinecap="round"/>
           </svg>
         </div>
-
-        </div>{/* end outer positioning div */}
+        </div>
       )}
     </>
   );
