@@ -278,9 +278,9 @@ export default function AIChat() {
       {/* Chat panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 96, right: 12, zIndex: 9998,
-          width: 'min(390px, calc(100vw - 24px))',
-          maxHeight: 'min(580px, calc(100dvh - 120px))',
+          position: 'fixed', bottom: 90, right: 12, zIndex: 9998,
+          width: 'min(520px, calc(100vw - 24px))',
+          height: 'min(700px, calc(100dvh - 110px))',
           background: '#0d0f1a', border: '1px solid #2a2d3e',
           borderRadius: 14, display: 'flex', flexDirection: 'column',
           boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
@@ -326,7 +326,9 @@ export default function AIChat() {
           {(scannerCryptoPicks.length > 0 || scannerStockPicks.length > 0) && (
             <div style={{
               borderBottom: '1px solid #1a1d27', background: '#0a0c17',
-              padding: '8px 12px', flexShrink: 0
+              padding: '8px 12px', flexShrink: 0,
+              maxHeight: 180, overflowY: 'auto',
+              scrollbarWidth: 'thin', scrollbarColor: '#2a2d3e #0a0c17'
             }}>
               <div style={{ color: '#555', fontSize: 10, fontWeight: 700, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' }}>
                 📡 Scanner Picks — click to analyze
@@ -335,8 +337,8 @@ export default function AIChat() {
               {/* Crypto picks */}
               {scannerCryptoPicks.length > 0 && (
                 <>
-                  <div style={{ color: '#444', fontSize: 9, fontWeight: 700, letterSpacing: 0.6, marginBottom: 4, textTransform: 'uppercase' }}>
-                    Crypto
+                  <div style={{ color: '#666', fontSize: 10, fontWeight: 700, marginBottom: 4 }}>
+                    CRYPTO
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: scannerStockPicks.length > 0 ? 8 : 0 }}>
                     {scannerCryptoPicks.map((pick, idx) => {
@@ -383,8 +385,8 @@ export default function AIChat() {
               {/* Stock picks */}
               {scannerStockPicks.length > 0 && (
                 <>
-                  <div style={{ color: '#444', fontSize: 9, fontWeight: 700, letterSpacing: 0.6, marginBottom: 4, textTransform: 'uppercase' }}>
-                    Stocks
+                  <div style={{ color: '#666', fontSize: 10, fontWeight: 700, marginBottom: 4 }}>
+                    STOCKS
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {scannerStockPicks.map((pick, idx) => {
@@ -515,9 +517,9 @@ export default function AIChat() {
 
           {/* Input */}
           <div style={{
-            padding: '10px 12px', borderTop: '1px solid #1a1d27',
+            padding: '12px 14px', borderTop: '1px solid #1a1d27',
             background: '#111320', flexShrink: 0,
-            display: 'flex', gap: 8, alignItems: 'flex-end'
+            display: 'flex', gap: 10, alignItems: 'flex-end'
           }}>
             <textarea
               ref={inputRef}
@@ -525,14 +527,14 @@ export default function AIChat() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
               placeholder='Ask or say "close COIN" / "sell PYPL at $45"...'
-              rows={1}
+              rows={2}
               disabled={loading || executing}
               style={{
                 flex: 1, background: '#1a1d27', border: '1px solid #2a2d3e',
-                borderRadius: 8, padding: '9px 12px', color: '#e6e8ef',
-                fontSize: 13, resize: 'none', outline: 'none',
-                fontFamily: 'inherit', lineHeight: 1.4,
-                maxHeight: 100, overflowY: 'auto',
+                borderRadius: 10, padding: '10px 14px', color: '#e6e8ef',
+                fontSize: 14, resize: 'none', outline: 'none',
+                fontFamily: 'inherit', lineHeight: 1.5,
+                maxHeight: 120, overflowY: 'auto',
                 opacity: (loading || executing) ? 0.5 : 1
               }}
               onFocus={e => { e.currentTarget.style.borderColor = '#5865f2'; }}
