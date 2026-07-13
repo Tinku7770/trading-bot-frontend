@@ -83,12 +83,14 @@ export default function AIChat() {
   const [scannerStockPicks, setScannerStockPicks] = useState([]);
   const [pickPrices, setPickPrices] = useState({});
   const [open, setOpen] = useState(false);
+  const [picksCollapsed, setPicksCollapsed] = useState(false);
+  const [panelPos, setPanelPos] = useState({ x: null, y: null });
+  const [panelSize, setPanelSize] = useState({ w: 520, h: 700 });
   const [messages, setMessages] = useState(() => {
     try {
       const saved = localStorage.getItem('ai_chat_history');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Filter out any messages with non-string content (corrupted tool_use blocks)
         const clean = parsed.filter(m =>
           (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim()
         );
@@ -104,16 +106,70 @@ export default function AIChat() {
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState('');
-  // pending action waiting for confirmation
   const [pendingAction, setPendingAction] = useState(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const panelRef = useRef(null);
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
   const msgIdRef = useRef(0);
   const nextId = () => `msg-${++msgIdRef.current}`;
 
+  // Drag-to-move the panel
+  function onHeaderMouseDown(e) {
+    if (e.button !== 0 || e.target.closest('button')) return;
+    e.preventDefault();
+    const rect = panelRef.current.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: rect.left, origY: rect.top };
+    function onMove(ev) {
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      const newX = Math.max(0, Math.min(window.innerWidth - panelSize.w, dragRef.current.origX + dx));
+      const newY = Math.max(0, Math.min(window.innerHeight - 60, dragRef.current.origY + dy));
+      setPanelPos({ x: newX, y: newY });
+    }
+    function onUp() {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  // Drag-to-resize from bottom-right corner
+  function onResizeMouseDown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = { startX: e.clientX, startY: e.clientY, origW: panelSize.w, origH: panelSize.h };
+    function onMove(ev) {
+      const dw = ev.clientX - resizeRef.current.startX;
+      const dh = ev.clientY - resizeRef.current.startY;
+      setPanelSize({
+        w: Math.max(360, Math.min(window.innerWidth - 24, resizeRef.current.origW + dw)),
+        h: Math.max(400, Math.min(window.innerHeight - 40, resizeRef.current.origH + dh))
+      });
+    }
+    function onUp() {
+      resizeRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [open]);
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+      if (panelPos.x === null) {
+        setPanelPos({
+          x: Math.max(12, Math.round((window.innerWidth - panelSize.w) / 2)),
+          y: Math.max(12, Math.round((window.innerHeight - panelSize.h) / 2))
+        });
+      }
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -276,21 +332,28 @@ export default function AIChat() {
       </button>
 
       {/* Chat panel */}
-      {open && (
-        <div style={{
-          position: 'fixed', bottom: 90, right: 12, zIndex: 9998,
-          width: 'min(520px, calc(100vw - 24px))',
-          height: 'min(700px, calc(100dvh - 110px))',
-          background: '#0d0f1a', border: '1px solid #2a2d3e',
-          borderRadius: 14, display: 'flex', flexDirection: 'column',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
-          overflow: 'hidden'
-        }}>
-          {/* Header */}
-          <div style={{
-            padding: '14px 18px', borderBottom: '1px solid #1a1d27',
-            background: '#111320', flexShrink: 0
-          }}>
+      {open && panelPos.x !== null && (
+        <div
+          ref={panelRef}
+          style={{
+            position: 'fixed',
+            left: panelPos.x, top: panelPos.y,
+            width: panelSize.w, height: panelSize.h,
+            zIndex: 9998,
+            background: '#0d0f1a', border: '1px solid #2a2d3e',
+            borderRadius: 14, display: 'flex', flexDirection: 'column',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Header — drag handle */}
+          <div
+            onMouseDown={onHeaderMouseDown}
+            style={{
+              padding: '14px 18px', borderBottom: '1px solid #1a1d27',
+              background: '#111320', flexShrink: 0, cursor: 'move', userSelect: 'none'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 18 }}>🤖</span>
               <div>
@@ -327,15 +390,26 @@ export default function AIChat() {
             <div style={{
               borderBottom: '1px solid #1a1d27', background: '#0a0c17',
               padding: '8px 12px', flexShrink: 0,
-              maxHeight: 180, overflowY: 'auto',
+              maxHeight: picksCollapsed ? 'none' : 180, overflowY: picksCollapsed ? 'visible' : 'auto',
               scrollbarWidth: 'thin', scrollbarColor: '#2a2d3e #0a0c17'
             }}>
-              <div style={{ color: '#555', fontSize: 10, fontWeight: 700, letterSpacing: 0.8, marginBottom: 6, textTransform: 'uppercase' }}>
-                📡 Scanner Picks — click to analyze
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: picksCollapsed ? 0 : 6 }}>
+                <span style={{ color: '#555', fontSize: 10, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', flex: 1 }}>
+                  📡 Scanner Picks — click to analyze
+                </span>
+                <button
+                  onClick={() => setPicksCollapsed(c => !c)}
+                  style={{
+                    background: 'none', border: '1px solid #2a2d3e', borderRadius: 5,
+                    color: '#555', fontSize: 11, cursor: 'pointer', padding: '1px 7px', lineHeight: 1.6
+                  }}
+                >
+                  {picksCollapsed ? 'Show' : 'Hide'}
+                </button>
               </div>
 
-              {/* Crypto picks */}
-              {scannerCryptoPicks.length > 0 && (
+              {/* Picks content — hidden when collapsed */}
+              {!picksCollapsed && scannerCryptoPicks.length > 0 && (
                 <>
                   <div style={{ color: '#666', fontSize: 10, fontWeight: 700, marginBottom: 4 }}>
                     CRYPTO
@@ -383,7 +457,7 @@ export default function AIChat() {
               )}
 
               {/* Stock picks */}
-              {scannerStockPicks.length > 0 && (
+              {!picksCollapsed && scannerStockPicks.length > 0 && (
                 <>
                   <div style={{ color: '#666', fontSize: 10, fontWeight: 700, marginBottom: 4 }}>
                     STOCKS
@@ -555,6 +629,22 @@ export default function AIChat() {
             >
               ↑
             </button>
+          </div>
+
+          {/* Resize handle — bottom-right corner */}
+          <div
+            onMouseDown={onResizeMouseDown}
+            style={{
+              position: 'absolute', bottom: 0, right: 0,
+              width: 18, height: 18, cursor: 'se-resize', zIndex: 10,
+              display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end',
+              padding: '3px'
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" style={{ opacity: 0.3 }}>
+              <line x1="2" y1="10" x2="10" y2="2" stroke="#fff" strokeWidth="1.5"/>
+              <line x1="6" y1="10" x2="10" y2="6" stroke="#fff" strokeWidth="1.5"/>
+            </svg>
           </div>
 
           <style>{`
