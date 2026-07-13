@@ -339,13 +339,17 @@ export default function AIChat() {
             position: 'fixed',
             left: panelPos.x, top: panelPos.y,
             width: panelSize.w, height: panelSize.h,
-            zIndex: 9998,
-            background: '#0d0f1a', border: '1px solid #2a2d3e',
-            borderRadius: 14, display: 'flex', flexDirection: 'column',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
-            overflow: 'hidden'
+            zIndex: 9998
           }}
         >
+        {/* Inner container — overflow:hidden is here, NOT on the outer wrapper */}
+        <div style={{
+          width: '100%', height: '100%',
+          background: '#0d0f1a', border: '1px solid #2a2d3e',
+          borderRadius: 14, display: 'flex', flexDirection: 'column',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+          overflow: 'hidden'
+        }}>
           {/* Header — drag handle */}
           <div
             onMouseDown={onHeaderMouseDown}
@@ -400,11 +404,12 @@ export default function AIChat() {
                 <button
                   onClick={() => setPicksCollapsed(c => !c)}
                   style={{
-                    background: 'none', border: '1px solid #2a2d3e', borderRadius: 5,
-                    color: '#555', fontSize: 11, cursor: 'pointer', padding: '1px 7px', lineHeight: 1.6
+                    background: '#1a1d35', border: '1px solid #5865f2', borderRadius: 5,
+                    color: '#a0a8f0', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    padding: '3px 10px', lineHeight: 1.6
                   }}
                 >
-                  {picksCollapsed ? 'Show' : 'Hide'}
+                  {picksCollapsed ? '▼ Show' : '▲ Hide'}
                 </button>
               </div>
 
@@ -631,29 +636,31 @@ export default function AIChat() {
             </button>
           </div>
 
-          {/* Resize handle — bottom-right corner */}
-          <div
-            onMouseDown={onResizeMouseDown}
-            style={{
-              position: 'absolute', bottom: 0, right: 0,
-              width: 18, height: 18, cursor: 'se-resize', zIndex: 10,
-              display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end',
-              padding: '3px'
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" style={{ opacity: 0.3 }}>
-              <line x1="2" y1="10" x2="10" y2="2" stroke="#fff" strokeWidth="1.5"/>
-              <line x1="6" y1="10" x2="10" y2="6" stroke="#fff" strokeWidth="1.5"/>
-            </svg>
-          </div>
-
           <style>{`
             @keyframes bounce {
               0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
               40% { transform: scale(1); opacity: 1; }
             }
           `}</style>
+        </div>{/* end inner overflow:hidden div */}
+
+        {/* Resize handle — OUTSIDE overflow:hidden so it always receives mouse events */}
+        <div
+          onMouseDown={onResizeMouseDown}
+          style={{
+            position: 'absolute', bottom: 0, right: 0,
+            width: 24, height: 24, cursor: 'se-resize', zIndex: 20,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end',
+            padding: '4px'
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12">
+            <line x1="2" y1="12" x2="12" y2="2" stroke="#5865f2" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="7" y1="12" x2="12" y2="7" stroke="#5865f2" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
         </div>
+
+        </div>{/* end outer positioning div */}
       )}
     </>
   );
