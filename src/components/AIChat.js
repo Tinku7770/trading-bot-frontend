@@ -166,10 +166,14 @@ export default function AIChat() {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100);
       if (panelPos.x === null) {
-        setPanelPos({
-          x: Math.max(12, Math.round((window.innerWidth - panelSize.w) / 2)),
-          y: Math.max(12, Math.round((window.innerHeight - panelSize.h) / 2))
-        });
+        if (window.innerWidth < 768) {
+          setPanelPos({ x: 0, y: 0 });
+        } else {
+          setPanelPos({
+            x: Math.max(12, Math.round((window.innerWidth - panelSize.w) / 2)),
+            y: Math.max(12, Math.round((window.innerHeight - panelSize.h) / 2))
+          });
+        }
       }
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -314,6 +318,7 @@ export default function AIChat() {
   }
 
   const showSuggestions = messages.length <= 1;
+  const isMobile = window.innerWidth < 768;
 
   return (
     <>
@@ -322,7 +327,7 @@ export default function AIChat() {
         onClick={() => setOpen(o => !o)}
         title="Ask your bot AI"
         style={{
-          position: 'fixed', bottom: 28, right: 16, zIndex: 9999,
+          position: 'fixed', bottom: isMobile ? 20 : 28, right: 16, zIndex: 9999,
           width: 56, height: 56, borderRadius: '50%',
           background: open ? '#2a2d3e' : '#5865f2',
           border: open ? '1px solid #5865f2' : 'none',
@@ -338,7 +343,10 @@ export default function AIChat() {
       {open && panelPos.x !== null && (
         <div
           ref={panelRef}
-          style={{
+          style={isMobile ? {
+            position: 'fixed', left: 0, top: 0,
+            width: '100%', height: '100%', zIndex: 9998
+          } : {
             position: 'fixed',
             left: panelPos.x, top: panelPos.y,
             width: panelSize.w, height: panelSize.h,
@@ -353,12 +361,13 @@ export default function AIChat() {
           boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
           overflow: 'hidden'
         }}>
-          {/* Header — drag handle */}
+          {/* Header — drag handle (desktop only) */}
           <div
-            onMouseDown={onHeaderMouseDown}
+            onMouseDown={isMobile ? undefined : onHeaderMouseDown}
             style={{
               padding: '14px 18px', borderBottom: '1px solid #1a1d27',
-              background: '#111320', flexShrink: 0, cursor: 'move', userSelect: 'none'
+              background: '#111320', flexShrink: 0,
+              cursor: isMobile ? 'default' : 'move', userSelect: 'none'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -647,17 +656,17 @@ export default function AIChat() {
           `}</style>
         </div>
 
-        {/* 8 resize handles — all outside overflow:hidden so mouse events work */}
-        {/* Edges */}
+        {/* Resize handles — desktop only */}
+        {!isMobile && <>
         <div onMouseDown={e => onEdgeMouseDown(e,'n')}  style={{ position:'absolute', top:-3,    left:14,  right:14, height:6,  cursor:'n-resize',  zIndex:20 }} />
         <div onMouseDown={e => onEdgeMouseDown(e,'s')}  style={{ position:'absolute', bottom:-3, left:14,  right:14, height:6,  cursor:'s-resize',  zIndex:20 }} />
         <div onMouseDown={e => onEdgeMouseDown(e,'e')}  style={{ position:'absolute', right:-3,  top:14,   bottom:14, width:6,  cursor:'e-resize',  zIndex:20 }} />
         <div onMouseDown={e => onEdgeMouseDown(e,'w')}  style={{ position:'absolute', left:-3,   top:14,   bottom:14, width:6,  cursor:'w-resize',  zIndex:20 }} />
-        {/* Corners */}
         <div onMouseDown={e => onEdgeMouseDown(e,'nw')} style={{ position:'absolute', top:-3,    left:-3,  width:16, height:16, cursor:'nw-resize', zIndex:21 }} />
         <div onMouseDown={e => onEdgeMouseDown(e,'ne')} style={{ position:'absolute', top:-3,    right:-3, width:16, height:16, cursor:'ne-resize', zIndex:21 }} />
         <div onMouseDown={e => onEdgeMouseDown(e,'sw')} style={{ position:'absolute', bottom:-3, left:-3,  width:16, height:16, cursor:'sw-resize', zIndex:21 }} />
         <div onMouseDown={e => onEdgeMouseDown(e,'se')} style={{ position:'absolute', bottom:-3, right:-3, width:16, height:16, cursor:'se-resize', zIndex:21 }} />
+        </>}
         </div>
       )}
     </>
