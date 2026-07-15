@@ -332,6 +332,147 @@ function ListingsSection() {
   );
 }
 
+// ─── Upcoming Listings ────────────────────────────────────────────────────────
+
+function useCountdown(targetDate) {
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    if (!targetDate) return;
+    const tick = () => {
+      const diff = new Date(targetDate) - Date.now();
+      if (diff <= 0) { setTimeLeft('LIVE NOW'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [targetDate]);
+  return timeLeft;
+}
+
+const EXCHANGE_COLORS = {
+  binanceus: { label: 'Binance.US', color: '#f0b90b' },
+  kraken:    { label: 'Kraken',     color: '#5741d9' },
+  coinbase:  { label: 'Coinbase',   color: '#0052ff' },
+  unknown:   { label: 'Unknown',    color: '#555' },
+};
+
+const STATUS_COLORS = {
+  announced: { label: 'ANNOUNCED', color: '#40a9ff' },
+  live:      { label: 'LIVE',      color: '#00c853' },
+  traded:    { label: 'TRADED',    color: '#ffd600' },
+  skipped:   { label: 'SKIPPED',   color: '#555'    },
+};
+
+function ListingRow({ listing }) {
+  const countdown = useCountdown(listing.listingDate);
+  const ex  = EXCHANGE_COLORS[listing.exchange] || EXCHANGE_COLORS.unknown;
+  const st  = STATUS_COLORS[listing.status]     || STATUS_COLORS.announced;
+  const ago = timeAgo(listing.announcedAt);
+
+  return (
+    <div style={{
+      background: '#1e2130', border: '1px solid #2a2d3e', borderRadius: 8,
+      padding: '12px 14px', display: 'flex', alignItems: 'center',
+      gap: 12, flexWrap: 'wrap'
+    }}>
+      <div style={{ minWidth: 80 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>{listing.symbol}</div>
+        {listing.name && listing.name !== listing.symbol && (
+          <div style={{ fontSize: 11, color: '#555' }}>{listing.name}</div>
+        )}
+      </div>
+
+      <span style={{
+        background: ex.color + '22', color: ex.color,
+        borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700
+      }}>{ex.label}</span>
+
+      <span style={{
+        background: st.color + '22', color: st.color,
+        borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700
+      }}>{st.label}</span>
+
+      {listing.listingDate && (
+        <span style={{ fontSize: 12, color: countdown === 'LIVE NOW' ? '#00c853' : '#ffd600', fontWeight: 600 }}>
+          {countdown === 'LIVE NOW' ? '🟢 LIVE NOW' : `⏱ ${countdown}`}
+        </span>
+      )}
+
+      <span style={{ fontSize: 11, color: '#555', marginLeft: 'auto' }}>
+        {listing.source} · {ago}
+      </span>
+
+      {listing.skipReason && (
+        <div style={{ width: '100%', fontSize: 11, color: '#ff9800', marginTop: 2 }}>
+          Skipped: {listing.skipReason}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UpcomingListingsSection() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState(false);
+  const [filter, setFilter]   = useState('all');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await axios.get(`${API}/listings/upcoming`);
+      setData(res.data);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const listings = (data?.listings || []).filter(l =>
+    filter === 'all' || l.status === filter
+  );
+
+  return (
+    <Section title="Upcoming Listings" icon="🚀" onRefresh={load} loading={loading}>
+      {error && <p style={{ color: '#ff3d3d', fontSize: 13 }}>Failed to load upcoming listings.</p>}
+
+      <div style={{ marginBottom: 14 }}>
+        <Toggle
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all',       label: 'All' },
+            { value: 'announced', label: 'Announced' },
+            { value: 'traded',    label: 'Traded' },
+            { value: 'skipped',   label: 'Skipped' },
+          ]}
+        />
+      </div>
+
+      {!error && listings.length === 0 && (
+        <p style={{ color: '#555', fontSize: 13 }}>
+          No listings detected yet — scanner runs every 2 hours.
+        </p>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {listings.map((l, i) => <ListingRow key={i} listing={l} />)}
+      </div>
+    </Section>
+  );
+}
+
 // ─── Scanner Performance ──────────────────────────────────────────────────────
 
 function ScannerPerformanceSection() {
@@ -626,6 +767,7 @@ function Scanners() {
           Scheduled Telegram alerts fire automatically (squeeze at 9:45 AM + 12:30 PM ET, IPO at 8:30 AM ET).
         </p>
       </div>
+      <UpcomingListingsSection />
       <ScannerPerformanceSection />
       <CryptoPicksSection />
       <StockPicksSection />
