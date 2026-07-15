@@ -19,19 +19,22 @@ function squeezeStrength(score) {
 function Toggle({ value, onChange, options }) {
   return (
     <div style={{
-      display: 'inline-flex', background: '#141620', border: '1px solid #2a2d3e',
-      borderRadius: 8, padding: 3, gap: 2
+      display: 'inline-flex', background: '#0d0f1a', border: '1px solid #3a3d52',
+      borderRadius: 8, padding: 4, gap: 3
     }}>
       {options.map(opt => (
         <button
+          type="button"
           key={opt.value}
           onClick={() => onChange(opt.value)}
           style={{
-            background: value === opt.value ? '#2a3a5e' : 'transparent',
-            border: value === opt.value ? '1px solid #40a9ff' : '1px solid transparent',
-            color: value === opt.value ? '#40a9ff' : '#555',
-            borderRadius: 6, padding: '3px 14px', fontSize: 12,
-            cursor: 'pointer', transition: 'all 0.15s', fontWeight: value === opt.value ? 700 : 400
+            background: value === opt.value ? '#2a4a8a' : '#1a1d2e',
+            border: `1px solid ${value === opt.value ? '#5b8def' : '#3a3d52'}`,
+            color: value === opt.value ? '#ffffff' : '#99a0b8',
+            borderRadius: 6, padding: '5px 16px', fontSize: 12,
+            cursor: 'pointer', transition: 'all 0.15s',
+            fontWeight: value === opt.value ? 700 : 400,
+            minWidth: 90, textAlign: 'center'
           }}
         >
           {opt.label}
@@ -363,21 +366,12 @@ function ScannerPerformanceSection() {
       {error && <p style={{ color: '#ff3d3d', fontSize: 13 }}>Failed to load scanner performance.</p>}
 
       {/* Period selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {[7, 30, 90].map(d => (
-          <button
-            key={d}
-            onClick={() => setDays(d)}
-            style={{
-              background: days === d ? '#2a3a5e' : '#1e2130',
-              border: `1px solid ${days === d ? '#40a9ff' : '#2a2d3e'}`,
-              color: days === d ? '#40a9ff' : '#888',
-              borderRadius: 6, padding: '4px 14px', fontSize: 12, cursor: 'pointer'
-            }}
-          >
-            {d}d
-          </button>
-        ))}
+      <div style={{ marginBottom: 16 }}>
+        <Toggle
+          value={days}
+          onChange={setDays}
+          options={[{ value: 7, label: '7 Days' }, { value: 30, label: '30 Days' }, { value: 90, label: '90 Days' }]}
+        />
       </div>
 
       {/* Summary cards */}
