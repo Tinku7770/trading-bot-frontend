@@ -304,6 +304,119 @@ function ListingsSection() {
   );
 }
 
+// ─── Scanner Performance ──────────────────────────────────────────────────────
+
+function ScannerPerformanceSection() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState(false);
+  const [days, setDays]       = useState(30);
+
+  const load = useCallback(async (d) => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await axios.get(`${API}/scanner/performance?days=${d}`);
+      setData(res.data);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(days); }, [load, days]);
+
+  const s = data?.summary;
+
+  return (
+    <Section
+      title="Scanner Performance"
+      icon="📊"
+      onRefresh={() => load(days)}
+      loading={loading}
+    >
+      {error && <p style={{ color: '#ff3d3d', fontSize: 13 }}>Failed to load scanner performance.</p>}
+
+      {/* Period selector */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[7, 30, 90].map(d => (
+          <button
+            key={d}
+            onClick={() => setDays(d)}
+            style={{
+              background: days === d ? '#2a3a5e' : '#1e2130',
+              border: `1px solid ${days === d ? '#40a9ff' : '#2a2d3e'}`,
+              color: days === d ? '#40a9ff' : '#888',
+              borderRadius: 6, padding: '4px 14px', fontSize: 12, cursor: 'pointer'
+            }}
+          >
+            {d}d
+          </button>
+        ))}
+      </div>
+
+      {/* Summary cards */}
+      {s && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+          {[
+            { label: 'Traded Picks', value: s.tradedPicks },
+            { label: 'Win Rate',     value: `${s.winRate}%`, color: s.winRate >= 55 ? '#00c853' : s.winRate >= 45 ? '#ffd600' : '#ff3d3d' },
+            { label: 'Total P/L',    value: `${s.totalPL >= 0 ? '+' : ''}$${s.totalPL.toFixed(2)}`, color: s.totalPL >= 0 ? '#00c853' : '#ff3d3d' },
+            { label: 'Avg P/L',      value: `${s.avgPL >= 0 ? '+' : ''}$${s.avgPL.toFixed(2)}`,    color: s.avgPL >= 0 ? '#00c853' : '#ff3d3d' },
+          ].map(card => (
+            <div key={card.label} style={{
+              background: '#1e2130', border: '1px solid #2a2d3e',
+              borderRadius: 8, padding: '12px 14px', textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 11, color: '#555', marginBottom: 4 }}>{card.label}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: card.color || '#e0e0e0' }}>{card.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Per-symbol breakdown */}
+      {data?.bySymbol?.length > 0 && (
+        <>
+          <h4 style={{ margin: '0 0 10px', color: '#aaa', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+            By Symbol
+          </h4>
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Trades</th>
+                  <th>Win Rate</th>
+                  <th>Total P/L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.bySymbol.map(row => (
+                  <tr key={row.symbol}>
+                    <td style={{ fontWeight: 700, color: '#fff' }}>{row.symbol}</td>
+                    <td>{row.trades}</td>
+                    <td style={{ color: row.winRate >= 55 ? '#00c853' : row.winRate >= 45 ? '#ffd600' : '#ff3d3d' }}>
+                      {row.winRate}%
+                    </td>
+                    <td style={{ color: row.totalPL >= 0 ? '#00c853' : '#ff3d3d', fontWeight: 600 }}>
+                      {row.totalPL >= 0 ? '+' : ''}${row.totalPL.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {data && !data.bySymbol?.length && (
+        <p style={{ color: '#555', fontSize: 13 }}>No scanner trades in the last {days} days.</p>
+      )}
+    </Section>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function Scanners() {
@@ -316,6 +429,7 @@ function Scanners() {
           Scheduled Telegram alerts fire automatically (squeeze at 9:45 AM + 12:30 PM ET, IPO at 8:30 AM ET).
         </p>
       </div>
+      <ScannerPerformanceSection />
       <SqueezeSection />
       <IpoSection />
       <ListingsSection />
