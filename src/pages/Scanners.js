@@ -16,6 +16,31 @@ function squeezeStrength(score) {
   return              { label: 'EARLY', color: '#ffd600' };
 }
 
+function Toggle({ value, onChange, options }) {
+  return (
+    <div style={{
+      display: 'inline-flex', background: '#141620', border: '1px solid #2a2d3e',
+      borderRadius: 8, padding: 3, gap: 2
+    }}>
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          style={{
+            background: value === opt.value ? '#2a3a5e' : 'transparent',
+            border: value === opt.value ? '1px solid #40a9ff' : '1px solid transparent',
+            color: value === opt.value ? '#40a9ff' : '#555',
+            borderRadius: 6, padding: '3px 14px', fontSize: 12,
+            cursor: 'pointer', transition: 'all 0.15s', fontWeight: value === opt.value ? 700 : 400
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Section({ title, icon, lastUpdated, onRefresh, loading, children }) {
   return (
     <div className="section" style={{ marginBottom: 24 }}>
@@ -417,6 +442,184 @@ function ScannerPerformanceSection() {
   );
 }
 
+// ─── Crypto Scanner Picks ────────────────────────────────────────────────────
+
+function CryptoPicksSection() {
+  const [data, setData]     = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]   = useState(false);
+  const [mode, setMode]     = useState('live');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await axios.get(`${API}/scanner/crypto-picks`);
+      setData(res.data);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const picks = mode === 'live' ? (data?.live || []) : (data?.recent || []);
+
+  return (
+    <Section title="Crypto Scanner Picks" icon="🪙" onRefresh={load} loading={loading}>
+      {error && <p style={{ color: '#ff3d3d', fontSize: 13 }}>Failed to load crypto picks.</p>}
+
+      <div style={{ marginBottom: 14 }}>
+        <Toggle
+          value={mode}
+          onChange={setMode}
+          options={[{ value: 'live', label: 'Live Session' }, { value: 'recent', label: 'Recent (DB)' }]}
+        />
+      </div>
+
+      {!error && picks.length === 0 && (
+        <p style={{ color: '#555', fontSize: 13 }}>
+          {mode === 'live' ? 'No picks in current session yet — scanner runs every 10–20 min.' : 'No recent picks found.'}
+        </p>
+      )}
+
+      {picks.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {picks.map((p, i) => {
+            const isLong = (p.direction || '').toUpperCase() === 'LONG';
+            return (
+              <div key={i} style={{
+                background: '#1e2130', border: `1px solid ${isLong ? '#00c85330' : '#ff3d3d30'}`,
+                borderLeft: `3px solid ${isLong ? '#00c853' : '#ff3d3d'}`,
+                borderRadius: 8, padding: '12px 14px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{p.symbol}</span>
+                  <span style={{
+                    background: isLong ? '#00c85322' : '#ff3d3d22',
+                    color: isLong ? '#00c853' : '#ff3d3d',
+                    borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700
+                  }}>
+                    {p.direction || 'N/A'}
+                  </span>
+                  {p.conviction != null && (
+                    <span style={{ background: '#1a2540', color: '#40a9ff', borderRadius: 4, padding: '2px 8px', fontSize: 11 }}>
+                      {p.conviction}% conf
+                    </span>
+                  )}
+                  {p.changePct != null && (
+                    <span style={{ color: p.changePct >= 0 ? '#00c853' : '#ff3d3d', fontSize: 12 }}>
+                      {p.changePct >= 0 ? '+' : ''}{p.changePct.toFixed(2)}%
+                    </span>
+                  )}
+                  {p.volRatio != null && (
+                    <span style={{ color: '#40a9ff', fontSize: 12 }}>{p.volRatio.toFixed(1)}x vol</span>
+                  )}
+                  {p.price != null && (
+                    <span style={{ color: '#888', fontSize: 12, marginLeft: 'auto' }}>
+                      ${p.price < 1 ? p.price.toFixed(4) : p.price.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                {p.reason && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#aaa', lineHeight: 1.5 }}>{p.reason}</p>
+                )}
+                {p.entryNote && (
+                  <p style={{ margin: '6px 0 0', fontSize: 11, color: '#40a9ff' }}>Entry: {p.entryNote}</p>
+                )}
+                {p.riskNote && (
+                  <p style={{ margin: '3px 0 0', fontSize: 11, color: '#ff9800' }}>Risk: {p.riskNote}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// ─── Stock Scanner Picks ──────────────────────────────────────────────────────
+
+function StockPicksSection() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState(false);
+  const [mode, setMode]       = useState('live');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await axios.get(`${API}/scanner/stock-picks`);
+      setData(res.data);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const picks = mode === 'live' ? (data?.live || []) : (data?.recent || []);
+
+  return (
+    <Section title="Stock Scanner Picks" icon="📈" onRefresh={load} loading={loading}>
+      {error && <p style={{ color: '#ff3d3d', fontSize: 13 }}>Failed to load stock picks.</p>}
+
+      <div style={{ marginBottom: 14 }}>
+        <Toggle
+          value={mode}
+          onChange={setMode}
+          options={[{ value: 'live', label: 'Live Session' }, { value: 'recent', label: 'Recent (DB)' }]}
+        />
+      </div>
+
+      {!error && picks.length === 0 && (
+        <p style={{ color: '#555', fontSize: 13 }}>
+          {mode === 'live' ? 'No stock picks in current session — scanner runs pre-market and intraday.' : 'No recent stock picks found.'}
+        </p>
+      )}
+
+      {picks.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Price</th>
+                <th>Change</th>
+                <th>Volume</th>
+              </tr>
+            </thead>
+            <tbody>
+              {picks.map((s, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 700, color: '#fff' }}>{s.symbol}</td>
+                  <td>${(s.price || 0).toFixed(2)}</td>
+                  <td style={{ color: (s.changePct || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                    {(s.changePct || 0) >= 0 ? '+' : ''}{(s.changePct || 0).toFixed(2)}%
+                  </td>
+                  <td style={{ color: '#40a9ff' }}>{(s.volRatio || 0).toFixed(1)}x avg</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function Scanners() {
@@ -430,6 +633,8 @@ function Scanners() {
         </p>
       </div>
       <ScannerPerformanceSection />
+      <CryptoPicksSection />
+      <StockPicksSection />
       <SqueezeSection />
       <IpoSection />
       <ListingsSection />
