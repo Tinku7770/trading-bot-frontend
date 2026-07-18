@@ -115,6 +115,8 @@ function Settings() {
     minWinRate: 40,
     minWinRateTrades: 10,
     scaleOutEnabled: false,
+    autoRiskTuningEnabled: false,
+    autoRiskTuningLog: [],
     cryptoEnabled: true,
     krakenEnabled: false,
     minConfidence: 60,
@@ -277,6 +279,7 @@ function Settings() {
         if (originalSettings.minWinRate !== settings.minWinRate) changes.push(`Min Win Rate → ${settings.minWinRate}%`);
         if (originalSettings.minWinRateTrades !== settings.minWinRateTrades) changes.push(`Min Trades for Pause → ${settings.minWinRateTrades}`);
         if (originalSettings.scaleOutEnabled !== settings.scaleOutEnabled) changes.push(`Scale-Out Exit → ${settings.scaleOutEnabled ? 'ON' : 'OFF'}`);
+        if (originalSettings.autoRiskTuningEnabled !== settings.autoRiskTuningEnabled) changes.push(`Auto Risk-Tuning → ${settings.autoRiskTuningEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.krakenEnabled !== settings.krakenEnabled) changes.push(`Kraken Margin Shorts → ${settings.krakenEnabled ? 'ON' : 'OFF'}`);
         if (originalSettings.cryptoEnabled !== settings.cryptoEnabled) changes.push(`Crypto Trading → ${settings.cryptoEnabled !== false ? 'ON' : 'OFF'}`);
         if (originalSettings.tradeApprovalMode !== settings.tradeApprovalMode) changes.push(`Trade Approval Mode → ${settings.tradeApprovalMode || 'off'}`);
@@ -802,6 +805,34 @@ function Settings() {
             When take profit is hit, closes <strong style={{ color: '#c9d1d9' }}>50% of the position</strong> to lock in gains.
             The remaining 50% stays open with a trailing stop — letting winners run further.
           </p>
+        </div>
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={settings.autoRiskTuningEnabled || false}
+              onChange={e => updateSettings({ autoRiskTuningEnabled: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <span>Auto Risk-Tuning</span>
+            <span style={{ background: '#2a1a0d', color: '#ffa657', fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>ADJUSTS STOP-LOSS / LEVERAGE</span>
+          </label>
+          <p style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
+            Runs daily. If a market's realized risk/reward is inverted (losses bigger than wins) and it's net losing over the last 3 days
+            (8+ trades as evidence), widens that market's stop-loss a small step and trims the relevant leverage multiplier — matched to
+            whichever LONG/SHORT leverage field is actually in effect. Capped at <strong style={{ color: '#c9d1d9' }}>3% stock / 4% crypto</strong> stop-loss
+            and floored at <strong style={{ color: '#c9d1d9' }}>2x</strong> leverage. Only ever pulls risk in, never loosens it on its own —
+            you'll get a Telegram report every night either way.
+          </p>
+          {settings.autoRiskTuningLog?.length > 0 && (
+            <div style={{ marginTop: 10, background: '#0d1117', border: '1px solid #30363d', borderRadius: 8, padding: '10px 14px', maxHeight: 160, overflowY: 'auto' }}>
+              <p style={{ color: '#888', fontSize: 11, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Adjustments</p>
+              {[...settings.autoRiskTuningLog].reverse().map((line, i) => (
+                <p key={i} style={{ color: '#c9d1d9', fontSize: 12, margin: '4px 0', fontFamily: 'monospace' }}>{line}</p>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="form-group">
@@ -1466,6 +1497,9 @@ function Settings() {
           <p>{settings.winRatePauseEnabled ? '15.' : '14.'} <strong style={{ color: '#c9d1d9' }}>Max daily loss</strong>: bot stops if total daily loss (realized + unrealized) exceeds {settings.maxDailyLossPercent}% of capital (${((settings.totalCapital || settings.maxTradeAmount || 0) * (settings.maxDailyLossPercent || 0) / 100).toFixed(0)})</p>
           <p>{settings.winRatePauseEnabled ? '16.' : '15.'} Daily report sent at <strong style={{ color: '#c9d1d9' }}>1 AM UTC</strong> (6 PM California time) via Telegram</p>
           <p>{settings.winRatePauseEnabled ? '17.' : '16.'} Stale positions older than 7 days auto-closed every Sunday at 2 AM UTC</p>
+          {settings.autoRiskTuningEnabled && (
+            <p>{settings.winRatePauseEnabled ? '18.' : '17.'} <strong style={{ color: '#ffa657' }}>Auto risk-tuning</strong>: runs daily at 1:15 AM UTC — widens stop-loss / trims leverage for any market with inverted risk/reward and a net loss over the last 3 days (8+ trades). Capped at 3%/4% stop-loss, floored at 2x leverage.</p>
+          )}
         </div>
       </div>
     </div>
