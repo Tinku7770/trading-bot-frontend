@@ -163,6 +163,102 @@ function SqueezeSection() {
   );
 }
 
+// ─── Crypto Squeeze ─────────────────────────────────────────────────────────
+
+function formatCryptoPrice(price) {
+  const p = price || 0;
+  if (p < 0.01) return p.toFixed(6);
+  if (p < 1)    return p.toFixed(4);
+  return p.toFixed(2);
+}
+
+function CryptoSqueezeSection() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await axios.get(`${API}/scanner/crypto-squeeze`);
+      setData(res.data);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  return (
+    <Section
+      title="Crypto Squeeze"
+      icon="🔥"
+      lastUpdated={data?.scannedAt}
+      onRefresh={load}
+      loading={loading}
+    >
+      {error && <p style={{ color: '#ff3d3d', fontSize: 13 }}>Failed to load. Check backend.</p>}
+      {!error && !loading && data?.candidates?.length === 0 && (
+        <p style={{ color: '#555', fontSize: 13 }}>
+          No squeeze candidates right now — no coins with 2x+ volume AND rising price.
+        </p>
+      )}
+      {data?.candidates?.length > 0 && (
+        <>
+          <p style={{ fontSize: 11, color: '#555', marginTop: 0, marginBottom: 12 }}>
+            Live scan — top CoinGecko gainers, 24/7
+          </p>
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Price</th>
+                  <th>Move</th>
+                  <th>Volume</th>
+                  <th>Score</th>
+                  <th>Strength</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.candidates.map(s => {
+                  const score = ((s.volRatio || 0) * Math.max(s.changePct || 0, 1)).toFixed(1);
+                  const str   = squeezeStrength(parseFloat(score));
+                  return (
+                    <tr key={s.symbol}>
+                      <td style={{ fontWeight: 700, color: '#fff' }}>{s.symbol}</td>
+                      <td>${formatCryptoPrice(s.price)}</td>
+                      <td style={{ color: (s.changePct || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
+                        {(s.changePct || 0) >= 0 ? '+' : ''}{(s.changePct || 0).toFixed(2)}%
+                      </td>
+                      <td style={{ color: '#40a9ff' }}>{(s.volRatio || 0).toFixed(1)}x avg</td>
+                      <td>{score}</td>
+                      <td>
+                        <span style={{
+                          background: str.color + '22', color: str.color,
+                          borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700
+                        }}>
+                          {str.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </Section>
+  );
+}
+
 // ─── IPO / SPAC ─────────────────────────────────────────────────────────────
 
 function IpoSection() {
@@ -763,8 +859,8 @@ function Scanners() {
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ margin: '0 0 4px' }}>Scanners</h2>
         <p style={{ margin: 0, color: '#555', fontSize: 13 }}>
-          Live market scanners — short squeeze, IPO/SPAC, and crypto listings.
-          Scheduled Telegram alerts fire automatically (squeeze at 9:45 AM + 12:30 PM ET, IPO at 8:30 AM ET).
+          Live market scanners — short squeeze (stocks + crypto), IPO/SPAC, and crypto listings.
+          Scheduled Telegram alerts fire automatically (stock squeeze at 9:45 AM + 12:30 PM ET, crypto squeeze every 30 min 24/7, IPO at 8:30 AM ET).
         </p>
       </div>
       <UpcomingListingsSection />
@@ -772,6 +868,7 @@ function Scanners() {
       <CryptoPicksSection />
       <StockPicksSection />
       <SqueezeSection />
+      <CryptoSqueezeSection />
       <IpoSection />
       <ListingsSection />
     </div>
