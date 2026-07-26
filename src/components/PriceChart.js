@@ -24,7 +24,7 @@ function RightLabel({ viewBox, value, color, bg }) {
   );
 }
 
-function PriceChart({ symbol, entryPrice, hedgePrice, market, type = 'BUY', livePrice = null }) {
+function PriceChart({ symbol, entryPrice, hedgePrice, market, type = 'BUY', livePrice = null, extraLines = [] }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [polledPrice, setPolledPrice] = useState(null);
@@ -89,6 +89,7 @@ function PriceChart({ symbol, entryPrice, hedgePrice, market, type = 'BUY', live
   if (currentPrice) allPrices.push(currentPrice);
   if (entryPrice)   allPrices.push(entryPrice);
   if (hedgePrice)   allPrices.push(hedgePrice);
+  extraLines.forEach(l => { if (l.value != null) allPrices.push(l.value); });
   const minPrice = allPrices.length ? Math.min(...allPrices) * 0.999 : 0;
   const maxPrice = allPrices.length ? Math.max(...allPrices) * 1.001 : 0;
 
@@ -242,6 +243,18 @@ function PriceChart({ symbol, entryPrice, hedgePrice, market, type = 'BUY', live
                 label={<RightLabel value={fmtPrice(currentPrice)} color={liveColor} bg="#0d0f1a" />}
               />
             )}
+
+            {/* Optional extra reference lines (e.g. option strikes) */}
+            {extraLines.map((l, i) => l.value != null && (
+              <ReferenceLine
+                key={i}
+                y={l.value}
+                stroke={l.color || '#888'}
+                strokeDasharray="3 3"
+                strokeWidth={1}
+                label={<RightLabel value={l.label || fmtPrice(l.value)} color={l.color || '#888'} bg="#0d0f1a" />}
+              />
+            ))}
 
             <Line
               type="monotone"

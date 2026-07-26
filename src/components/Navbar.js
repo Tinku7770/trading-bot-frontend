@@ -17,6 +17,7 @@ function Navbar() {
     { path: '/performance', label: 'Performance' },
     { path: '/scanners',    label: 'Scanners' },
     { path: '/futures',     label: 'Futures' },
+    { path: '/passive-income', label: 'Passive Income' },
     { path: '/settings',    label: 'Settings' }
   ];
 

@@ -115,6 +115,9 @@ tr:hover td {
 .badge.hold { background: #1a1a00; color: #ffd600; }
 .badge.open { background: #0d2a3d; color: #40a9ff; }
 .badge.closed { background: #1a1d27; color: #888; }
+.badge.funding_arb { background: #0d2a2a; color: #14b8a6; }
+.badge.put_credit_spread { background: #1a0d2a; color: #a855f7; }
+.badge.call_credit_spread { background: #2a0d1a; color: #ec4899; }
 
 /* Bot Toggle */
 .bot-toggle {

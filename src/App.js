@@ -14,6 +14,7 @@ import Performance from './pages/Performance';
 import Listings from './pages/Listings';
 import Scanners from './pages/Scanners';
 import Futures from './pages/Futures';
+import PassiveIncome from './pages/PassiveIncome';
 import './App.css';
 
 // Attach API key to every axios request automatically
@@ -40,6 +41,7 @@ function App() {
               <Route path="/listings" element={<Listings />} />
               <Route path="/scanners" element={<Scanners />} />
               <Route path="/futures" element={<Futures />} />
+              <Route path="/passive-income" element={<PassiveIncome />} />
             </Routes>
           </div>
           <AIChat />
