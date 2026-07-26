@@ -6,11 +6,19 @@ import { API_URL as API } from '../config';
 
 function SymbolTags({ symbols, onChange, placeholder }) {
   const [input, setInput] = useState('');
+  const [duplicateMsg, setDuplicateMsg] = useState('');
   const inputRef = useRef(null);
 
   function addSymbol() {
     const val = input.trim().toUpperCase();
-    if (val && !symbols.includes(val)) onChange([...symbols, val]);
+    if (!val) return;
+    if (symbols.includes(val)) {
+      setDuplicateMsg(`${val} is already in the list`);
+      setTimeout(() => setDuplicateMsg(''), 2500);
+      setInput('');
+      return;
+    }
+    onChange([...symbols, val]);
     setInput('');
   }
 
@@ -25,45 +33,50 @@ function SymbolTags({ symbols, onChange, placeholder }) {
   }
 
   return (
-    <div
-      onClick={() => inputRef.current?.focus()}
-      style={{
-        display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
-        background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8,
-        padding: '8px 10px', cursor: 'text', minHeight: 42
-      }}
-    >
-      {symbols.map(sym => (
-        <span key={sym} style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          background: '#1a1d2e', border: '1px solid #2a2d3e',
-          borderRadius: 20, padding: '3px 10px 3px 12px',
-          fontSize: 13, fontWeight: 600, color: '#c9d1d9'
-        }}>
-          {sym}
-          <button
-            onClick={e => { e.stopPropagation(); removeSymbol(sym); }}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#555', fontSize: 14, lineHeight: 1, padding: 0,
-              display: 'flex', alignItems: 'center'
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = '#ff3d3d'}
-            onMouseLeave={e => e.currentTarget.style.color = '#555'}
-          >×</button>
-        </span>
-      ))}
-      <input
-        ref={inputRef}
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={symbols.length === 0 ? placeholder : ''}
+    <div>
+      <div
+        onClick={() => inputRef.current?.focus()}
         style={{
-          background: 'none', border: 'none', outline: 'none',
-          color: '#c9d1d9', fontSize: 13, minWidth: 120, flex: 1
+          display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
+          background: '#0d0f1a', border: '1px solid #2a2d3e', borderRadius: 8,
+          padding: '8px 10px', cursor: 'text', minHeight: 42
         }}
-      />
+      >
+        {symbols.map(sym => (
+          <span key={sym} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            background: '#1a1d2e', border: '1px solid #2a2d3e',
+            borderRadius: 20, padding: '3px 10px 3px 12px',
+            fontSize: 13, fontWeight: 600, color: '#c9d1d9'
+          }}>
+            {sym}
+            <button
+              onClick={e => { e.stopPropagation(); removeSymbol(sym); }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#555', fontSize: 14, lineHeight: 1, padding: 0,
+                display: 'flex', alignItems: 'center'
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = '#ff3d3d'}
+              onMouseLeave={e => e.currentTarget.style.color = '#555'}
+            >×</button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={symbols.length === 0 ? placeholder : ''}
+          style={{
+            background: 'none', border: 'none', outline: 'none',
+            color: '#c9d1d9', fontSize: 13, minWidth: 120, flex: 1
+          }}
+        />
+      </div>
+      {duplicateMsg && (
+        <p style={{ color: '#f5a623', fontSize: 12, marginTop: 4 }}>{duplicateMsg}</p>
+      )}
     </div>
   );
 }
