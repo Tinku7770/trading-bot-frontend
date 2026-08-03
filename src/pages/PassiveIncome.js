@@ -156,7 +156,7 @@ function FundingArbTab() {
   if (loading || !settings) return <div style={{ color: '#555', padding: 20 }}>Loading...</div>;
 
   const totalPL = closed.reduce((s, t) => s + (t.profitLoss || 0), 0);
-  const totalOpenAccrued = open.reduce((s, t) => s + (t.totalFundingAccrued || 0), 0);
+  const totalOpenAccrued = open.reduce((s, t) => s + (t.profitLoss ?? t.totalFundingAccrued ?? 0), 0);
   const wins = closed.filter(t => (t.profitLoss || 0) > 0).length;
   const winRate = closed.length > 0 ? Math.round(wins / closed.length * 100) : null;
 
@@ -202,11 +202,13 @@ function FundingArbTab() {
             <thead>
               <tr>
                 <th>Symbol</th><th>Notional</th><th>Entry Rate</th><th>Last Rate</th>
-                <th>Periods Accrued</th><th>Accrued P/L</th><th>Held</th><th></th>
+                <th>Periods Accrued</th><th>Net P/L</th><th>Held</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {open.map(t => (
+              {open.map(t => {
+                const netPL = t.profitLoss ?? t.totalFundingAccrued ?? 0;
+                return (
                 <React.Fragment key={t._id}>
                   <tr onClick={() => setExpandedId(expandedId === t._id ? null : t._id)} style={{ cursor: 'pointer' }}>
                     <td><strong style={{ color: '#14b8a6' }}>{t.symbol}</strong></td>
@@ -216,8 +218,8 @@ function FundingArbTab() {
                       {t.lastFundingRate != null ? `${t.lastFundingRate >= 0 ? '+' : ''}${t.lastFundingRate.toFixed(4)}%` : '—'}
                     </td>
                     <td style={{ color: '#888' }}>{t.fundingPeriodsAccrued || 0}</td>
-                    <td style={{ fontWeight: 700, color: (t.totalFundingAccrued || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>
-                      {(t.totalFundingAccrued || 0) >= 0 ? '+' : ''}${(t.totalFundingAccrued || 0).toFixed(2)}
+                    <td style={{ fontWeight: 700, color: netPL >= 0 ? '#00c853' : '#ff3d3d' }}>
+                      {netPL >= 0 ? '+' : ''}${netPL.toFixed(2)}
                     </td>
                     <td style={{ color: '#888' }}>{formatDuration(t.executedAt, null)}</td>
                     <td style={{ color: '#555', fontSize: 12 }}>{expandedId === t._id ? '▲' : '▼'}</td>
@@ -229,8 +231,9 @@ function FundingArbTab() {
                           <div style={{ gridColumn: '1 / -1' }}>
                             <div style={{ fontSize: 11, color: '#555', marginBottom: 3 }}>HOW P/L IS CALCULATED</div>
                             <div style={{ fontSize: 12, color: '#888', lineHeight: 1.6 }}>
-                              Delta-neutral paper position: long {t.symbol} spot + synthetic short {t.hedgeSymbol}. Each cycle, accrued = notional × (latest rate / 100) × (hours since last check / 8). Summed across {t.fundingPeriodsAccrued || 0} checks so far = <strong style={{ color: (t.totalFundingAccrued || 0) >= 0 ? '#00c853' : '#ff3d3d' }}>{(t.totalFundingAccrued || 0) >= 0 ? '+' : ''}${(t.totalFundingAccrued || 0).toFixed(2)}</strong>.
-                              This is an approximation of real 8h-boundary settlement, not an exact reconstruction — and price movement on the two legs is designed to cancel out, so it isn't a directional bet.
+                              Delta-neutral paper position: long {t.symbol} spot + synthetic short {t.hedgeSymbol}. Each cycle, accrued = notional × (latest rate / 100) × (hours since last check / 8). Summed across {t.fundingPeriodsAccrued || 0} checks so far = ${(t.totalFundingAccrued || 0).toFixed(2)} gross funding.
+                              Modeled Kraken fees (entry/exit spot+margin fees + rollover while held) so far: ${(t.estimatedFeesAccrued || 0).toFixed(2)}. Net P/L = <strong style={{ color: netPL >= 0 ? '#00c853' : '#ff3d3d' }}>{netPL >= 0 ? '+' : ''}${netPL.toFixed(2)}</strong>.
+                              This is an approximation of real 8h-boundary settlement and Kraken's published fee schedule, not an exact reconstruction — and price movement on the two legs is designed to cancel out, so it isn't a directional bet.
                             </div>
                           </div>
                           <div>
@@ -252,7 +255,8 @@ function FundingArbTab() {
                     </tr>
                   )}
                 </React.Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
