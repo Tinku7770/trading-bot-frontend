@@ -42,6 +42,7 @@ function Futures() {
   const [saving, setSaving]             = useState(false);
   const [expandedId, setExpandedId]     = useState(null);
   const [localSettings, setLocalSettings] = useState(null);
+  const [closingId, setClosingId]       = useState(null);
 
   const loadTrades = useCallback(async () => {
     try {
@@ -111,6 +112,18 @@ function Futures() {
     if (!currentPrice || !trade.price) return null;
     const pctMove = ((currentPrice - trade.price) / trade.price) * 100;
     return trade.type === 'SHORT' ? -pctMove : pctMove;
+  }
+
+  async function closePosition(id, symbol) {
+    if (!window.confirm(`Close ${symbol} position now?`)) return;
+    setClosingId(id);
+    try {
+      await axios.post(`${API}/bot/close-position/${id}`);
+      await loadTrades();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to close position');
+    }
+    setClosingId(null);
   }
 
   async function saveSettings() {
@@ -239,6 +252,7 @@ function Futures() {
                 <th>Stop</th>
                 <th>Target</th>
                 <th></th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -287,10 +301,24 @@ function Futures() {
                         {t.atrTakePrice ? `$${t.atrTakePrice.toFixed(2)}` : '—'}
                       </td>
                       <td style={{ color: '#555', fontSize: 12 }}>{expandedId === t._id ? '▲' : '▼'}</td>
+                      <td onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => closePosition(t._id, t.symbol)}
+                          disabled={closingId === t._id}
+                          style={{
+                            background: closingId === t._id ? '#2a2d3e' : '#ff3d3d', color: '#fff',
+                            border: 'none', borderRadius: 6, padding: '6px 14px',
+                            fontSize: 12, fontWeight: 700, cursor: closingId === t._id ? 'default' : 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {closingId === t._id ? 'Closing...' : 'Close'}
+                        </button>
+                      </td>
                     </tr>
                     {expandedId === t._id && (
                       <tr>
-                        <td colSpan={12} style={{ background: '#0d0f1a', padding: '14px 18px' }}>
+                        <td colSpan={13} style={{ background: '#0d0f1a', padding: '14px 18px' }}>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
                             <div>
                               <div style={{ fontSize: 11, color: '#555', marginBottom: 3 }}>HOW P/L IS CALCULATED</div>
