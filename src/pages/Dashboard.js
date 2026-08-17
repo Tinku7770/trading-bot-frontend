@@ -193,6 +193,7 @@ function Dashboard() {
   const [toggling, setToggling]   = useState(false);
   const [closingId, setClosingId] = useState(null);
   const [closingAll, setClosingAll] = useState(false);
+  const [lockingId, setLockingId] = useState(null);
   const [selectedTradeId, setSelectedTradeId] = useState(null);
   const [selectedConditionalSymbol, setSelectedConditionalSymbol] = useState(null);
   const [closeModal, setCloseModal] = useState(null);
@@ -562,6 +563,18 @@ function Dashboard() {
     const trade = data?.openTrades?.find(t => t._id === tradeId);
     if (!trade) return;
     setDeleteModal(trade);
+  }
+
+  async function toggleNoAutoClose(trade) {
+    setLockingId(trade._id);
+    try {
+      await axios.patch(`${API}/trades/${trade._id}`, { noAutoClose: !trade.noAutoClose });
+      await fetchDashboard();
+    } catch {
+      setActionError('Failed to update auto-close lock');
+    } finally {
+      setLockingId(null);
+    }
   }
 
   async function executeDelete() {
@@ -995,6 +1008,9 @@ function Dashboard() {
                         {trade.chatOwned && (
                           <span title="Chat-owned — bot SL/TP disabled" style={{ marginLeft: 6, fontSize: 10, background: '#1a1d2e', border: '1px solid #5865f2', color: '#5865f2', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>CHAT</span>
                         )}
+                        {trade.noAutoClose && (
+                          <span title="Auto-close locked — only you can close this trade" style={{ marginLeft: 6, fontSize: 10, background: '#2e1a0d', border: '1px solid #ff9d3d', color: '#ff9d3d', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>🔒 LOCKED</span>
+                        )}
                         {selectedTradeId === trade._id && (
                           <span style={{ marginLeft: 6, fontSize: 8, color: '#5865f2' }}>●</span>
                         )}
@@ -1093,6 +1109,21 @@ function Dashboard() {
                           }}
                         >
                           {closingId === trade._id ? 'Closing...' : 'Close'}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleNoAutoClose(trade); }}
+                          disabled={lockingId === trade._id}
+                          title={trade.noAutoClose ? 'Auto-close locked — click to allow bot to manage this trade again' : 'Lock this trade — bot will never auto-close it, only you can'}
+                          style={{
+                            padding: '6px 10px', borderRadius: 6,
+                            border: trade.noAutoClose ? '1px solid #ff9d3d' : '1px solid #555',
+                            background: 'transparent',
+                            color: trade.noAutoClose ? '#ff9d3d' : '#888',
+                            fontWeight: 600, cursor: lockingId === trade._id ? 'not-allowed' : 'pointer',
+                            fontSize: 12, transition: 'all 0.2s'
+                          }}
+                        >
+                          {trade.noAutoClose ? '🔒' : '🔓'}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); deleteTrade(trade._id); }}
