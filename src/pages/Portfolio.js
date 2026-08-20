@@ -193,14 +193,16 @@ function FundingPanel() {
     marginTop: 10, fontFamily: 'monospace'
   };
 
-  const alpaca  = balances?.alpaca;
-  const binance = balances?.binance;
-  const kraken  = balances?.kraken;
+  const alpaca     = balances?.alpaca;
+  const binance    = balances?.binance;
+  const kraken     = balances?.kraken;
+  const tastytrade = balances?.tastytrade;
 
   const totalPortfolio = [
-    alpaca?.equity || 0,
-    binance?.usdt  || 0,
-    kraken?.usd    || 0
+    alpaca?.equity              || 0,
+    binance?.usdt               || 0,
+    kraken?.usd                 || 0,
+    tastytrade?.netLiquidatingValue || 0
   ].reduce((a, b) => a + b, 0);
 
   return (
@@ -421,6 +423,50 @@ function FundingPanel() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Tastytrade */}
+        <div style={{ ...card, borderTop: '3px solid #00c896' }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>🥃 Tastytrade — Futures &amp; Options</div>
+          {loadingBal ? (
+            <div style={{ color: '#666', fontSize: 13 }}>Loading…</div>
+          ) : !tastytrade || tastytrade?.error ? (
+            <div style={errBox}>⚠ {tastytrade?.error || 'Could not load Tastytrade balance'}</div>
+          ) : (
+            <>
+              <div style={label}>Net Liquidating Value</div>
+              <div style={{ ...value, color: '#00c896' }}>${(tastytrade.netLiquidatingValue || 0).toFixed(2)}</div>
+              <div style={{ display: 'flex', gap: 24, marginTop: 10 }}>
+                <div>
+                  <div style={label}>Cash</div>
+                  <div style={{ fontWeight: 600, color: '#fff' }}>${(tastytrade.cashBalance || 0).toFixed(2)}</div>
+                </div>
+                <div>
+                  <div style={label}>Buying Power</div>
+                  <div style={{ fontWeight: 600, color: '#fff' }}>${(tastytrade.buyingPower || 0).toFixed(2)}</div>
+                </div>
+              </div>
+              <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>Account {tastytrade.account}</div>
+            </>
+          )}
+
+          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+            <a
+              href="https://my.tastytrade.com/app.html#/transfer"
+              target="_blank" rel="noreferrer"
+              style={{ ...btn('#00c896'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              <span style={{ color: '#000' }}>+ Deposit</span>
+            </a>
+            <a
+              href="https://my.tastytrade.com/app.html#/transfer"
+              target="_blank" rel="noreferrer"
+              style={{ ...btn('#2a2d3e'), display: 'inline-block', textDecoration: 'none' }}
+            >
+              Withdraw
+            </a>
+          </div>
+          <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>Opens Tastytrade transfer page in new tab</div>
         </div>
 
       </div>
