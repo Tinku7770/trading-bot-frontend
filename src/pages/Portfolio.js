@@ -551,7 +551,7 @@ function ReconcilePanel() {
     );
   }
 
-  const allOk = data && data.alpaca?.status !== 'mismatch' && data.kraken?.status !== 'mismatch';
+  const allOk = data && data.alpaca?.status !== 'mismatch' && data.kraken?.status !== 'mismatch' && data.tastytrade?.status !== 'mismatch';
 
   return (
     <div style={{ marginBottom: 32 }}>
@@ -590,6 +590,7 @@ function ReconcilePanel() {
           <ExchangeBlock label="📈 Alpaca (Stocks)"      info={data.alpaca}  color="#5865f2" />
           <ExchangeBlock label="🪙 Binance.US (Crypto)" info={data.binance} color="#f0b90b" />
           <ExchangeBlock label="⚡ Kraken (Crypto)"     info={data.kraken}  color="#7b68ee" />
+          <ExchangeBlock label="🥃 Tastytrade (Futures)" info={data.tastytrade} color="#00c896" />
         </div>
       )}
 
