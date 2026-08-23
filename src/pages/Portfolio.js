@@ -7,6 +7,26 @@ import Section from '../components/Section';
 import { API_URL as API } from '../config';
 const COLORS = ['#5865f2', '#00c853', '#ff3d3d', '#ffd600', '#40a9ff'];
 
+// Recharts' default YAxis just splits the data range into equal pieces, which looks
+// fine on wide ranges but produces ugly ticks like $0.85/$1.70/$2.55 on small ones.
+// This rounds the step to a clean 1/2/5×10^n increment instead.
+function getNiceTicks(min, max, tickCount = 5) {
+  if (min === max) { min -= 1; max += 1; }
+  const range = max - min;
+  const rawStep = range / (tickCount - 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+  const step = niceNorm * mag;
+  const niceMin = Math.floor(min / step) * step;
+  const niceMax = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = niceMin; v <= niceMax + step / 2; v += step) {
+    ticks.push(parseFloat(v.toFixed(10)));
+  }
+  return ticks;
+}
+
 // ─── Funding Panel ────────────────────────────────────────────────────────────
 function FundingPanel() {
   const [balances, setBalances]           = useState(null);
@@ -786,6 +806,12 @@ function Portfolio() {
     return acc;
   }, []);
 
+  const plCumulativeValues = plChartData.map(d => d.cumulative);
+  const plTicks = getNiceTicks(
+    Math.min(0, ...plCumulativeValues, 0),
+    Math.max(0, ...plCumulativeValues, 0)
+  );
+
   const cryptoClosed = filteredClosed.filter(t => t.market === 'crypto');
   const stockClosed  = filteredClosed.filter(t => t.market === 'stock');
   const cryptoPL = cryptoClosed.reduce((sum, t) => sum + (t.profitLoss || 0), 0);
@@ -951,7 +977,7 @@ function Portfolio() {
                 stroke="#666"
                 label={{ value: 'Trade #', position: 'insideBottomRight', offset: -5, fill: '#666', fontSize: 12 }}
               />
-              <YAxis stroke="#666" tickFormatter={v => `$${v}`} />
+              <YAxis stroke="#666" domain={[plTicks[0], plTicks[plTicks.length - 1]]} ticks={plTicks} tickFormatter={v => `$${v}`} />
               <Tooltip
                 contentStyle={{ background: '#1a1d27', border: '1px solid #2a2d3e' }}
                 formatter={(value) => [`$${value.toFixed(2)}`, 'Cumulative P/L']}
