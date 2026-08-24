@@ -153,6 +153,14 @@ export default function Listings() {
                     {isWarning && (
                       <span style={{ fontSize: 11, color: '#f5a623' }}>⚠️ Verify on Binance.US</span>
                     )}
+                    {a.isAirdrop && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
+                        background: '#2e1a3a', border: '1px solid #5a3a7a', color: '#c77dff'
+                      }}>
+                        🪂 Airdrop/TGE — SHORT-biased
+                      </span>
+                    )}
                     <span style={{
                       marginLeft: 'auto', fontSize: 11, fontWeight: 700,
                       color: '#f5a623', background: '#2a1a00', borderRadius: 4,
@@ -216,6 +224,7 @@ export default function Listings() {
           <div>⚠️ <b style={{ color: '#aaa' }}>Global Binance</b> — flagged separately with a warning. Always verify a coin is on <b style={{ color: '#f0b90b' }}>Binance.US</b> before trading LONG</div>
           <div>🟢 <b style={{ color: '#aaa' }}>LONG plays</b> — Binance.US listings. Buy on announcement, ride to listing day pump, exit</div>
           <div>🔴 <b style={{ color: '#aaa' }}>SHORT plays</b> — Kraken listings that pump hard on day 1 then fade. SHORT the retracement</div>
+          <div>🪂 <b style={{ color: '#c77dff' }}>Airdrop/TGE plays</b> — flagged when a listing is tied to an airdrop/token-generation event. AI weighs SHORT more heavily (recipients dumping their free allocation), but still needs real technical confirmation. Paper-mode only.</div>
           <div>🤖 <b style={{ color: '#aaa' }}>AI chat</b> — say "any new listings?" for full AI analysis with specific trade recommendations</div>
         </div>
       </div>
