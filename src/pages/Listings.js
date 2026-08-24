@@ -130,9 +130,11 @@ export default function Listings() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {announcements.map((a, i) => {
-              const ex = a.exchange;
-              const isWarning = ex?.warning;
-              const sideBg = ex?.side === 'SHORT' ? { bg: '#1a0d2e', border: '#3a1a5a', color: '#c77dff' } : { bg: '#0d1a0d', border: '#1a3a1a', color: '#00c853' };
+              // Backend sends exchange as a plain string ('binanceus'/'kraken'/'coinbase'/'unknown')
+              // with side/label as separate fields — 'unknown' means it couldn't confirm which
+              // exchange, so treat that as the "verify before trading" warning case.
+              const isWarning = a.exchange === 'unknown';
+              const sideBg = a.side === 'SHORT' ? { bg: '#1a0d2e', border: '#3a1a5a', color: '#c77dff' } : { bg: '#0d1a0d', border: '#1a3a1a', color: '#00c853' };
               return (
                 <div key={i} style={{
                   background: '#0d1117', border: `1px solid ${isWarning ? '#3a2a00' : '#2a2d3e'}`, borderRadius: 8,
@@ -142,12 +144,12 @@ export default function Listings() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, color: '#888' }}>Source: {a.source}</span>
                     {a.time && <span style={{ fontSize: 11, color: '#555' }}>{timeSince(a.time)}</span>}
-                    {ex && (
+                    {a.exchangeLabel && (
                       <span style={{
                         fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
                         background: sideBg.bg, border: `1px solid ${sideBg.border}`, color: sideBg.color
                       }}>
-                        {ex.label} · {ex.side}
+                        {a.exchangeLabel} · {a.side}
                       </span>
                     )}
                     {isWarning && (
