@@ -5,9 +5,9 @@ import PriceChart from '../components/PriceChart';
 import { formatDateTime } from '../utils';
 import { API_URL as API } from '../config';
 
-const MULTIPLIERS = { '/MGC': 10, '/SIL': 1000 };
-const YAHOO_TICKERS = { '/MGC': 'GC=F', '/SIL': 'SI=F' };
-const FUTURES_LABELS = { '/MGC': 'Gold', '/SIL': 'Silver' };
+const MULTIPLIERS = { '/MGC': 10, '/SIL': 1000, '/MCL': 100 };
+const YAHOO_TICKERS = { '/MGC': 'GC=F', '/SIL': 'SI=F', '/MCL': 'MCL=F' };
+const FUTURES_LABELS = { '/MGC': 'Gold', '/SIL': 'Silver', '/MCL': 'Crude Oil' };
 
 function formatDuration(start, end) {
   if (!start) return '—';
@@ -622,7 +622,7 @@ function Futures() {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {['/MGC', '/SIL'].filter(s => !(localSettings.futuresSymbols || []).includes(s)).map(s => (
+                {['/MGC', '/SIL', '/MCL'].filter(s => !(localSettings.futuresSymbols || []).includes(s)).map(s => (
                   <button
                     key={s}
                     onClick={() => update('futuresSymbols', [...(localSettings.futuresSymbols || []), s])}
@@ -632,7 +632,7 @@ function Futures() {
                   </button>
                 ))}
               </div>
-              <span style={{ fontSize: 11, color: '#555' }}>/MGC = Micro Gold (10oz) · /SIL = Micro Silver (1,000oz)</span>
+              <span style={{ fontSize: 11, color: '#555' }}>/MGC = Micro Gold (10oz) · /SIL = Micro Silver (1,000oz) · /MCL = Micro WTI Crude Oil (100 bbl)</span>
             </label>
           </div>
 
