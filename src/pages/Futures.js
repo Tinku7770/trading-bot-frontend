@@ -6,6 +6,8 @@ import { formatDateTime } from '../utils';
 import { API_URL as API } from '../config';
 
 const MULTIPLIERS = { '/MGC': 10, '/SIL': 1000 };
+const YAHOO_TICKERS = { '/MGC': 'GC=F', '/SIL': 'SI=F' };
+const FUTURES_LABELS = { '/MGC': 'Gold', '/SIL': 'Silver' };
 
 function formatDuration(start, end) {
   if (!start) return '—';
@@ -83,12 +85,18 @@ function Futures() {
     return () => clearInterval(t1);
   }, [loadTrades, loadSettings, loadTTStatus]);
 
+  // Every symbol currently enabled in settings, plus any open trade's symbol
+  // even if it's since been removed from settings — same list drives price
+  // fetching below and which stat card + chart get rendered, so they can
+  // never show a symbol whose price isn't actually being polled.
+  const displaySymbols = [...new Set([...(settings?.futuresSymbols || ['/MGC']), ...openTrades.map(t => t.symbol)])];
+
   // Refresh live prices every 30s
   useEffect(() => {
-    const symbols = [...new Set([...(settings?.futuresSymbols || ['/MGC']), ...openTrades.map(t => t.symbol)])];
-    refreshPrices(symbols);
-    const t = setInterval(() => refreshPrices(symbols), 30000);
+    refreshPrices(displaySymbols);
+    const t = setInterval(() => refreshPrices(displaySymbols), 30000);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, openTrades, refreshPrices]);
 
   // Tick every second so "updated X seconds ago" stays current
@@ -147,8 +155,6 @@ function Futures() {
   const totalUnrealized = openTrades.reduce((s, t) => {
     const u = unrealizedPL(t); return s + (u ?? 0);
   }, 0);
-  const goldPrice = prices['/MGC'];
-
   if (loading) return <div className="page-title">Loading...</div>;
 
   return (
@@ -169,19 +175,27 @@ function Futures() {
 
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-        <StatCard
-          label="Gold Price"
-          value={goldPrice?.price ? `$${goldPrice.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
-          sub={(() => {
-            const changeLine = goldPrice?.change24h != null
-              ? `${goldPrice.change24h >= 0 ? '+' : ''}${goldPrice.change24h.toFixed(2)}% today`
-              : '/oz (GC=F)';
-            const secsAgo = priceUpdatedAt ? Math.floor((now - priceUpdatedAt) / 1000) : null;
-            const freshLine = secsAgo !== null ? `Updated ${secsAgo}s ago` : '';
-            return `${changeLine}${freshLine ? ' · ' + freshLine : ''}`;
-          })()}
-          color={goldPrice?.change24h > 0 ? '#00c853' : goldPrice?.change24h < 0 ? '#ff3d3d' : '#fff'}
-        />
+        {displaySymbols.map(sym => {
+          const p = prices[sym];
+          const label = FUTURES_LABELS[sym] || sym;
+          const ticker = YAHOO_TICKERS[sym] || sym;
+          return (
+            <StatCard
+              key={sym}
+              label={`${label} Price`}
+              value={p?.price ? `$${p.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+              sub={(() => {
+                const changeLine = p?.change24h != null
+                  ? `${p.change24h >= 0 ? '+' : ''}${p.change24h.toFixed(2)}% today`
+                  : `/oz (${ticker})`;
+                const secsAgo = priceUpdatedAt ? Math.floor((now - priceUpdatedAt) / 1000) : null;
+                const freshLine = secsAgo !== null ? `Updated ${secsAgo}s ago` : '';
+                return `${changeLine}${freshLine ? ' · ' + freshLine : ''}`;
+              })()}
+              color={p?.change24h > 0 ? '#00c853' : p?.change24h < 0 ? '#ff3d3d' : '#fff'}
+            />
+          );
+        })}
         <StatCard
           label="Realized P/L"
           value={closedTrades.length === 0 ? '—' : `${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(2)}`}
@@ -218,14 +232,20 @@ function Futures() {
         )}
       </div>
 
-      {/* Live Gold Price Chart */}
-      <Section title="Gold Price Chart (GC=F · 1D)">
-        <PriceChart
-          symbol="GC=F"
-          market="stock"
-          livePrice={goldPrice?.price || null}
-        />
-      </Section>
+      {/* Live price chart per enabled futures symbol */}
+      {displaySymbols.map(sym => {
+        const ticker = YAHOO_TICKERS[sym] || sym;
+        const label = FUTURES_LABELS[sym] || sym;
+        return (
+          <Section key={sym} title={`${label} Price Chart (${ticker} · 1D)`}>
+            <PriceChart
+              symbol={ticker}
+              market="stock"
+              livePrice={prices[sym]?.price || null}
+            />
+          </Section>
+        );
+      })}
 
       {/* Open Positions */}
       <Section
