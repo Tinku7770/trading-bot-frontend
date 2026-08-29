@@ -6,7 +6,7 @@ import { formatDateTime } from '../utils';
 import { API_URL as API } from '../config';
 
 const MULTIPLIERS = { '/MGC': 10, '/SIL': 1000, '/MCL': 100 };
-const YAHOO_TICKERS = { '/MGC': 'GC=F', '/SIL': 'SI=F', '/MCL': 'MCL=F' };
+const YAHOO_TICKERS = { '/MGC': 'GC=F', '/SIL': 'SI=F', '/MCL': 'CL=F' };
 const FUTURES_LABELS = { '/MGC': 'Gold', '/SIL': 'Silver', '/MCL': 'Crude Oil' };
 
 function formatDuration(start, end) {
